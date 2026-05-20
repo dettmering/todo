@@ -1,0 +1,110 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Commands
+
+```bash
+# Run the server (defaults: addr :8080, db ./todo.db)
+go run ./cmd/server
+go run ./cmd/server -addr :8080 -db ./todo.db
+
+# Compile the whole module
+go build ./...
+
+# Static linting / vet (tests do not exist yet)
+go vet ./...
+
+# Container build + run
+docker build -t todo:dev .
+docker run --rm -p 8080:8080 -v todo-data:/data todo:dev
+
+# CI workflows (Gitea, not GitHub):
+#   .gitea/workflows/dockerhub.yml      — push to master / tag pushes dettmering/todo
+#   .gitea/workflows/build-binary.yml   — workflow_dispatch, uploads todo-linux-amd64
+```
+
+Go toolchain: `modernc.org/sqlite` v1.50.x requires Go ≥ 1.25. The `go.mod`
+declares `go 1.24`; the toolchain will auto-upgrade on first build.
+
+## Architecture
+
+The codebase is a strict layered Go service with an embedded vanilla-JS
+frontend. Each layer only depends on the ones below it.
+
+```
+cmd/server                 wires everything together, embeds web assets
+  └── internal/httpapi     REST handlers (Lastenheft §5.9 paths)
+       └── internal/service business logic: validation, IDs, timestamps, event emission
+            ├── internal/storage          repository interfaces only
+            │    └── internal/storage/sqlite   the only concrete impl (modernc.org/sqlite, pure Go)
+            ├── internal/events           in-process pub/sub bus
+            └── internal/domain           pure types (Task, Project, LocalDate, Priority)
+  └── internal/web         go:embed of static/ — frontend ships in the binary
+```
+
+**Why this matters when changing things:**
+
+- `internal/domain` has no dependencies on anything else in the project.
+  Keep it that way — types here are also used in event payloads and the JSON DTOs map onto them.
+- `internal/storage` is interface-only. Add new query knobs to `TaskFilter`
+  and the interface; implement in `sqlite/`. New backends would slot in here.
+- `internal/service` is the **only** place that mints IDs (`task_*`,
+  `project_*`), sets timestamps, publishes events, and runs validation.
+  HTTP handlers must not call repos directly.
+- `internal/events.Bus` is the integration point planned for webhooks
+  (Lastenheft §5.11). Wire new subscribers in `cmd/server/main.go`.
+  Handlers run in goroutines and recover from panics — they must not block.
+- `internal/httpapi` uses Go 1.22+ pattern routing (`GET /api/tasks/{id}`).
+  DTO ↔ domain conversion lives in `internal/httpapi/json.go`.
+
+## Load-bearing conventions
+
+These choices look unremarkable but are easy to break:
+
+- **Migrations are versioned via `PRAGMA user_version`** in
+  `internal/storage/sqlite/sqlite.go`. Append a new `{version, sql}` step;
+  never edit or reorder existing ones. SQLite `ALTER TABLE` is limited —
+  prefer additive columns with `DEFAULT`.
+- **Project deletion is archival, not removal.** `service.DeleteProject`
+  sets `archived = true`; tasks keep their original `project_id`. The
+  frontend loads with `include_archived=true` so historical project labels
+  still resolve. Inbox (`id = "inbox"`) is reserved, seeded on first boot,
+  and **never deletable**.
+- **Task deletion is soft.** `DELETE /api/tasks/{id}` sets
+  `status = 'deleted'`; rows are kept. Project archival can therefore
+  always succeed.
+- **Default priority is P4** (low). The service layer fills this when
+  `priority == 0` is submitted. The schema default is still `3` — don't
+  rely on it; the service is the source of truth.
+- **Dates are timezone-naive.** `domain.LocalDate` stores `YYYY-MM-DD`.
+  `visible_from` (when the task appears) and `deadline` (when it's due)
+  are distinct fields. See `Task.VisibleOn` for the visibility rule
+  (Lastenheft §5.5).
+- **The Lastenheft visibility filter is opt-in** on the API. List queries
+  with `scope=all` skip it; the standard "Heute" view omits it (defaults
+  on). The frontend uses `scope=all` for every grouped view.
+
+## Frontend conventions
+
+- **No build step.** `internal/web/static/{index.html, style.css, app.js}`
+  are embedded via `go:embed` in `internal/web/web.go`. Edit and rebuild.
+- **Icons are inline SVG strings** in `app.js` (object `ICON`). Lucide
+  stroke style, `currentColor`. The "Heute" sidebar icon is generated
+  dynamically with the current day number (`todayIconSVG`).
+- **CSS tokens live in `:root` of `style.css`** and intentionally mirror
+  Todoist's Moonstone theme. **`STYLEGUIDE.md` is authoritative** for the
+  mapping between our variables and Todoist's design tokens — read it
+  before adding new colors or components.
+- **Quick-add defaults are derived from the current view**
+  (`defaultProjectForView` in `app.js`): in a project view → that project,
+  otherwise → Inbox; `visible_from` is auto-set to today; priority resets
+  to P4 after submit.
+
+## Product spec
+
+`LASTENHEFT.md` is the canonical requirements document (German). API
+paths, attribute names, and visibility rules trace back to specific
+sections (e.g., comments in `httpapi/server.go` mark "Lastenheft 5.9").
+When the spec and code disagree, fix the code or update the spec
+deliberately — don't paper over.
