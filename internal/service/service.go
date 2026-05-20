@@ -66,7 +66,7 @@ func (s *Service) CreateTask(ctx context.Context, in TaskInput) (*domain.Task, e
 		return nil, fmt.Errorf("%w: project %q not found", ErrValidation, in.ProjectID)
 	}
 	if in.Priority == 0 {
-		in.Priority = domain.P3
+		in.Priority = domain.P4
 	}
 	if !in.Priority.Valid() {
 		return nil, fmt.Errorf("%w: priority must be 1..4", ErrValidation)

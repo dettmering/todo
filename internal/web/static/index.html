@@ -27,6 +27,13 @@
           </span>
           <span class="nav-label">Demnächst</span>
         </a>
+        <a class="nav-item" data-view="inbox" href="#">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+          </span>
+          <span class="nav-label">Inbox</span>
+          <span class="nav-count" id="inbox-count"></span>
+        </a>
         <a class="nav-item" data-view="all-open" href="#">
           <span class="nav-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4 7 7 10 13 4"/><polyline points="4 14 7 17 13 11"/><line x1="16" y1="7" x2="20" y2="7"/><line x1="16" y1="14" x2="20" y2="14"/></svg>
@@ -65,8 +72,8 @@
             <select id="qa-priority">
               <option value="1">P1</option>
               <option value="2">P2</option>
-              <option value="3" selected>P3</option>
-              <option value="4">P4</option>
+              <option value="3">P3</option>
+              <option value="4" selected>P4</option>
             </select>
             <label class="field">
               <span>Sichtbar ab</span>

@@ -164,7 +164,10 @@ function activeProjects() {
 function renderSidebar() {
   const list = document.getElementById("project-list");
   list.innerHTML = "";
-  const projects = activeProjects().sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
+  // Inbox has its own top-level nav item, so exclude it from the project list.
+  const projects = activeProjects()
+    .filter(p => p.id !== "inbox")
+    .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
   for (const p of projects) {
     const el = document.createElement("a");
     el.className = "project-item";
@@ -200,8 +203,13 @@ function renderSidebar() {
     el.classList.toggle("active", el.dataset.view === state.view.kind);
   });
 
-  // Quick-add: only active projects — you wouldn't create new tasks in an archived one.
-  fillProjectSelect("qa-project", projects);
+  // Quick-add: all active projects (including Inbox, so users can still target it).
+  const qaProjects = activeProjects().sort((a, b) => {
+    if (a.id === "inbox") return -1;
+    if (b.id === "inbox") return 1;
+    return a.sort_order - b.sort_order || a.name.localeCompare(b.name);
+  });
+  fillProjectSelect("qa-project", qaProjects);
   // Task edit: include archived ones so existing tasks still resolve their current project.
   const editProjects = [...state.projects].sort((a, b) => Number(a.archived) - Number(b.archived) || a.sort_order - b.sort_order || a.name.localeCompare(b.name));
   fillProjectSelect("td-project", editProjects, true);
@@ -226,6 +234,7 @@ function viewTitle() {
     case "today": return "Heute";
     case "upcoming": return "Demnächst";
     case "all-open": return "Alle offenen Aufgaben";
+    case "inbox": return "Inbox";
     case "project": {
       const p = state.projects.find(p => p.id === state.view.id);
       return p ? p.name : "Projekt";
@@ -243,10 +252,18 @@ function buildTaskQuery() {
       return { status: "open", scope: "all", sort: "visible_from" };
     case "all-open":
       return { status: "open", scope: "all", sort: "priority" };
+    case "inbox":
+      return { status: "open", scope: "all", project_id: "inbox", sort: "priority" };
     case "project":
       return { status: "open", scope: "all", project_id: state.view.id, sort: "priority" };
   }
   return {};
+}
+
+// Project ID that quick-add should target by default for the current view.
+function defaultProjectForView() {
+  if (state.view.kind === "project") return state.view.id;
+  return "inbox";
 }
 
 async function refresh() {
@@ -267,8 +284,28 @@ async function refresh() {
   if (todayCountEl) todayCountEl.textContent = todayCount > 0 ? todayCount : "";
   const allOpenCountEl = document.getElementById("all-open-count");
   if (allOpenCountEl) allOpenCountEl.textContent = allOpen.length > 0 ? allOpen.length : "";
+  const inboxCount = state.openCounts["inbox"] || 0;
+  const inboxCountEl = document.getElementById("inbox-count");
+  if (inboxCountEl) inboxCountEl.textContent = inboxCount > 0 ? inboxCount : "";
   renderSidebar();
+  setQuickAddDefaults();
   renderTasks(tasks);
+}
+
+// Sync the quick-add controls with the current view so defaults always match
+// the user's context: project = current project (or Inbox), visible_from = today.
+function setQuickAddDefaults() {
+  const projectSel = document.getElementById("qa-project");
+  if (projectSel) {
+    const target = defaultProjectForView();
+    if ([...projectSel.options].some(o => o.value === target)) {
+      projectSel.value = target;
+    }
+  }
+  const visibleFromEl = document.getElementById("qa-visible-from");
+  if (visibleFromEl && !visibleFromEl.value) visibleFromEl.value = todayISO();
+  const prioSel = document.getElementById("qa-priority");
+  if (prioSel && !prioSel.value) prioSel.value = "4";
 }
 
 function isoWeek(isoDate) {
@@ -428,15 +465,15 @@ function wireQuickAdd() {
     const projectSel = document.getElementById("qa-project").value;
     const body = {
       title,
-      project_id: state.view.kind === "project" ? state.view.id : (projectSel || "inbox"),
+      project_id: projectSel || defaultProjectForView(),
       priority: parseInt(document.getElementById("qa-priority").value, 10),
       visible_from: document.getElementById("qa-visible-from").value || "",
       deadline: document.getElementById("qa-deadline").value || "",
     };
     await api.createTask(body);
     form.reset();
-    document.getElementById("qa-priority").value = "3";
-    refresh();
+    document.getElementById("qa-priority").value = "4";
+    refresh(); // refresh calls setQuickAddDefaults() which re-fills visible_from + project
   });
 }
 
