@@ -233,7 +233,6 @@ function viewTitle() {
   switch (state.view.kind) {
     case "today": return "Heute";
     case "upcoming": return "Demnächst";
-    case "all-open": return "Alle offenen Aufgaben";
     case "inbox": return "Inbox";
     case "project": {
       const p = state.projects.find(p => p.id === state.view.id);
@@ -250,8 +249,6 @@ function buildTaskQuery() {
       return { status: "open", sort: "priority" };
     case "upcoming":
       return { status: "open", scope: "all", sort: "visible_from" };
-    case "all-open":
-      return { status: "open", scope: "all", sort: "priority" };
     case "inbox":
       return { status: "open", scope: "all", project_id: "inbox", sort: "priority" };
     case "project":
@@ -282,8 +279,6 @@ async function refresh() {
   }
   const todayCountEl = document.getElementById("today-count");
   if (todayCountEl) todayCountEl.textContent = todayCount > 0 ? todayCount : "";
-  const allOpenCountEl = document.getElementById("all-open-count");
-  if (allOpenCountEl) allOpenCountEl.textContent = allOpen.length > 0 ? allOpen.length : "";
   const inboxCount = state.openCounts["inbox"] || 0;
   const inboxCountEl = document.getElementById("inbox-count");
   if (inboxCountEl) inboxCountEl.textContent = inboxCount > 0 ? inboxCount : "";
@@ -364,19 +359,22 @@ function groupTasksByWeek(tasks) {
   for (const g of weeks) g.tasks.sort(compareTasks);
   undated.sort(compareTasks);
   const groups = [];
-  if (undated.length) groups.push({ key: "none", label: "Ohne Datum", range: "", tasks: undated });
-  const thisYear = new Date().getFullYear();
+  if (undated.length) groups.push({ key: "none", label: "Ohne Datum", range: "", past: false, tasks: undated });
+  const today = new Date(); today.setHours(0,0,0,0);
+  const thisYear = today.getFullYear();
   for (const g of weeks) {
     const { monday, sunday } = isoWeekRange(g.year, g.week);
     const range = `${formatDayMonth(monday)}–${formatDayMonth(sunday)}`;
     const label = g.year === thisYear ? `KW ${g.week}` : `KW ${g.week} (${g.year})`;
-    groups.push({ key: g.key, label, range, tasks: g.tasks });
+    // A week is "past" once its Sunday lies strictly before today.
+    const past = sunday.getTime() < today.getTime();
+    groups.push({ key: g.key, label, range, past, tasks: g.tasks });
   }
   return groups;
 }
 
 function viewIsGrouped() {
-  return state.view.kind === "upcoming" || state.view.kind === "all-open";
+  return state.view.kind === "upcoming";
 }
 
 function createTaskLI(t, today) {
@@ -443,7 +441,7 @@ function renderTasks(tasks) {
 
   for (const group of groupTasksByWeek(tasks)) {
     const header = document.createElement("li");
-    header.className = "group-header";
+    header.className = "group-header" + (group.past ? " past" : "");
     header.innerHTML = `
       <span>${escapeHTML(group.label)}</span>
       ${group.range ? `<span class="group-range">${escapeHTML(group.range)}</span>` : ""}

@@ -257,6 +257,9 @@ body {
   letter-spacing: -0.005em;
 }
 .group-header:first-child { padding-top: 0; }
+.group-header.past { color: var(--overdue); border-bottom-color: var(--overdue); }
+.group-header.past .group-range,
+.group-header.past .group-count { color: var(--overdue); }
 .group-header .group-range {
   font-size: 13px;
   font-weight: 400;
