@@ -100,6 +100,63 @@ function formatDate(iso) {
   return `${String(d).padStart(2, "0")}.${String(m).padStart(2, "0")}.${y}`;
 }
 
+// Todoist-style relative date label: "Heute", "Morgen", weekday (within next 6 days),
+// then "DD.MM." (current year) or "DD.MM.YYYY" further out.
+function smartDateLabel(iso) {
+  if (!iso) return "";
+  const today = new Date(); today.setHours(0,0,0,0);
+  const [y, m, d] = iso.split("-").map(Number);
+  const target = new Date(y, m - 1, d);
+  const diffDays = Math.round((target - today) / 86400000);
+  if (diffDays === 0) return "Heute";
+  if (diffDays === 1) return "Morgen";
+  if (diffDays === -1) return "Gestern";
+  if (diffDays > 1 && diffDays <= 6) {
+    return target.toLocaleDateString("de-DE", { weekday: "long" });
+  }
+  if (diffDays >= -6 && diffDays < -1) {
+    return target.toLocaleDateString("de-DE", { weekday: "long" });
+  }
+  const sameYear = target.getFullYear() === today.getFullYear();
+  return sameYear
+    ? `${String(d).padStart(2,"0")}.${String(m).padStart(2,"0")}.`
+    : `${String(d).padStart(2,"0")}.${String(m).padStart(2,"0")}.${y}`;
+}
+
+function dateColorClass(iso) {
+  if (!iso) return "";
+  const today = new Date(); today.setHours(0,0,0,0);
+  const [y, m, d] = iso.split("-").map(Number);
+  const target = new Date(y, m - 1, d);
+  const diffDays = Math.round((target - today) / 86400000);
+  if (diffDays < 0) return "overdue";
+  if (diffDays === 0) return "due-today";
+  if (diffDays === 1) return "due-tomorrow";
+  if (diffDays <= 7) return "due-future";
+  return "";
+}
+
+// ---------- Inline SVG icons ----------
+const ICON = {
+  calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>',
+  flag:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 4h12l-2 4 2 4H5"/></svg>',
+  repeat:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>',
+  edit:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+  trash:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>',
+  hashtag:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>',
+};
+
+function todayIconSVG() {
+  const day = new Date().getDate();
+  return `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="3" y="5" width="18" height="16" rx="2"/>
+      <path d="M3 10h18"/>
+    </svg>
+    <span class="today-icon-day">${day}</span>
+  `;
+}
+
 function activeProjects() {
   return state.projects.filter(p => !p.archived);
 }
@@ -199,8 +256,17 @@ async function refresh() {
     api.listTasks(buildTaskQuery()),
     api.listTasks({ status: "open", scope: "all" }),
   ]);
+  const today = todayISO();
   state.openCounts = {};
-  for (const t of allOpen) state.openCounts[t.project_id] = (state.openCounts[t.project_id] || 0) + 1;
+  let todayCount = 0;
+  for (const t of allOpen) {
+    state.openCounts[t.project_id] = (state.openCounts[t.project_id] || 0) + 1;
+    if (!t.visible_from || t.visible_from <= today) todayCount++;
+  }
+  const todayCountEl = document.getElementById("today-count");
+  if (todayCountEl) todayCountEl.textContent = todayCount > 0 ? todayCount : "";
+  const allOpenCountEl = document.getElementById("all-open-count");
+  if (allOpenCountEl) allOpenCountEl.textContent = allOpen.length > 0 ? allOpen.length : "";
   renderSidebar();
   renderTasks(tasks);
 }
@@ -279,24 +345,29 @@ function viewIsGrouped() {
 function createTaskLI(t, today) {
   const li = document.createElement("li");
   li.className = "task";
-  const overdue = t.deadline && t.deadline < today;
   const dateParts = [];
   if (t.visible_from) {
-    dateParts.push(`<span class="date-item"><span class="date-label">Fällig:</span> ${formatDate(t.visible_from)}</span>`);
+    const cls = dateColorClass(t.visible_from);
+    dateParts.push(`<span class="date-item ${cls}">${ICON.calendar}<span>${escapeHTML(smartDateLabel(t.visible_from))}</span></span>`);
   }
   if (t.deadline) {
-    dateParts.push(`<span class="date-item ${overdue ? "overdue" : "deadline"}"><span class="date-label">Deadline:</span> ${formatDate(t.deadline)}</span>`);
+    const overdue = t.deadline < today;
+    dateParts.push(`<span class="date-item ${overdue ? "overdue" : "deadline"}">${ICON.flag}<span>${escapeHTML(smartDateLabel(t.deadline))}</span></span>`);
   }
   li.innerHTML = `
     <div class="checkbox ${priorityClass(t.priority)}" title="Erledigen"></div>
     <div class="body">
-      <div class="title">${escapeHTML(t.title)}${t.recurrence_rule ? ` <span class="recur">🔁</span>` : ""}</div>
+      <div class="title">${escapeHTML(t.title)}${t.recurrence_rule ? ` <span class="recur" title="Wiederkehrend">${ICON.repeat}</span>` : ""}</div>
       ${dateParts.length ? `<div class="dates">${dateParts.join('<span class="date-sep">·</span>')}</div>` : ""}
     </div>
-    <div class="task-project"><span class="task-project-dot" style="background:${escapeHTML(projectColor(projectById(t.project_id)))}"></span>${escapeHTML(projectName(t.project_id))}</div>
+    ${state.view.kind === "project" ? "" : `
+    <div class="task-project" title="${escapeHTML(projectName(t.project_id))}">
+      <span>${escapeHTML(projectName(t.project_id))}</span>
+      <span class="task-project-dot" style="background:${escapeHTML(projectColor(projectById(t.project_id)))}"></span>
+    </div>`}
     <div class="actions">
-      <button data-action="edit" title="Bearbeiten">✎</button>
-      <button data-action="delete" title="Löschen">🗑</button>
+      <button data-action="edit" title="Bearbeiten" aria-label="Bearbeiten">${ICON.edit}</button>
+      <button data-action="delete" title="Löschen" aria-label="Löschen">${ICON.trash}</button>
     </div>
   `;
   li.querySelector(".checkbox").addEventListener("click", async (e) => {
@@ -538,6 +609,8 @@ function wireShortcuts() {
 // ---------- Boot ----------
 
 async function boot() {
+  const todayIconEl = document.getElementById("today-icon");
+  if (todayIconEl) todayIconEl.innerHTML = todayIconSVG();
   wireSidebarNav();
   wireQuickAdd();
   wireTaskDialog();
