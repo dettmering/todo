@@ -157,6 +157,7 @@ body {
   align-items: flex-start;
   gap: 10px;
   padding: 10px 4px;
+  min-height: 44px;
   border-bottom: 1px solid var(--border);
   cursor: pointer;
 }
@@ -212,11 +213,12 @@ body {
   white-space: nowrap;
 }
 .task .actions {
-  display: none;
+  display: flex;
   gap: 4px;
   align-items: center;
+  visibility: hidden;
 }
-.task:hover .actions { display: flex; }
+.task:hover .actions { visibility: visible; }
 .task .actions button {
   background: transparent;
   border: 0;
