@@ -260,6 +260,9 @@ body {
 .group-header.past { color: var(--overdue); border-bottom-color: var(--overdue); }
 .group-header.past .group-range,
 .group-header.past .group-count { color: var(--overdue); }
+.group-header.current { color: var(--due-future); border-bottom-color: var(--due-future); }
+.group-header.current .group-range,
+.group-header.current .group-count { color: var(--due-future); }
 .group-header .group-range {
   font-size: 13px;
   font-weight: 400;

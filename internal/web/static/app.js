@@ -359,16 +359,18 @@ function groupTasksByWeek(tasks) {
   for (const g of weeks) g.tasks.sort(compareTasks);
   undated.sort(compareTasks);
   const groups = [];
-  if (undated.length) groups.push({ key: "none", label: "Ohne Datum", range: "", past: false, tasks: undated });
+  if (undated.length) groups.push({ key: "none", label: "Ohne Datum", range: "", past: false, current: false, tasks: undated });
   const today = new Date(); today.setHours(0,0,0,0);
   const thisYear = today.getFullYear();
   for (const g of weeks) {
     const { monday, sunday } = isoWeekRange(g.year, g.week);
     const range = `${formatDayMonth(monday)}–${formatDayMonth(sunday)}`;
     const label = g.year === thisYear ? `KW ${g.week}` : `KW ${g.week} (${g.year})`;
-    // A week is "past" once its Sunday lies strictly before today.
+    // A week is "past" once its Sunday lies strictly before today;
+    // "current" if today falls within Monday..Sunday inclusive.
     const past = sunday.getTime() < today.getTime();
-    groups.push({ key: g.key, label, range, past, tasks: g.tasks });
+    const current = !past && monday.getTime() <= today.getTime();
+    groups.push({ key: g.key, label, range, past, current, tasks: g.tasks });
   }
   return groups;
 }
@@ -441,7 +443,7 @@ function renderTasks(tasks) {
 
   for (const group of groupTasksByWeek(tasks)) {
     const header = document.createElement("li");
-    header.className = "group-header" + (group.past ? " past" : "");
+    header.className = "group-header" + (group.past ? " past" : "") + (group.current ? " current" : "");
     header.innerHTML = `
       <span>${escapeHTML(group.label)}</span>
       ${group.range ? `<span class="group-range">${escapeHTML(group.range)}</span>` : ""}
