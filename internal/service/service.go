@@ -163,6 +163,26 @@ func (s *Service) UpdateTask(ctx context.Context, id string, p TaskPatch) (*doma
 	return t, nil
 }
 
+// ReopenTask reverts a completed task to open and clears the completion timestamp.
+// It is a no-op if the task is already open.
+func (s *Service) ReopenTask(ctx context.Context, id string) (*domain.Task, error) {
+	t, err := s.tasks.Get(ctx, id)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	if t.Status == domain.StatusOpen {
+		return t, nil
+	}
+	t.Status = domain.StatusOpen
+	t.CompletedAt = nil
+	t.UpdatedAt = s.clock()
+	if err := s.tasks.Update(ctx, t); err != nil {
+		return nil, mapErr(err)
+	}
+	s.bus.Publish(ctx, events.TaskUpdated, t)
+	return t, nil
+}
+
 func (s *Service) CompleteTask(ctx context.Context, id string) (*domain.Task, error) {
 	t, err := s.tasks.Get(ctx, id)
 	if err != nil {

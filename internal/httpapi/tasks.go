@@ -165,6 +165,16 @@ func (h *Handler) handleCompleteTask(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, toTaskDTO(t))
 }
 
+func (h *Handler) handleReopenTask(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	t, err := h.svc.ReopenTask(r.Context(), id)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, toTaskDTO(t))
+}
+
 func (h *Handler) handleDeleteTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if err := h.svc.DeleteTask(r.Context(), id); err != nil {

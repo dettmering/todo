@@ -26,6 +26,7 @@ func (h *Handler) routes() {
 	h.mux.HandleFunc("GET /api/tasks/{id}", h.handleGetTask)
 	h.mux.HandleFunc("PATCH /api/tasks/{id}", h.handlePatchTask)
 	h.mux.HandleFunc("POST /api/tasks/{id}/complete", h.handleCompleteTask)
+	h.mux.HandleFunc("POST /api/tasks/{id}/reopen", h.handleReopenTask)
 	h.mux.HandleFunc("DELETE /api/tasks/{id}", h.handleDeleteTask)
 
 	h.mux.HandleFunc("GET /api/projects", h.handleListProjects)

@@ -306,6 +306,19 @@ body {
 .task .checkbox.p4::after { color: var(--p4); }
 .task .checkbox:hover::after { opacity: 0.5; }
 
+.task.completed { opacity: 0.55; }
+.task.completed:hover { opacity: 0.75; }
+.task.completed .title { text-decoration: line-through; }
+.task.completed .checkbox.checked::after { opacity: 1; }
+.task.completed .checkbox.checked.p1 { background: var(--p1); border-color: var(--p1); }
+.task.completed .checkbox.checked.p2 { background: var(--p2); border-color: var(--p2); }
+.task.completed .checkbox.checked.p3 { background: var(--p3); border-color: var(--p3); }
+.task.completed .checkbox.checked.p4 { background: var(--p4); border-color: var(--p4); }
+.task.completed .checkbox.checked::after { color: #fff; }
+
+.group-header.completed-header { color: var(--text-muted); border-bottom-color: var(--border); }
+.group-header.completed-header .group-count { color: var(--text-muted); }
+
 .task .body { flex-grow: 1; min-width: 0; padding-top: 0; }
 .task .title {
   font-size: 14px;

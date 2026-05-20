@@ -40,6 +40,9 @@ const api = {
   async completeTask(id) {
     return fetch(`/api/tasks/${id}/complete`, { method: "POST" }).then(jsonOrError);
   },
+  async reopenTask(id) {
+    return fetch(`/api/tasks/${id}/reopen`, { method: "POST" }).then(jsonOrError);
+  },
   async deleteTask(id) {
     return fetch(`/api/tasks/${id}`, { method: "DELETE" }).then(jsonOrError);
   },
@@ -263,10 +266,22 @@ function defaultProjectForView() {
 async function refresh() {
   document.getElementById("view-title").textContent = viewTitle();
   document.getElementById("view-subtitle").textContent = new Date().toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "long" });
-  const [tasks, allOpen] = await Promise.all([
+  const isToday = state.view.kind === "today";
+  const fetches = [
     api.listTasks(buildTaskQuery()),
     api.listTasks({ status: "open", scope: "all" }),
-  ]);
+  ];
+  if (isToday) {
+    // For the Heute view we additionally show tasks completed today, grayed out.
+    fetches.push(api.listTasks({ status: "completed", scope: "all" }));
+  }
+  const results = await Promise.all(fetches);
+  const tasks = results[0];
+  const allOpen = results[1];
+  const completedToday = isToday
+    ? (results[2] || []).filter(t => t.completed_at && t.completed_at.slice(0, 10) === todayISO())
+    : [];
+
   const today = todayISO();
   state.openCounts = {};
   let todayCount = 0;
@@ -281,7 +296,7 @@ async function refresh() {
   if (inboxCountEl) inboxCountEl.textContent = inboxCount > 0 ? inboxCount : "";
   renderSidebar();
   setQuickAddDefaults();
-  renderTasks(tasks);
+  renderTasks(tasks, completedToday);
 }
 
 // Sync the quick-add controls with the current view so defaults always match
@@ -388,8 +403,10 @@ function createTaskLI(t, today) {
     const overdue = t.deadline < today;
     dateParts.push(`<span class="date-item ${overdue ? "overdue" : "deadline"}">${ICON.flag}<span>${escapeHTML(smartDateLabel(t.deadline))}</span></span>`);
   }
+  const isCompleted = t.status === "completed";
+  if (isCompleted) li.classList.add("completed");
   li.innerHTML = `
-    <div class="checkbox ${priorityClass(t.priority)}" title="Erledigen"></div>
+    <div class="checkbox ${priorityClass(t.priority)}${isCompleted ? " checked" : ""}" title="${isCompleted ? "Wieder öffnen" : "Erledigen"}"></div>
     <div class="body">
       <div class="title">${escapeHTML(t.title)}${t.recurrence_rule ? ` <span class="recur" title="Wiederkehrend">${ICON.repeat}</span>` : ""}</div>
       ${dateParts.length ? `<div class="dates">${dateParts.join('<span class="date-sep">·</span>')}</div>` : ""}
@@ -400,54 +417,76 @@ function createTaskLI(t, today) {
       <span class="task-project-dot" style="background:${escapeHTML(projectColor(projectById(t.project_id)))}"></span>
     </div>`}
     <div class="actions">
-      <button data-action="edit" title="Bearbeiten" aria-label="Bearbeiten">${ICON.edit}</button>
+      ${isCompleted ? "" : `<button data-action="edit" title="Bearbeiten" aria-label="Bearbeiten">${ICON.edit}</button>`}
       <button data-action="delete" title="Löschen" aria-label="Löschen">${ICON.trash}</button>
     </div>
   `;
-  li.querySelector(".checkbox").addEventListener("click", async (e) => {
-    e.stopPropagation();
-    await api.completeTask(t.id);
-    refresh();
-  });
-  li.querySelector('[data-action="edit"]').addEventListener("click", (e) => {
-    e.stopPropagation();
-    openTaskDialog(t);
-  });
+  if (isCompleted) {
+    // Click anywhere on the row (except delete) re-opens the task.
+    li.addEventListener("click", async (e) => {
+      if (e.target.closest('[data-action="delete"]')) return;
+      await api.reopenTask(t.id);
+      refresh();
+    });
+  } else {
+    li.querySelector(".checkbox").addEventListener("click", async (e) => {
+      e.stopPropagation();
+      await api.completeTask(t.id);
+      refresh();
+    });
+    li.querySelector('[data-action="edit"]').addEventListener("click", (e) => {
+      e.stopPropagation();
+      openTaskDialog(t);
+    });
+    li.addEventListener("click", () => openTaskDialog(t));
+  }
   li.querySelector('[data-action="delete"]').addEventListener("click", async (e) => {
     e.stopPropagation();
     await api.deleteTask(t.id);
     refresh();
   });
-  li.addEventListener("click", () => openTaskDialog(t));
   return li;
 }
 
-function renderTasks(tasks) {
+function renderTasks(tasks, completedToday = []) {
   const list = document.getElementById("task-list");
   const empty = document.getElementById("empty-state");
   list.innerHTML = "";
-  if (!tasks || tasks.length === 0) {
+  const noOpen = !tasks || tasks.length === 0;
+  if (noOpen && completedToday.length === 0) {
     empty.classList.remove("hidden");
     return;
   }
   empty.classList.add("hidden");
   const today = todayISO();
 
-  if (!viewIsGrouped()) {
-    for (const t of tasks) list.appendChild(createTaskLI(t, today));
-    return;
+  if (viewIsGrouped()) {
+    for (const group of groupTasksByWeek(tasks)) {
+      const header = document.createElement("li");
+      header.className = "group-header" + (group.past ? " past" : "") + (group.current ? " current" : "");
+      header.innerHTML = `
+        <span>${escapeHTML(group.label)}</span>
+        ${group.range ? `<span class="group-range">${escapeHTML(group.range)}</span>` : ""}
+        <span class="group-count">${group.tasks.length}</span>
+      `;
+      list.appendChild(header);
+      for (const t of group.tasks) list.appendChild(createTaskLI(t, today));
+    }
+  } else {
+    for (const t of (tasks || [])) list.appendChild(createTaskLI(t, today));
   }
 
-  for (const group of groupTasksByWeek(tasks)) {
+  if (completedToday.length > 0) {
+    // Newest completion first.
+    const sorted = [...completedToday].sort((a, b) => (b.completed_at || "").localeCompare(a.completed_at || ""));
     const header = document.createElement("li");
-    header.className = "group-header" + (group.past ? " past" : "") + (group.current ? " current" : "");
+    header.className = "group-header completed-header";
     header.innerHTML = `
-      <span>${escapeHTML(group.label)}</span>
-      ${group.range ? `<span class="group-range">${escapeHTML(group.range)}</span>` : ""}
-      <span class="group-count">${group.tasks.length}</span>
+      <span>Erledigt</span>
+      <span class="group-count">${sorted.length}</span>
     `;
     list.appendChild(header);
-    for (const t of group.tasks) list.appendChild(createTaskLI(t, today));
+    for (const t of sorted) list.appendChild(createTaskLI(t, today));
   }
 }
 
