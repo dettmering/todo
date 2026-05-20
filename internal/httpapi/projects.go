@@ -11,6 +11,7 @@ type projectCreateReq struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	SortOrder   int    `json:"sort_order"`
+	Color       string `json:"color"`
 }
 
 type projectPatchReq struct {
@@ -18,6 +19,7 @@ type projectPatchReq struct {
 	Description *string `json:"description"`
 	SortOrder   *int    `json:"sort_order"`
 	Archived    *bool   `json:"archived"`
+	Color       *string `json:"color"`
 }
 
 func (h *Handler) handleListProjects(w http.ResponseWriter, r *http.Request) {
@@ -41,7 +43,7 @@ func (h *Handler) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p, err := h.svc.CreateProject(r.Context(), service.ProjectInput{
-		Name: req.Name, Description: req.Description, SortOrder: req.SortOrder,
+		Name: req.Name, Description: req.Description, SortOrder: req.SortOrder, Color: req.Color,
 	})
 	if err != nil {
 		writeError(w, err)
@@ -68,7 +70,7 @@ func (h *Handler) handlePatchProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p, err := h.svc.UpdateProject(r.Context(), id, service.ProjectPatch{
-		Name: req.Name, Description: req.Description, SortOrder: req.SortOrder, Archived: req.Archived,
+		Name: req.Name, Description: req.Description, SortOrder: req.SortOrder, Archived: req.Archived, Color: req.Color,
 	})
 	if err != nil {
 		writeError(w, err)

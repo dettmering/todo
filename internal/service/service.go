@@ -215,6 +215,7 @@ type ProjectInput struct {
 	Name        string
 	Description string
 	SortOrder   int
+	Color       string
 }
 
 func (s *Service) CreateProject(ctx context.Context, in ProjectInput) (*domain.Project, error) {
@@ -222,12 +223,16 @@ func (s *Service) CreateProject(ctx context.Context, in ProjectInput) (*domain.P
 	if in.Name == "" {
 		return nil, fmt.Errorf("%w: name is required", ErrValidation)
 	}
+	if in.Color != "" && !isValidHexColor(in.Color) {
+		return nil, fmt.Errorf("%w: color must be a hex like #1a2b3c", ErrValidation)
+	}
 	now := s.clock()
 	p := &domain.Project{
 		ID:          newID("project"),
 		Name:        in.Name,
 		Description: in.Description,
 		SortOrder:   in.SortOrder,
+		Color:       in.Color,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
@@ -243,6 +248,22 @@ type ProjectPatch struct {
 	Description *string
 	SortOrder   *int
 	Archived    *bool
+	Color       *string
+}
+
+func isValidHexColor(s string) bool {
+	if len(s) != 4 && len(s) != 7 {
+		return false
+	}
+	if s[0] != '#' {
+		return false
+	}
+	for _, c := range s[1:] {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *Service) UpdateProject(ctx context.Context, id string, p ProjectPatch) (*domain.Project, error) {
@@ -266,6 +287,12 @@ func (s *Service) UpdateProject(ctx context.Context, id string, p ProjectPatch) 
 	if p.Archived != nil {
 		pr.Archived = *p.Archived
 	}
+	if p.Color != nil {
+		if *p.Color != "" && !isValidHexColor(*p.Color) {
+			return nil, fmt.Errorf("%w: color must be a hex like #1a2b3c", ErrValidation)
+		}
+		pr.Color = *p.Color
+	}
 	pr.UpdatedAt = s.clock()
 	if err := s.projects.Update(ctx, pr); err != nil {
 		return nil, mapErr(err)
@@ -281,6 +308,28 @@ func (s *Service) DeleteProject(ctx context.Context, id string) error {
 	pr, err := s.projects.Get(ctx, id)
 	if err != nil {
 		return mapErr(err)
+	}
+	// Refuse if there are active (non-deleted) tasks. Sweep soft-deleted
+	// tasks into the inbox so the FK ON DELETE RESTRICT can be satisfied.
+	tasks, err := s.tasks.List(ctx, storage.TaskFilter{ProjectID: id})
+	if err != nil {
+		return err
+	}
+	var active int
+	for _, t := range tasks {
+		if t.Status != domain.StatusDeleted {
+			active++
+		}
+	}
+	if active > 0 {
+		return fmt.Errorf("%w: project has %d active tasks", ErrValidation, active)
+	}
+	for _, t := range tasks {
+		t.ProjectID = domain.InboxID
+		t.UpdatedAt = s.clock()
+		if err := s.tasks.Update(ctx, t); err != nil {
+			return err
+		}
 	}
 	if err := s.projects.Delete(ctx, id); err != nil {
 		return mapErr(err)

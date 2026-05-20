@@ -73,11 +73,21 @@
 
   <dialog id="project-dialog">
     <form method="dialog">
-      <h2>Neues Projekt</h2>
-      <label>Name <input type="text" id="project-name-input" required /></label>
+      <h2 id="pd-title">Neues Projekt</h2>
+      <label>Name <input type="text" id="pd-name" required /></label>
+      <div>
+        <span class="dialog-label">Farbe</span>
+        <div class="color-swatches" id="pd-swatches"></div>
+        <label class="field hex">
+          <span>Hex</span>
+          <input type="text" id="pd-hex" placeholder="#246fe0" maxlength="7" />
+        </label>
+      </div>
+      <p class="dialog-error hidden" id="pd-error"></p>
       <menu>
-        <button value="cancel">Abbrechen</button>
-        <button id="project-create-btn" value="default">Anlegen</button>
+        <button value="cancel" type="button" id="pd-cancel">Abbrechen</button>
+        <button value="default" type="button" id="pd-delete" class="danger hidden">Löschen</button>
+        <button value="default" id="pd-save">Speichern</button>
       </menu>
     </form>
   </dialog>

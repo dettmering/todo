@@ -38,10 +38,15 @@ func Open(path string) (*Store, error) {
 
 func (s *Store) Close() error { return s.db.Close() }
 
-// schema is intentionally additive-friendly: new columns can be appended in
-// future migration steps without rewriting existing tables.
-var migrations = []string{
-	`CREATE TABLE IF NOT EXISTS projects (
+// migrations are versioned via PRAGMA user_version. To extend the schema,
+// append a new step — never edit or reorder existing ones.
+type migrationStep struct {
+	version int
+	sql     string
+}
+
+var migrations = []migrationStep{
+	{1, `CREATE TABLE IF NOT EXISTS projects (
 		id           TEXT PRIMARY KEY,
 		name         TEXT NOT NULL,
 		description  TEXT NOT NULL DEFAULT '',
@@ -49,8 +54,8 @@ var migrations = []string{
 		archived     INTEGER NOT NULL DEFAULT 0,
 		created_at   TEXT NOT NULL,
 		updated_at   TEXT NOT NULL
-	);`,
-	`CREATE TABLE IF NOT EXISTS tasks (
+	);`},
+	{2, `CREATE TABLE IF NOT EXISTS tasks (
 		id              TEXT PRIMARY KEY,
 		title           TEXT NOT NULL,
 		description     TEXT NOT NULL DEFAULT '',
@@ -63,15 +68,27 @@ var migrations = []string{
 		created_at      TEXT NOT NULL,
 		updated_at      TEXT NOT NULL,
 		completed_at    TEXT
-	);`,
-	`CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);`,
-	`CREATE INDEX IF NOT EXISTS idx_tasks_status  ON tasks(status);`,
+	);`},
+	{3, `CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);`},
+	{4, `CREATE INDEX IF NOT EXISTS idx_tasks_status  ON tasks(status);`},
+	{5, `ALTER TABLE projects ADD COLUMN color TEXT NOT NULL DEFAULT '';`},
 }
 
 func (s *Store) migrate() error {
-	for _, stmt := range migrations {
-		if _, err := s.db.Exec(stmt); err != nil {
-			return fmt.Errorf("migration failed: %w\n%s", err, stmt)
+	var current int
+	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&current); err != nil {
+		return fmt.Errorf("read user_version: %w", err)
+	}
+	for _, m := range migrations {
+		if m.version <= current {
+			continue
+		}
+		if _, err := s.db.Exec(m.sql); err != nil {
+			return fmt.Errorf("migration %d failed: %w", m.version, err)
+		}
+		// PRAGMA user_version doesn't accept bound parameters.
+		if _, err := s.db.Exec(fmt.Sprintf(`PRAGMA user_version = %d`, m.version)); err != nil {
+			return fmt.Errorf("bump user_version to %d: %w", m.version, err)
 		}
 	}
 	return nil
@@ -87,9 +104,9 @@ func (s *Store) seedInbox() error {
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
 	_, err := s.db.Exec(
-		`INSERT INTO projects (id, name, description, sort_order, archived, created_at, updated_at)
-		 VALUES (?, ?, '', 0, 0, ?, ?)`,
-		domain.InboxID, "Inbox", now, now,
+		`INSERT INTO projects (id, name, description, sort_order, archived, color, created_at, updated_at)
+		 VALUES (?, ?, '', 0, 0, ?, ?, ?)`,
+		domain.InboxID, "Inbox", "#246fe0", now, now,
 	)
 	return err
 }

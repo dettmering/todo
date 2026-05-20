@@ -77,6 +77,7 @@ type projectDTO struct {
 	Description string `json:"description"`
 	SortOrder   int    `json:"sort_order"`
 	Archived    bool   `json:"archived"`
+	Color       string `json:"color"`
 	CreatedAt   string `json:"created_at"`
 	UpdatedAt   string `json:"updated_at"`
 }
@@ -84,7 +85,7 @@ type projectDTO struct {
 func toProjectDTO(p *domain.Project) projectDTO {
 	return projectDTO{
 		ID: p.ID, Name: p.Name, Description: p.Description,
-		SortOrder: p.SortOrder, Archived: p.Archived,
+		SortOrder: p.SortOrder, Archived: p.Archived, Color: p.Color,
 		CreatedAt: p.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt: p.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}

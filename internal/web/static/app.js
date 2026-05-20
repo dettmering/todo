@@ -1,28 +1,73 @@
 // Vanilla JS frontend. Designed so adding routes/views later is just adding
 // view handlers and (optionally) re-rendering. No build step.
 
+async function jsonOrError(res) {
+  if (res.ok) {
+    if (res.status === 204) return null;
+    return res.json();
+  }
+  let msg = `HTTP ${res.status}`;
+  try {
+    const body = await res.json();
+    if (body.error) msg = body.error;
+  } catch (_) { /* ignore */ }
+  const err = new Error(msg);
+  err.status = res.status;
+  throw err;
+}
+
 const api = {
-  async listProjects() { return fetch("/api/projects").then(r => r.json()); },
+  async listProjects() { return fetch("/api/projects").then(jsonOrError); },
   async createProject(body) {
-    return fetch("/api/projects", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(r => r.json());
+    return fetch("/api/projects", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(jsonOrError);
+  },
+  async patchProject(id, body) {
+    return fetch(`/api/projects/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(jsonOrError);
+  },
+  async deleteProject(id) {
+    return fetch(`/api/projects/${id}`, { method: "DELETE" }).then(jsonOrError);
   },
   async listTasks(params = {}) {
     const q = new URLSearchParams(params);
-    return fetch("/api/tasks?" + q.toString()).then(r => r.json());
+    return fetch("/api/tasks?" + q.toString()).then(jsonOrError);
   },
   async createTask(body) {
-    return fetch("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(r => r.json());
+    return fetch("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(jsonOrError);
   },
   async patchTask(id, body) {
-    return fetch(`/api/tasks/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(r => r.json());
+    return fetch(`/api/tasks/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(jsonOrError);
   },
   async completeTask(id) {
-    return fetch(`/api/tasks/${id}/complete`, { method: "POST" }).then(r => r.json());
+    return fetch(`/api/tasks/${id}/complete`, { method: "POST" }).then(jsonOrError);
   },
   async deleteTask(id) {
-    return fetch(`/api/tasks/${id}`, { method: "DELETE" });
+    return fetch(`/api/tasks/${id}`, { method: "DELETE" }).then(jsonOrError);
   },
 };
+
+const PROJECT_COLOR_PRESETS = [
+  { name: "Tomate",    hex: "#db4c3f" },
+  { name: "Orange",    hex: "#eb8909" },
+  { name: "Gelb",      hex: "#d8af1a" },
+  { name: "Olive",     hex: "#7ecc49" },
+  { name: "Grün",      hex: "#299438" },
+  { name: "Mint",      hex: "#6accbc" },
+  { name: "Türkis",    hex: "#158fad" },
+  { name: "Hellblau",  hex: "#14aaf5" },
+  { name: "Blau",      hex: "#246fe0" },
+  { name: "Lila",      hex: "#884dff" },
+  { name: "Magenta",   hex: "#af38eb" },
+  { name: "Rosa",      hex: "#e05194" },
+  { name: "Grau",      hex: "#808080" },
+];
+const DEFAULT_PROJECT_COLOR = "#808080";
+
+function projectColor(p) {
+  if (!p) return DEFAULT_PROJECT_COLOR;
+  if (p.color && p.color !== "") return p.color;
+  return p.id === "inbox" ? "#246fe0" : DEFAULT_PROJECT_COLOR;
+}
+function projectById(id) { return state.projects.find(p => p.id === id); }
 
 const state = {
   projects: [],
@@ -66,12 +111,27 @@ function renderSidebar() {
     el.dataset.projectId = p.id;
     if (state.view.kind === "project" && state.view.id === p.id) el.classList.add("active");
     const count = state.openCounts[p.id] || 0;
+    const canEdit = p.id !== "inbox";
     el.innerHTML = `
-      <span class="dot" style="background:${p.id === "inbox" ? "#246fe0" : "#888"}"></span>
+      <span class="dot" style="background:${escapeHTML(projectColor(p))}"></span>
       <span class="project-name">${escapeHTML(p.name)}</span>
+      ${canEdit ? `<button class="project-edit" title="Bearbeiten" aria-label="Bearbeiten">✎</button>` : ""}
       <span class="project-count">${count > 0 ? count : ""}</span>
     `;
-    el.addEventListener("click", (e) => { e.preventDefault(); state.view = { kind: "project", id: p.id }; refresh(); });
+    el.addEventListener("click", (e) => {
+      if (e.target.closest(".project-edit")) return; // edit button handled separately
+      e.preventDefault();
+      state.view = { kind: "project", id: p.id };
+      refresh();
+    });
+    const editBtn = el.querySelector(".project-edit");
+    if (editBtn) {
+      editBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openProjectDialog(p);
+      });
+    }
     list.appendChild(el);
   }
   // sidebar nav active state
@@ -224,7 +284,7 @@ function createTaskLI(t, today) {
       <div class="title">${escapeHTML(t.title)}${t.recurrence_rule ? ` <span class="recur">🔁</span>` : ""}</div>
       ${dateParts.length ? `<div class="dates">${dateParts.join('<span class="date-sep">·</span>')}</div>` : ""}
     </div>
-    <div class="task-project">${escapeHTML(projectName(t.project_id))}</div>
+    <div class="task-project"><span class="task-project-dot" style="background:${escapeHTML(projectColor(projectById(t.project_id)))}"></span>${escapeHTML(projectName(t.project_id))}</div>
     <div class="actions">
       <button data-action="edit" title="Bearbeiten">✎</button>
       <button data-action="delete" title="Löschen">🗑</button>
@@ -336,20 +396,109 @@ function wireTaskDialog() {
 
 // ---------- Project dialog ----------
 
-function wireProjectDialog() {
-  const dlg = document.getElementById("project-dialog");
-  document.getElementById("add-project-btn").addEventListener("click", () => {
-    document.getElementById("project-name-input").value = "";
-    dlg.showModal();
+// ---------- Project dialog (create + edit) ----------
+
+let projectDialogState = { mode: "create", id: null, color: "" };
+
+function setProjectDialogColor(hex) {
+  projectDialogState.color = hex || "";
+  document.getElementById("pd-hex").value = projectDialogState.color;
+  document.querySelectorAll("#pd-swatches .swatch").forEach(el => {
+    el.classList.toggle("selected", el.dataset.hex.toLowerCase() === projectDialogState.color.toLowerCase());
   });
-  document.getElementById("project-create-btn").addEventListener("click", async (e) => {
+}
+
+function renderColorSwatches() {
+  const wrap = document.getElementById("pd-swatches");
+  wrap.innerHTML = "";
+  for (const c of PROJECT_COLOR_PRESETS) {
+    const el = document.createElement("button");
+    el.type = "button";
+    el.className = "swatch";
+    el.dataset.hex = c.hex;
+    el.title = `${c.name} (${c.hex})`;
+    el.style.background = c.hex;
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      setProjectDialogColor(c.hex);
+    });
+    wrap.appendChild(el);
+  }
+}
+
+function openProjectDialog(p) {
+  projectDialogState = { mode: p ? "edit" : "create", id: p ? p.id : null, color: "" };
+  document.getElementById("pd-title").textContent = p ? "Projekt bearbeiten" : "Neues Projekt";
+  document.getElementById("pd-name").value = p ? p.name : "";
+  document.getElementById("pd-error").classList.add("hidden");
+  document.getElementById("pd-delete").classList.toggle("hidden", !p);
+  setProjectDialogColor(p ? (p.color || "") : "");
+  document.getElementById("project-dialog").showModal();
+  setTimeout(() => document.getElementById("pd-name").focus(), 0);
+}
+
+function showProjectDialogError(msg) {
+  const el = document.getElementById("pd-error");
+  el.textContent = msg;
+  el.classList.remove("hidden");
+}
+
+function wireProjectDialog() {
+  renderColorSwatches();
+  const dlg = document.getElementById("project-dialog");
+  document.getElementById("add-project-btn").addEventListener("click", () => openProjectDialog(null));
+
+  document.getElementById("pd-cancel").addEventListener("click", () => dlg.close("cancel"));
+
+  document.getElementById("pd-hex").addEventListener("input", (e) => {
+    let v = e.target.value.trim();
+    if (v && !v.startsWith("#")) v = "#" + v;
+    projectDialogState.color = v;
+    document.querySelectorAll("#pd-swatches .swatch").forEach(el => {
+      el.classList.toggle("selected", el.dataset.hex.toLowerCase() === v.toLowerCase());
+    });
+  });
+
+  document.getElementById("pd-save").addEventListener("click", async (e) => {
     e.preventDefault();
-    const name = document.getElementById("project-name-input").value.trim();
-    if (!name) return;
-    await api.createProject({ name });
-    dlg.close();
-    state.projects = await api.listProjects();
-    renderSidebar();
+    const name = document.getElementById("pd-name").value.trim();
+    if (!name) { showProjectDialogError("Name darf nicht leer sein."); return; }
+    const color = projectDialogState.color.trim();
+    if (color && !/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(color)) {
+      showProjectDialogError("Hex-Farbe muss wie #1a2b3c aussehen.");
+      return;
+    }
+    try {
+      if (projectDialogState.mode === "edit") {
+        await api.patchProject(projectDialogState.id, { name, color });
+      } else {
+        await api.createProject({ name, color });
+      }
+      dlg.close();
+      state.projects = await api.listProjects();
+      await refresh();
+    } catch (err) {
+      showProjectDialogError(err.message);
+    }
+  });
+
+  document.getElementById("pd-delete").addEventListener("click", async (e) => {
+    e.preventDefault();
+    if (!projectDialogState.id) return;
+    const p = projectById(projectDialogState.id);
+    if (!confirm(`Projekt "${p ? p.name : ""}" wirklich löschen?`)) return;
+    try {
+      await api.deleteProject(projectDialogState.id);
+      // If we were viewing this project, fall back to "today".
+      if (state.view.kind === "project" && state.view.id === projectDialogState.id) {
+        state.view = { kind: "today" };
+      }
+      dlg.close();
+      state.projects = await api.listProjects();
+      await refresh();
+    } catch (err) {
+      showProjectDialogError(err.message);
+    }
   });
 }
 

@@ -114,6 +114,7 @@ type Project struct {
 	Description string
 	SortOrder   int
 	Archived    bool
+	Color       string // CSS hex color like "#246fe0", empty means default
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
