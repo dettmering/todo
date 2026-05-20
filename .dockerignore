@@ -1,0 +1,12 @@
+.git
+.gitignore
+*.md
+Dockerfile
+.dockerignore
+.gitea
+data/
+*.db
+*.db-wal
+*.db-shm
+adesso – Todoist.html
+adesso – Todoist_files/

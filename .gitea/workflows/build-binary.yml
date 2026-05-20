@@ -1,0 +1,28 @@
+name: Build Go Binary
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: docker
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build
+        run: |
+          docker run --rm \
+            -v $(pwd):/src \
+            -w /src \
+            -e CGO_ENABLED=0 \
+            -e GOOS=linux \
+            -e GOARCH=amd64 \
+            golang:1.25-alpine \
+            go build -ldflags="-s -w" -o todo ./cmd/server
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: todo-linux-amd64
+          path: todo
