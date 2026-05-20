@@ -164,11 +164,18 @@ body {
   cursor: default;
 }
 .group-header:first-child { padding-top: 4px; }
+.group-header .group-range {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
 .group-header .group-count {
   font-size: 12px;
   font-weight: 400;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
+  margin-left: auto;
 }
 .task {
   display: flex;

@@ -159,6 +159,22 @@ function compareTasks(a, b) {
   return a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0;
 }
 
+function isoWeekRange(year, week) {
+  // Monday of ISO week N: take Jan 4 (always in week 1), back up to its Monday,
+  // then advance N-1 weeks. Sunday = Monday + 6.
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const jan4Day = jan4.getUTCDay() || 7;
+  const monday = new Date(jan4);
+  monday.setUTCDate(jan4.getUTCDate() - (jan4Day - 1) + (week - 1) * 7);
+  const sunday = new Date(monday);
+  sunday.setUTCDate(monday.getUTCDate() + 6);
+  return { monday, sunday };
+}
+
+function formatDayMonth(d) {
+  return `${String(d.getUTCDate()).padStart(2, "0")}.${String(d.getUTCMonth() + 1).padStart(2, "0")}.`;
+}
+
 function groupTasksByWeek(tasks) {
   const undated = [];
   const buckets = new Map(); // key = `${year}-${week}` -> { year, week, tasks }
@@ -176,11 +192,13 @@ function groupTasksByWeek(tasks) {
   for (const g of weeks) g.tasks.sort(compareTasks);
   undated.sort(compareTasks);
   const groups = [];
-  if (undated.length) groups.push({ key: "none", label: "Ohne Datum", tasks: undated });
+  if (undated.length) groups.push({ key: "none", label: "Ohne Datum", range: "", tasks: undated });
+  const thisYear = new Date().getFullYear();
   for (const g of weeks) {
-    const thisYear = new Date().getFullYear();
+    const { monday, sunday } = isoWeekRange(g.year, g.week);
+    const range = `${formatDayMonth(monday)}–${formatDayMonth(sunday)}`;
     const label = g.year === thisYear ? `KW ${g.week}` : `KW ${g.week} (${g.year})`;
-    groups.push({ key: g.key, label, tasks: g.tasks });
+    groups.push({ key: g.key, label, range, tasks: g.tasks });
   }
   return groups;
 }
@@ -249,7 +267,11 @@ function renderTasks(tasks) {
   for (const group of groupTasksByWeek(tasks)) {
     const header = document.createElement("li");
     header.className = "group-header";
-    header.innerHTML = `<span>${escapeHTML(group.label)}</span><span class="group-count">${group.tasks.length}</span>`;
+    header.innerHTML = `
+      <span>${escapeHTML(group.label)}</span>
+      ${group.range ? `<span class="group-range">${escapeHTML(group.range)}</span>` : ""}
+      <span class="group-count">${group.tasks.length}</span>
+    `;
     list.appendChild(header);
     for (const t of group.tasks) list.appendChild(createTaskLI(t, today));
   }
