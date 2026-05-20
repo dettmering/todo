@@ -136,6 +136,100 @@ async function refresh() {
   renderTasks(tasks);
 }
 
+function isoWeek(isoDate) {
+  // ISO 8601: week containing the year's first Thursday is KW 1.
+  const [y, m, d] = isoDate.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  const dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((date - yearStart) / 86400000 + 1) / 7);
+  return { year: date.getUTCFullYear(), week };
+}
+
+function compareTasks(a, b) {
+  // Priority asc, then deadline (none last), then visible_from, then created_at.
+  if (a.priority !== b.priority) return a.priority - b.priority;
+  const ad = a.deadline || "9999-99-99";
+  const bd = b.deadline || "9999-99-99";
+  if (ad !== bd) return ad < bd ? -1 : 1;
+  const av = a.visible_from || "9999-99-99";
+  const bv = b.visible_from || "9999-99-99";
+  if (av !== bv) return av < bv ? -1 : 1;
+  return a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0;
+}
+
+function groupTasksByWeek(tasks) {
+  const undated = [];
+  const buckets = new Map(); // key = `${year}-${week}` -> { year, week, tasks }
+  for (const t of tasks) {
+    if (!t.visible_from) {
+      undated.push(t);
+      continue;
+    }
+    const { year, week } = isoWeek(t.visible_from);
+    const key = `${year}-${String(week).padStart(2, "0")}`;
+    if (!buckets.has(key)) buckets.set(key, { key, year, week, tasks: [] });
+    buckets.get(key).tasks.push(t);
+  }
+  const weeks = [...buckets.values()].sort((a, b) => a.key.localeCompare(b.key));
+  for (const g of weeks) g.tasks.sort(compareTasks);
+  undated.sort(compareTasks);
+  const groups = [];
+  if (undated.length) groups.push({ key: "none", label: "Ohne Datum", tasks: undated });
+  for (const g of weeks) {
+    const thisYear = new Date().getFullYear();
+    const label = g.year === thisYear ? `KW ${g.week}` : `KW ${g.week} (${g.year})`;
+    groups.push({ key: g.key, label, tasks: g.tasks });
+  }
+  return groups;
+}
+
+function viewIsGrouped() {
+  return state.view.kind === "upcoming" || state.view.kind === "all-open";
+}
+
+function createTaskLI(t, today) {
+  const li = document.createElement("li");
+  li.className = "task";
+  const overdue = t.deadline && t.deadline < today;
+  const dateParts = [];
+  if (t.visible_from) {
+    dateParts.push(`<span class="date-item"><span class="date-label">Fällig:</span> ${formatDate(t.visible_from)}</span>`);
+  }
+  if (t.deadline) {
+    dateParts.push(`<span class="date-item ${overdue ? "overdue" : "deadline"}"><span class="date-label">Deadline:</span> ${formatDate(t.deadline)}</span>`);
+  }
+  li.innerHTML = `
+    <div class="checkbox ${priorityClass(t.priority)}" title="Erledigen"></div>
+    <div class="body">
+      <div class="title">${escapeHTML(t.title)}${t.recurrence_rule ? ` <span class="recur">🔁</span>` : ""}</div>
+      ${dateParts.length ? `<div class="dates">${dateParts.join('<span class="date-sep">·</span>')}</div>` : ""}
+    </div>
+    <div class="task-project">${escapeHTML(projectName(t.project_id))}</div>
+    <div class="actions">
+      <button data-action="edit" title="Bearbeiten">✎</button>
+      <button data-action="delete" title="Löschen">🗑</button>
+    </div>
+  `;
+  li.querySelector(".checkbox").addEventListener("click", async (e) => {
+    e.stopPropagation();
+    await api.completeTask(t.id);
+    refresh();
+  });
+  li.querySelector('[data-action="edit"]').addEventListener("click", (e) => {
+    e.stopPropagation();
+    openTaskDialog(t);
+  });
+  li.querySelector('[data-action="delete"]').addEventListener("click", async (e) => {
+    e.stopPropagation();
+    await api.deleteTask(t.id);
+    refresh();
+  });
+  li.addEventListener("click", () => openTaskDialog(t));
+  return li;
+}
+
 function renderTasks(tasks) {
   const list = document.getElementById("task-list");
   const empty = document.getElementById("empty-state");
@@ -146,45 +240,18 @@ function renderTasks(tasks) {
   }
   empty.classList.add("hidden");
   const today = todayISO();
-  for (const t of tasks) {
-    const li = document.createElement("li");
-    li.className = "task";
-    const overdue = t.deadline && t.deadline < today;
-    const dateParts = [];
-    if (t.visible_from) {
-      dateParts.push(`<span class="date-item"><span class="date-label">Fällig:</span> ${formatDate(t.visible_from)}</span>`);
-    }
-    if (t.deadline) {
-      dateParts.push(`<span class="date-item ${overdue ? "overdue" : "deadline"}"><span class="date-label">Deadline:</span> ${formatDate(t.deadline)}</span>`);
-    }
-    li.innerHTML = `
-      <div class="checkbox ${priorityClass(t.priority)}" title="Erledigen"></div>
-      <div class="body">
-        <div class="title">${escapeHTML(t.title)}${t.recurrence_rule ? ` <span class="recur">🔁</span>` : ""}</div>
-        ${dateParts.length ? `<div class="dates">${dateParts.join('<span class="date-sep">·</span>')}</div>` : ""}
-      </div>
-      <div class="task-project">${escapeHTML(projectName(t.project_id))}</div>
-      <div class="actions">
-        <button data-action="edit" title="Bearbeiten">✎</button>
-        <button data-action="delete" title="Löschen">🗑</button>
-      </div>
-    `;
-    li.querySelector(".checkbox").addEventListener("click", async (e) => {
-      e.stopPropagation();
-      await api.completeTask(t.id);
-      refresh();
-    });
-    li.querySelector('[data-action="edit"]').addEventListener("click", (e) => {
-      e.stopPropagation();
-      openTaskDialog(t);
-    });
-    li.querySelector('[data-action="delete"]').addEventListener("click", async (e) => {
-      e.stopPropagation();
-      await api.deleteTask(t.id);
-      refresh();
-    });
-    li.addEventListener("click", () => openTaskDialog(t));
-    list.appendChild(li);
+
+  if (!viewIsGrouped()) {
+    for (const t of tasks) list.appendChild(createTaskLI(t, today));
+    return;
+  }
+
+  for (const group of groupTasksByWeek(tasks)) {
+    const header = document.createElement("li");
+    header.className = "group-header";
+    header.innerHTML = `<span>${escapeHTML(group.label)}</span><span class="group-count">${group.tasks.length}</span>`;
+    list.appendChild(header);
+    for (const t of group.tasks) list.appendChild(createTaskLI(t, today));
   }
 }
 

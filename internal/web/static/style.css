@@ -152,6 +152,24 @@ body {
 
 /* Task list */
 .task-list { list-style: none; margin: 0; padding: 0; }
+.group-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 18px 4px 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  cursor: default;
+}
+.group-header:first-child { padding-top: 4px; }
+.group-header .group-count {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
 .task {
   display: flex;
   align-items: flex-start;
