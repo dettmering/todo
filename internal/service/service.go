@@ -301,6 +301,8 @@ func (s *Service) UpdateProject(ctx context.Context, id string, p ProjectPatch) 
 	return pr, nil
 }
 
+// DeleteProject hides the project by archiving it. Tasks remain in the database
+// untouched so historical data and event/webhook consistency are preserved.
 func (s *Service) DeleteProject(ctx context.Context, id string) error {
 	if id == domain.InboxID {
 		return fmt.Errorf("%w: inbox cannot be deleted", ErrValidation)
@@ -309,29 +311,12 @@ func (s *Service) DeleteProject(ctx context.Context, id string) error {
 	if err != nil {
 		return mapErr(err)
 	}
-	// Refuse if there are active (non-deleted) tasks. Sweep soft-deleted
-	// tasks into the inbox so the FK ON DELETE RESTRICT can be satisfied.
-	tasks, err := s.tasks.List(ctx, storage.TaskFilter{ProjectID: id})
-	if err != nil {
-		return err
+	if pr.Archived {
+		return nil
 	}
-	var active int
-	for _, t := range tasks {
-		if t.Status != domain.StatusDeleted {
-			active++
-		}
-	}
-	if active > 0 {
-		return fmt.Errorf("%w: project has %d active tasks", ErrValidation, active)
-	}
-	for _, t := range tasks {
-		t.ProjectID = domain.InboxID
-		t.UpdatedAt = s.clock()
-		if err := s.tasks.Update(ctx, t); err != nil {
-			return err
-		}
-	}
-	if err := s.projects.Delete(ctx, id); err != nil {
+	pr.Archived = true
+	pr.UpdatedAt = s.clock()
+	if err := s.projects.Update(ctx, pr); err != nil {
 		return mapErr(err)
 	}
 	s.bus.Publish(ctx, events.ProjectDeleted, pr)

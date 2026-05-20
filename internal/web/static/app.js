@@ -17,7 +17,7 @@ async function jsonOrError(res) {
 }
 
 const api = {
-  async listProjects() { return fetch("/api/projects").then(jsonOrError); },
+  async listProjects() { return fetch("/api/projects?include_archived=true").then(jsonOrError); },
   async createProject(body) {
     return fetch("/api/projects", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(jsonOrError);
   },
@@ -100,10 +100,14 @@ function formatDate(iso) {
   return `${String(d).padStart(2, "0")}.${String(m).padStart(2, "0")}.${y}`;
 }
 
+function activeProjects() {
+  return state.projects.filter(p => !p.archived);
+}
+
 function renderSidebar() {
   const list = document.getElementById("project-list");
   list.innerHTML = "";
-  const projects = [...state.projects].sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
+  const projects = activeProjects().sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
   for (const p of projects) {
     const el = document.createElement("a");
     el.className = "project-item";
@@ -139,20 +143,25 @@ function renderSidebar() {
     el.classList.toggle("active", el.dataset.view === state.view.kind);
   });
 
-  // project select fields
-  for (const sel of ["qa-project", "td-project"]) {
-    const el = document.getElementById(sel);
-    if (!el) continue;
-    const prev = el.value;
-    el.innerHTML = "";
-    for (const p of projects) {
-      const opt = document.createElement("option");
-      opt.value = p.id;
-      opt.textContent = p.name;
-      el.appendChild(opt);
-    }
-    if (prev) el.value = prev;
+  // Quick-add: only active projects — you wouldn't create new tasks in an archived one.
+  fillProjectSelect("qa-project", projects);
+  // Task edit: include archived ones so existing tasks still resolve their current project.
+  const editProjects = [...state.projects].sort((a, b) => Number(a.archived) - Number(b.archived) || a.sort_order - b.sort_order || a.name.localeCompare(b.name));
+  fillProjectSelect("td-project", editProjects, true);
+}
+
+function fillProjectSelect(id, projects, markArchived) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const prev = el.value;
+  el.innerHTML = "";
+  for (const p of projects) {
+    const opt = document.createElement("option");
+    opt.value = p.id;
+    opt.textContent = markArchived && p.archived ? `${p.name} (archiviert)` : p.name;
+    el.appendChild(opt);
   }
+  if (prev) el.value = prev;
 }
 
 function viewTitle() {
