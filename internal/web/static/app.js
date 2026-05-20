@@ -27,6 +27,7 @@ const api = {
 const state = {
   projects: [],
   view: { kind: "today" }, // or { kind: "project", id }, { kind: "upcoming" }, { kind: "all-open" }
+  openCounts: {}, // project_id -> number of open tasks
 };
 
 function todayISO() {
@@ -64,7 +65,12 @@ function renderSidebar() {
     el.href = "#";
     el.dataset.projectId = p.id;
     if (state.view.kind === "project" && state.view.id === p.id) el.classList.add("active");
-    el.innerHTML = `<span class="dot" style="background:${p.id === "inbox" ? "#246fe0" : "#888"}"></span><span>${escapeHTML(p.name)}</span>`;
+    const count = state.openCounts[p.id] || 0;
+    el.innerHTML = `
+      <span class="dot" style="background:${p.id === "inbox" ? "#246fe0" : "#888"}"></span>
+      <span class="project-name">${escapeHTML(p.name)}</span>
+      <span class="project-count">${count > 0 ? count : ""}</span>
+    `;
     el.addEventListener("click", (e) => { e.preventDefault(); state.view = { kind: "project", id: p.id }; refresh(); });
     list.appendChild(el);
   }
@@ -120,8 +126,13 @@ function buildTaskQuery() {
 async function refresh() {
   document.getElementById("view-title").textContent = viewTitle();
   document.getElementById("view-subtitle").textContent = new Date().toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "long" });
+  const [tasks, allOpen] = await Promise.all([
+    api.listTasks(buildTaskQuery()),
+    api.listTasks({ status: "open", scope: "all" }),
+  ]);
+  state.openCounts = {};
+  for (const t of allOpen) state.openCounts[t.project_id] = (state.openCounts[t.project_id] || 0) + 1;
   renderSidebar();
-  const tasks = await api.listTasks(buildTaskQuery());
   renderTasks(tasks);
 }
 
@@ -139,20 +150,23 @@ function renderTasks(tasks) {
     const li = document.createElement("li");
     li.className = "task";
     const overdue = t.deadline && t.deadline < today;
+    const dateParts = [];
+    if (t.visible_from) {
+      dateParts.push(`<span class="date-item"><span class="date-label">Fällig:</span> ${formatDate(t.visible_from)}</span>`);
+    }
+    if (t.deadline) {
+      dateParts.push(`<span class="date-item ${overdue ? "overdue" : "deadline"}"><span class="date-label">Deadline:</span> ${formatDate(t.deadline)}</span>`);
+    }
     li.innerHTML = `
       <div class="checkbox ${priorityClass(t.priority)}" title="Erledigen"></div>
       <div class="body">
-        <div class="title">${escapeHTML(t.title)}</div>
-        <div class="meta">
-          ${t.deadline ? `<span class="pill ${overdue ? "overdue" : "deadline"}">📅 ${formatDate(t.deadline)}</span>` : ""}
-          ${t.visible_from && t.visible_from > today ? `<span class="pill">👁 ab ${formatDate(t.visible_from)}</span>` : ""}
-          <span class="pill project">${escapeHTML(projectName(t.project_id))}</span>
-          ${t.recurrence_rule ? `<span class="pill">🔁</span>` : ""}
-        </div>
+        <div class="title">${escapeHTML(t.title)}${t.recurrence_rule ? ` <span class="recur">🔁</span>` : ""}</div>
+        ${dateParts.length ? `<div class="dates">${dateParts.join('<span class="date-sep">·</span>')}</div>` : ""}
       </div>
+      <div class="task-project">${escapeHTML(projectName(t.project_id))}</div>
       <div class="actions">
-        <button data-action="edit">✎</button>
-        <button data-action="delete">🗑</button>
+        <button data-action="edit" title="Bearbeiten">✎</button>
+        <button data-action="delete" title="Löschen">🗑</button>
       </div>
     `;
     li.querySelector(".checkbox").addEventListener("click", async (e) => {
