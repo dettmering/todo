@@ -160,23 +160,6 @@ body {
   white-space: nowrap;
 }
 .project-item.active .project-count { color: var(--accent); }
-.project-item .project-edit {
-  display: none;
-  background: transparent;
-  border: 0;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 0;
-  width: 22px;
-  height: 22px;
-  border-radius: 4px;
-  align-items: center;
-  justify-content: center;
-}
-.project-item .project-edit svg { width: 16px; height: 16px; }
-.project-item:hover .project-edit { display: inline-flex; }
-.project-item:hover .project-count { display: none; }
-.project-item .project-edit:hover { background: var(--hover); color: var(--accent); }
 
 /* ---------- Main pane ---------- */
 .main {

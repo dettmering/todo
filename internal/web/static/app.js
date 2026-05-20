@@ -176,23 +176,20 @@ function renderSidebar() {
     if (state.view.kind === "project" && state.view.id === p.id) el.classList.add("active");
     const count = state.openCounts[p.id] || 0;
     const canEdit = p.id !== "inbox";
+    el.title = canEdit ? "Klick zum Öffnen, Doppelklick zum Bearbeiten" : "";
     el.innerHTML = `
       <span class="dot" style="background:${escapeHTML(projectColor(p))}"></span>
       <span class="project-name">${escapeHTML(p.name)}</span>
-      ${canEdit ? `<button class="project-edit" title="Bearbeiten" aria-label="Bearbeiten">✎</button>` : ""}
       <span class="project-count">${count > 0 ? count : ""}</span>
     `;
     el.addEventListener("click", (e) => {
-      if (e.target.closest(".project-edit")) return; // edit button handled separately
       e.preventDefault();
       state.view = { kind: "project", id: p.id };
       refresh();
     });
-    const editBtn = el.querySelector(".project-edit");
-    if (editBtn) {
-      editBtn.addEventListener("click", (e) => {
+    if (canEdit) {
+      el.addEventListener("dblclick", (e) => {
         e.preventDefault();
-        e.stopPropagation();
         openProjectDialog(p);
       });
     }
