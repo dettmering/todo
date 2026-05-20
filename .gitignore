@@ -1,0 +1,25 @@
+# Binaries
+/server
+/todo
+*.exe
+*.test
+*.out
+
+# SQLite databases (incl. WAL/SHM sidecar files)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Go build cache / vendor
+/vendor/
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db

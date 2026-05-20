@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Todo</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">✓ Todo</div>
+      </div>
+      <nav class="sidebar-nav">
+        <a class="nav-item active" data-view="today" href="#">
+          <span class="nav-icon">📅</span> Heute
+        </a>
+        <a class="nav-item" data-view="upcoming" href="#">
+          <span class="nav-icon">🗓️</span> Demnächst
+        </a>
+        <a class="nav-item" data-view="all-open" href="#">
+          <span class="nav-icon">📋</span> Alle offenen
+        </a>
+      </nav>
+      <div class="sidebar-section">
+        <div class="sidebar-section-header">
+          <span>Projekte</span>
+          <button class="icon-btn" id="add-project-btn" title="Projekt hinzufügen">+</button>
+        </div>
+        <div class="project-list" id="project-list"></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="main-header">
+        <h1 id="view-title">Heute</h1>
+        <div class="main-meta" id="view-subtitle"></div>
+      </header>
+
+      <div class="quick-add">
+        <form id="quick-add-form">
+          <input
+            type="text"
+            id="quick-add-input"
+            placeholder="Aufgabe hinzufügen — Eingabe speichert"
+            autocomplete="off"
+          />
+          <div class="quick-add-options">
+            <select id="qa-project"></select>
+            <select id="qa-priority">
+              <option value="1">P1</option>
+              <option value="2">P2</option>
+              <option value="3" selected>P3</option>
+              <option value="4">P4</option>
+            </select>
+            <label class="field">
+              <span>Sichtbar ab</span>
+              <input type="date" id="qa-visible-from" />
+            </label>
+            <label class="field">
+              <span>Deadline</span>
+              <input type="date" id="qa-deadline" />
+            </label>
+          </div>
+        </form>
+      </div>
+
+      <ul class="task-list" id="task-list"></ul>
+      <div id="empty-state" class="empty hidden">Keine offenen Aufgaben.</div>
+    </main>
+  </div>
+
+  <dialog id="project-dialog">
+    <form method="dialog">
+      <h2>Neues Projekt</h2>
+      <label>Name <input type="text" id="project-name-input" required /></label>
+      <menu>
+        <button value="cancel">Abbrechen</button>
+        <button id="project-create-btn" value="default">Anlegen</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <dialog id="task-dialog">
+    <form method="dialog">
+      <h2>Aufgabe bearbeiten</h2>
+      <label>Titel <input type="text" id="td-title" required /></label>
+      <label>Beschreibung <textarea id="td-description" rows="3"></textarea></label>
+      <div class="row">
+        <label>Projekt <select id="td-project"></select></label>
+        <label>Priorität
+          <select id="td-priority">
+            <option value="1">P1</option>
+            <option value="2">P2</option>
+            <option value="3">P3</option>
+            <option value="4">P4</option>
+          </select>
+        </label>
+      </div>
+      <div class="row">
+        <label>Sichtbar ab <input type="date" id="td-visible-from" /></label>
+        <label>Deadline <input type="date" id="td-deadline" /></label>
+      </div>
+      <menu>
+        <button value="cancel" type="button" id="td-cancel">Abbrechen</button>
+        <button value="default" id="td-save">Speichern</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
