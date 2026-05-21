@@ -95,47 +95,97 @@
     </form>
   </dialog>
 
-  <dialog id="task-dialog">
-    <form method="dialog">
-      <h2>Aufgabe bearbeiten</h2>
-      <label>Titel <input type="text" id="td-title" required /></label>
-      <label>Beschreibung <textarea id="td-description" rows="3"></textarea></label>
-      <div class="row">
-        <label>Projekt <select id="td-project"></select></label>
-        <label>Priorität
-          <select id="td-priority">
-            <option value="1">P1</option>
-            <option value="2">P2</option>
-            <option value="3">P3</option>
-            <option value="4">P4</option>
-          </select>
-        </label>
-      </div>
-      <div class="row">
-        <label>Sichtbar ab
-          <input type="text" id="td-visible-from" placeholder="heute, mo, 27.5., KW 32" autocomplete="off" />
-          <span class="date-hint" data-for="td-visible-from"></span>
-        </label>
-        <label>Deadline
-          <input type="text" id="td-deadline" placeholder="morgen, +5, ende juni" autocomplete="off" />
-          <span class="date-hint" data-for="td-deadline"></span>
-        </label>
-      </div>
-      <div class="row">
-        <label>Wiederholung <select id="td-recurrence"></select></label>
-        <label id="td-recur-custom-wrap" class="hidden">Eigene RRULE
-          <input type="text" id="td-recur-custom" placeholder="FREQ=WEEKLY;BYDAY=MO" />
-        </label>
-      </div>
-      <p class="dialog-error hidden" id="td-error"></p>
-      <menu>
-        <button value="cancel" type="button" id="td-cancel">Abbrechen</button>
-        <button value="default" type="button" id="td-delete" class="danger">Löschen</button>
-        <button value="default" id="td-save">Speichern</button>
-      </menu>
-    </form>
+  <dialog id="task-dialog" class="task-modal">
+    <div class="td-layout">
+      <header class="td-topbar">
+        <div class="td-breadcrumb">
+          <span class="td-breadcrumb-dot" id="td-breadcrumb-dot"></span>
+          <span class="td-breadcrumb-name" id="td-breadcrumb-name"></span>
+        </div>
+        <button type="button" class="td-close" id="td-close" aria-label="Schließen" title="Schließen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        </button>
+      </header>
+
+      <section class="td-main">
+        <div class="td-title-row">
+          <div class="checkbox" id="td-checkbox" title="Erledigen"></div>
+          <textarea id="td-title" class="td-title" rows="1" placeholder="Titel" required></textarea>
+        </div>
+        <div class="td-description-wrap">
+          <div class="td-description-rendered" id="td-description-rendered" title="Klicken zum Bearbeiten"></div>
+          <textarea id="td-description" class="td-description-input hidden" placeholder="Beschreibung"></textarea>
+        </div>
+        <p class="dialog-error hidden" id="td-error"></p>
+      </section>
+
+      <aside class="td-sidebar">
+        <div class="td-field">
+          <div class="td-field-label">Projekt</div>
+          <div class="td-field-control"><select id="td-project"></select></div>
+        </div>
+
+        <div class="td-field">
+          <div class="td-field-label">Datum</div>
+          <div class="td-field-control">
+            <input type="text" id="td-visible-from" placeholder="heute, mo, 27.5., KW 32" autocomplete="off" />
+            <span class="date-hint" data-for="td-visible-from"></span>
+          </div>
+          <div class="td-quick-buttons">
+            <button type="button" class="td-quick" data-quick="tomorrow" title="Morgen">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><polyline points="13 6 19 12 13 18"/></svg>
+              <span>Morgen</span>
+            </button>
+            <button type="button" class="td-quick" data-quick="weekend" title="Wochenende">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 18 0"/><path d="M3 12a9 9 0 0 0 18 0"/><circle cx="8" cy="12" r="1"/><circle cx="16" cy="12" r="1"/></svg>
+              <span>Wochenende</span>
+            </button>
+            <button type="button" class="td-quick" data-quick="monday" title="Nächster Montag">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>
+              <span>Nächster Mo</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="td-field">
+          <div class="td-field-label">Deadline</div>
+          <div class="td-field-control">
+            <input type="text" id="td-deadline" placeholder="morgen, +5, ende juni" autocomplete="off" />
+            <span class="date-hint" data-for="td-deadline"></span>
+          </div>
+        </div>
+
+        <div class="td-field">
+          <div class="td-field-label">Priorität</div>
+          <div class="td-priority-buttons" id="td-priority-buttons">
+            <button type="button" class="td-prio p1" data-priority="1">P1</button>
+            <button type="button" class="td-prio p2" data-priority="2">P2</button>
+            <button type="button" class="td-prio p3" data-priority="3">P3</button>
+            <button type="button" class="td-prio p4" data-priority="4">P4</button>
+          </div>
+          <input type="hidden" id="td-priority" value="4" />
+        </div>
+
+        <div class="td-field">
+          <div class="td-field-label">Wiederholung</div>
+          <div class="td-field-control"><select id="td-recurrence"></select></div>
+          <div class="td-field-control td-recur-custom hidden" id="td-recur-custom-wrap">
+            <input type="text" id="td-recur-custom" placeholder="FREQ=WEEKLY;BYDAY=MO" />
+          </div>
+        </div>
+
+        <div class="td-sidebar-actions">
+          <button type="button" id="td-delete" class="td-link-danger">Löschen</button>
+          <div class="td-sidebar-buttons">
+            <button type="button" id="td-cancel" class="td-btn">Abbrechen</button>
+            <button type="button" id="td-save" class="td-btn td-btn-primary">Speichern</button>
+          </div>
+        </div>
+      </aside>
+    </div>
   </dialog>
 
+  <script src="/static/marked.min.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

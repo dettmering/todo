@@ -957,12 +957,84 @@ function wireQuickAdd() {
 
 // ---------- Edit dialog ----------
 
+// Render the breadcrumb (project pill) at the top of the modal.
+function renderTaskDialogBreadcrumb(projectId) {
+  const p = projectById(projectId);
+  const dot = document.getElementById("td-breadcrumb-dot");
+  const name = document.getElementById("td-breadcrumb-name");
+  if (dot) dot.style.background = projectColor(p);
+  if (name) name.textContent = p ? p.name : "—";
+}
+
+// Apply the current priority's color to the modal checkbox.
+function updateTaskDialogCheckbox(priority) {
+  const cb = document.getElementById("td-checkbox");
+  if (!cb) return;
+  cb.classList.remove("p1", "p2", "p3", "p4");
+  cb.classList.add(priorityClass(priority || 4));
+}
+
+// Sync the priority button group with the current value.
+function updateTaskDialogPriorityButtons(priority) {
+  const p = String(priority || 4);
+  document.querySelectorAll("#td-priority-buttons .td-prio").forEach(btn => {
+    btn.classList.toggle("selected", btn.dataset.priority === p);
+  });
+}
+
+// Render the description as HTML via marked, or show a placeholder if empty.
+function renderTaskDescription(md) {
+  const el = document.getElementById("td-description-rendered");
+  if (!el) return;
+  const text = (md || "").trim();
+  if (!text) {
+    el.classList.add("empty");
+    el.textContent = "Beschreibung hinzufügen…";
+    return;
+  }
+  el.classList.remove("empty");
+  // marked is loaded as a global (UMD). Safe defaults: no raw HTML passthrough.
+  try {
+    el.innerHTML = window.marked.parse(text, { breaks: true, gfm: true });
+  } catch (e) {
+    el.textContent = text;
+  }
+}
+
+// Show the textarea editor for the description (hides the rendered preview).
+function showDescriptionEditor() {
+  const rendered = document.getElementById("td-description-rendered");
+  const input = document.getElementById("td-description");
+  rendered.classList.add("hidden");
+  input.classList.remove("hidden");
+  // Grow to roughly fit content.
+  input.style.height = "auto";
+  input.style.height = Math.max(80, input.scrollHeight) + "px";
+  input.focus();
+}
+
+// Hide the textarea, re-render the markdown.
+function hideDescriptionEditor() {
+  const rendered = document.getElementById("td-description-rendered");
+  const input = document.getElementById("td-description");
+  input.classList.add("hidden");
+  rendered.classList.remove("hidden");
+  renderTaskDescription(input.value);
+}
+
+// Auto-grow the title textarea to fit its content.
+function autoGrow(el) {
+  el.style.height = "auto";
+  el.style.height = el.scrollHeight + "px";
+}
+
 // openTaskDialogInternal opens the modal without touching browser history.
 // Used by popstate/boot when the URL itself caused the modal to open.
 function openTaskDialogInternal(t) {
   const dlg = document.getElementById("task-dialog");
   dlg.dataset.id = t.id;
-  document.getElementById("td-title").value = t.title;
+  const titleEl = document.getElementById("td-title");
+  titleEl.value = t.title;
   document.getElementById("td-description").value = t.description || "";
   document.getElementById("td-project").value = t.project_id;
   document.getElementById("td-priority").value = String(t.priority);
@@ -972,7 +1044,16 @@ function openTaskDialogInternal(t) {
   clearDateHint("td-deadline");
   setRecurrenceControls("td-recurrence", "td-recur-custom-wrap", "td-recur-custom", t.recurrence_rule || "");
   document.getElementById("td-error").classList.add("hidden");
+  renderTaskDialogBreadcrumb(t.project_id);
+  updateTaskDialogCheckbox(t.priority);
+  updateTaskDialogPriorityButtons(t.priority);
+  renderTaskDescription(t.description || "");
+  // Make sure the editor is hidden whenever we (re)open the modal.
+  document.getElementById("td-description").classList.add("hidden");
+  document.getElementById("td-description-rendered").classList.remove("hidden");
   dlg.showModal();
+  // Title textarea height needs the dialog to be visible to measure correctly.
+  requestAnimationFrame(() => autoGrow(titleEl));
 }
 
 // openTaskDialog is the user-facing entry point. It pushes a history entry so
@@ -980,6 +1061,31 @@ function openTaskDialogInternal(t) {
 function openTaskDialog(t) {
   if (!routerSuppressPush) pushTaskUrl(t.id);
   openTaskDialogInternal(t);
+}
+
+// Returns the ISO date for the quick-reschedule presets, based on today.
+function quickRescheduleISO(kind) {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  if (kind === "tomorrow") {
+    d.setDate(d.getDate() + 1);
+  } else if (kind === "weekend") {
+    // Next Saturday (or today if today is Saturday and you want today? — we go
+    // strictly to the upcoming Saturday, mirroring Todoist).
+    const dow = d.getDay(); // 0=Sun..6=Sat
+    const add = ((6 - dow) + 7) % 7 || 7;
+    d.setDate(d.getDate() + add);
+  } else if (kind === "monday") {
+    const dow = d.getDay();
+    const add = ((1 - dow) + 7) % 7 || 7;
+    d.setDate(d.getDate() + add);
+  } else {
+    return "";
+  }
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function wireTaskDialog() {
@@ -990,11 +1096,13 @@ function wireTaskDialog() {
     if (!routerSuppressPush) popTaskUrl();
   });
   document.getElementById("td-cancel").addEventListener("click", () => dlg.close("cancel"));
+  document.getElementById("td-close").addEventListener("click", () => dlg.close("cancel"));
+
   document.getElementById("td-save").addEventListener("click", async (e) => {
     e.preventDefault();
     const id = dlg.dataset.id;
     const body = {
-      title: document.getElementById("td-title").value,
+      title: document.getElementById("td-title").value.trim(),
       description: document.getElementById("td-description").value,
       project_id: document.getElementById("td-project").value,
       priority: parseInt(document.getElementById("td-priority").value, 10),
@@ -1013,6 +1121,69 @@ function wireTaskDialog() {
     dlg.close();
     refresh();
   });
+
+  // Complete the task right from the modal.
+  document.getElementById("td-checkbox").addEventListener("click", async () => {
+    const id = dlg.dataset.id;
+    if (!id) return;
+    try {
+      await api.completeTask(id);
+    } catch (err) {
+      const el = document.getElementById("td-error");
+      el.textContent = err.message || "Fehler beim Erledigen";
+      el.classList.remove("hidden");
+      return;
+    }
+    dlg.close();
+    refresh();
+  });
+
+  // Keep the breadcrumb / checkbox color in sync when the user changes
+  // project or priority inside the modal.
+  document.getElementById("td-project").addEventListener("change", (e) => {
+    renderTaskDialogBreadcrumb(e.target.value);
+  });
+  document.querySelectorAll("#td-priority-buttons .td-prio").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const p = parseInt(btn.dataset.priority, 10);
+      document.getElementById("td-priority").value = String(p);
+      updateTaskDialogPriorityButtons(p);
+      updateTaskDialogCheckbox(p);
+    });
+  });
+
+  // Title textarea: auto-grow + Enter submits.
+  const titleEl = document.getElementById("td-title");
+  titleEl.addEventListener("input", () => autoGrow(titleEl));
+  titleEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      document.getElementById("td-save").click();
+    }
+  });
+
+  // Description: click to edit, blur to render.
+  const descRendered = document.getElementById("td-description-rendered");
+  const descInput = document.getElementById("td-description");
+  descRendered.addEventListener("click", showDescriptionEditor);
+  descInput.addEventListener("blur", hideDescriptionEditor);
+  descInput.addEventListener("input", () => {
+    descInput.style.height = "auto";
+    descInput.style.height = Math.max(80, descInput.scrollHeight) + "px";
+  });
+
+  // Quick-reschedule buttons in the sidebar set visible_from to a preset date.
+  document.querySelectorAll(".td-quick").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const iso = quickRescheduleISO(btn.dataset.quick);
+      if (!iso) return;
+      const input = document.getElementById("td-visible-from");
+      input.value = isoToDE(iso);
+      // Trigger NL parser hint refresh.
+      input.dispatchEvent(new Event("change"));
+    });
+  });
+
   // Toggle visibility of the custom-RRULE inputs when the user picks "custom".
   document.getElementById("td-recurrence").addEventListener("change", (e) => {
     document.getElementById("td-recur-custom-wrap").classList.toggle("hidden", e.target.value !== "custom");
