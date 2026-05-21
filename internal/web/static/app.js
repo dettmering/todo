@@ -477,15 +477,9 @@ function createTaskLI(t, today) {
       <span>${escapeHTML(projectName(t.project_id))}</span>
       <span class="task-project-dot" style="background:${escapeHTML(projectColor(projectById(t.project_id)))}"></span>
     </div>`}
-    <div class="actions">
-      ${isCompleted ? "" : `<button data-action="edit" title="Bearbeiten" aria-label="Bearbeiten">${ICON.edit}</button>`}
-      <button data-action="delete" title="Löschen" aria-label="Löschen">${ICON.trash}</button>
-    </div>
   `;
   if (isCompleted) {
-    // Click anywhere on the row (except delete) re-opens the task.
-    li.addEventListener("click", async (e) => {
-      if (e.target.closest('[data-action="delete"]')) return;
+    li.addEventListener("click", async () => {
       await api.reopenTask(t.id);
       refresh();
     });
@@ -495,17 +489,8 @@ function createTaskLI(t, today) {
       await api.completeTask(t.id);
       refresh();
     });
-    li.querySelector('[data-action="edit"]').addEventListener("click", (e) => {
-      e.stopPropagation();
-      openTaskDialog(t);
-    });
     li.addEventListener("click", () => openTaskDialog(t));
   }
-  li.querySelector('[data-action="delete"]').addEventListener("click", async (e) => {
-    e.stopPropagation();
-    await api.deleteTask(t.id);
-    refresh();
-  });
   return li;
 }
 
@@ -629,6 +614,21 @@ function wireTaskDialog() {
   // Toggle visibility of the custom-RRULE inputs when the user picks "custom".
   document.getElementById("td-recurrence").addEventListener("change", (e) => {
     document.getElementById("td-recur-custom-wrap").classList.toggle("hidden", e.target.value !== "custom");
+  });
+  document.getElementById("td-delete").addEventListener("click", async (e) => {
+    e.preventDefault();
+    const id = dlg.dataset.id;
+    if (!confirm("Aufgabe wirklich löschen?")) return;
+    try {
+      await api.deleteTask(id);
+    } catch (err) {
+      const el = document.getElementById("td-error");
+      el.textContent = err.message || "Fehler beim Löschen";
+      el.classList.remove("hidden");
+      return;
+    }
+    dlg.close();
+    refresh();
   });
 }
 

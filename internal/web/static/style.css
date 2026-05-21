@@ -418,30 +418,6 @@ body {
 }
 .task .task-project svg { width: 12px; height: 12px; flex-shrink: 0; opacity: 0.7; }
 
-.task .actions {
-  display: flex;
-  gap: 2px;
-  align-items: center;
-  visibility: hidden;
-  margin-left: 8px;
-}
-.task:hover .actions { visibility: visible; }
-.task .actions button {
-  background: transparent;
-  border: 0;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-}
-.task .actions button svg { width: 16px; height: 16px; }
-.task .actions button:hover { background: var(--hover); color: var(--accent); }
-
 .empty {
   color: var(--text-muted);
   padding: 48px 0;
