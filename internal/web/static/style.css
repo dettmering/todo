@@ -201,46 +201,9 @@ body {
 .quick-add input[type="text"]::placeholder {
   color: var(--text-muted);
 }
-.quick-add-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px dashed var(--border);
-  align-items: center;
-}
-.quick-add-options select,
-.quick-add-options input[type="date"],
-.quick-add-options input[type="text"] {
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 12px;
-  background: var(--main-bg);
-  color: var(--text);
-  font-family: inherit;
-}
-.quick-add-options select:hover,
-.quick-add-options input[type="date"]:hover,
-.quick-add-options input[type="text"]:hover { border-color: var(--p4); }
-
-.nl-date-field input { width: 11em; }
+.field { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
 .date-hint { font-size: 11px; color: var(--text-muted); margin-left: 4px; min-width: 6em; }
 .date-hint.bad { color: var(--overdue); }
-.field { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
-
-.quick-add-custom-recur { margin-top: 6px; }
-.quick-add-custom-recur input[type="text"] {
-  width: 100%;
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 12px;
-  background: var(--main-bg);
-  color: var(--text);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-}
 .date-item.recur-label { color: var(--text-muted); }
 .date-item.recur-label svg { width: 14px; height: 14px; }
 

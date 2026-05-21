@@ -312,13 +312,6 @@ function renderSidebar() {
     el.classList.toggle("active", el.dataset.view === state.view.kind);
   });
 
-  // Quick-add: all active projects (including Inbox, so users can still target it).
-  const qaProjects = activeProjects().sort((a, b) => {
-    if (a.id === "inbox") return -1;
-    if (b.id === "inbox") return 1;
-    return a.sort_order - b.sort_order || a.name.localeCompare(b.name);
-  });
-  fillProjectSelect("qa-project", qaProjects);
   // Task edit: include archived ones so existing tasks still resolve their current project.
   const editProjects = [...state.projects].sort((a, b) => Number(a.archived) - Number(b.archived) || a.sort_order - b.sort_order || a.name.localeCompare(b.name));
   fillProjectSelect("td-project", editProjects, true);
@@ -404,24 +397,7 @@ async function refresh() {
   const inboxCountEl = document.getElementById("inbox-count");
   if (inboxCountEl) inboxCountEl.textContent = inboxCount > 0 ? inboxCount : "";
   renderSidebar();
-  setQuickAddDefaults();
   renderTasks(tasks, completedToday);
-}
-
-// Sync the quick-add controls with the current view so defaults always match
-// the user's context: project = current project (or Inbox), visible_from = today.
-function setQuickAddDefaults() {
-  const projectSel = document.getElementById("qa-project");
-  if (projectSel) {
-    const target = defaultProjectForView();
-    if ([...projectSel.options].some(o => o.value === target)) {
-      projectSel.value = target;
-    }
-  }
-  const visibleFromEl = document.getElementById("qa-visible-from");
-  if (visibleFromEl && !visibleFromEl.value) visibleFromEl.value = "heute";
-  const prioSel = document.getElementById("qa-priority");
-  if (prioSel && !prioSel.value) prioSel.value = "4";
 }
 
 function isoWeek(isoDate) {
@@ -792,10 +768,6 @@ function wireQuickAdd() {
   const form = document.getElementById("quick-add-form");
   const input = document.getElementById("quick-add-input");
 
-  document.getElementById("qa-recurrence").addEventListener("change", (e) => {
-    document.getElementById("qa-recur-custom-wrap").classList.toggle("hidden", e.target.value !== "custom");
-  });
-
   input.addEventListener("input", processQuickAddInput);
   input.addEventListener("keydown", (e) => {
     if (qaInline.menu.visible && qaInline.menu.items.length > 0) {
@@ -851,14 +823,11 @@ function wireQuickAdd() {
     title = title.replace(/\s+/g, " ").trim();
     if (!title) return;
 
-    const projectFallback = document.getElementById("qa-project").value;
     const body = {
       title,
-      project_id: projectId || projectFallback || defaultProjectForView(),
-      priority: priority || parseInt(document.getElementById("qa-priority").value, 10),
-      visible_from: visibleFrom || document.getElementById("qa-visible-from").value || "",
-      deadline: document.getElementById("qa-deadline").value || "",
-      recurrence_rule: readRecurrence("qa-recurrence", "qa-recur-custom"),
+      project_id: projectId || defaultProjectForView(),
+      priority: priority || 4,
+      visible_from: visibleFrom || "",
     };
     try {
       await api.createTask(body);
@@ -867,10 +836,6 @@ function wireQuickAdd() {
       return;
     }
     form.reset();
-    document.getElementById("qa-priority").value = "4";
-    setRecurrenceControls("qa-recurrence", "qa-recur-custom-wrap", "qa-recur-custom", "");
-    clearDateHint("qa-visible-from");
-    clearDateHint("qa-deadline");
     qaInline.date = qaInline.dateUnresolved = qaInline.project = qaInline.priority = null;
     closeProjectMenu();
     renderQuickAddOverlay();
@@ -1080,10 +1045,7 @@ function wireShortcuts() {
 async function boot() {
   const todayIconEl = document.getElementById("today-icon");
   if (todayIconEl) todayIconEl.innerHTML = todayIconSVG();
-  fillRecurrenceSelect("qa-recurrence");
   fillRecurrenceSelect("td-recurrence");
-  wireNLDateInput("qa-visible-from");
-  wireNLDateInput("qa-deadline");
   wireNLDateInput("td-visible-from");
   wireNLDateInput("td-deadline");
   renderQuickAddOverlay();
