@@ -55,13 +55,16 @@
       <div class="quick-add">
         <form id="quick-add-form">
           <div class="quick-add-input-wrap">
+            <div class="qa-overlay" id="qa-overlay" aria-hidden="true"></div>
             <input
               type="text"
               id="quick-add-input"
-              placeholder="Aufgabe hinzufügen — Eingabe speichert"
+              placeholder="Aufgabe — @datum  #projekt  !!1..4"
               autocomplete="off"
+              spellcheck="false"
             />
             <button type="submit" class="do-it-btn" id="do-it-btn">DO IT</button>
+            <div class="qa-project-menu hidden" id="qa-project-menu" role="listbox"></div>
           </div>
           <div class="quick-add-options">
             <select id="qa-project"></select>

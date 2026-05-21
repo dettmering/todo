@@ -250,7 +250,77 @@ body {
 }
 .quick-add-input-wrap input[type="text"] {
   padding-right: 84px; /* leave room for the embedded button */
+  position: relative;
+  z-index: 1;
+  /* Text rendered by the overlay; we keep the caret visible here. */
+  color: transparent;
+  caret-color: var(--text);
+  background: transparent;
 }
+.quick-add-input-wrap input[type="text"]::selection {
+  background: rgba(36, 111, 224, 0.25);
+  color: transparent;
+}
+.qa-overlay {
+  position: absolute;
+  inset: 0;
+  padding: 4px 84px 4px 0;
+  font-size: 14px;
+  line-height: inherit;
+  font-family: inherit;
+  color: var(--text);
+  white-space: pre;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+.qa-mark {
+  border-radius: 3px;
+  padding: 0 3px;
+  margin: 0 -1px;
+}
+.qa-mark-date { background: #db4c3f; color: #fff; }
+.qa-mark-project { background: #246fe0; color: #fff; }
+.qa-mark-prio1 { background: var(--p1); color: #fff; }
+.qa-mark-prio2 { background: var(--p2); color: #fff; }
+.qa-mark-prio3 { background: var(--p3); color: #fff; }
+.qa-mark-prio4 { background: var(--text-muted); color: #fff; }
+.qa-mark-unresolved { background: transparent; color: var(--text); text-decoration: underline wavy var(--overdue); }
+
+.qa-project-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 6px;
+  min-width: 220px;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--main-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 20;
+  padding: 4px;
+}
+.qa-project-menu .qa-project-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+}
+.qa-project-menu .qa-project-item .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.qa-project-menu .qa-project-item.active,
+.qa-project-menu .qa-project-item:hover { background: var(--hover); }
+.qa-project-menu .qa-project-empty { padding: 8px 10px; color: var(--text-muted); font-size: 12px; }
 .do-it-btn {
   position: absolute;
   right: 6px;

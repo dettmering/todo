@@ -586,21 +586,277 @@ function renderTasks(tasks, completedToday = []) {
 
 // ---------- Quick add ----------
 
+// Inline tokens in the quick-add title input: @date, #project, !!priority.
+// The input keeps its plain string value; a same-styled overlay div behind it
+// renders colored marks for matched ranges (Todoist-style).
+const qaInline = {
+  date: null,            // {start, end, iso, text}
+  dateUnresolved: null,  // {start, end}  -- @ present but parser returned nothing
+  project: null,         // {start, end, text, id, name}  -- id set only on exact match
+  priority: null,        // {start, end, value}
+  parseCache: new Map(), // phrase (lowercased) -> iso|null
+  parseGen: 0,           // request token so late /api/parse responses don't clobber newer state
+  menu: { visible: false, items: [], activeIdx: 0 },
+};
+
+function findAtPhrase(text) {
+  const i = text.indexOf("@");
+  if (i < 0) return null;
+  let end = text.length;
+  for (let j = i + 1; j < text.length; j++) {
+    if (text[j] === "@" || text[j] === "#") { end = j; break; }
+    if (text[j] === "!" && text[j + 1] === "!") { end = j; break; }
+  }
+  return { atIndex: i, end, phrase: text.slice(i + 1, end) };
+}
+
+// Try the longest prefix first, then drop the trailing word until something
+// parses. Returns {iso, matchedLen} where matchedLen counts characters in the
+// original phrase (so the highlight ends right after the matched word).
+async function parseShrinking(phrase, generation) {
+  let attempt = phrase.replace(/\s+$/, "");
+  while (attempt.length > 0) {
+    const key = attempt.toLowerCase();
+    let iso;
+    if (qaInline.parseCache.has(key)) {
+      iso = qaInline.parseCache.get(key);
+    } else {
+      try {
+        const res = await api.parse(attempt);
+        iso = res.visible_from || null;
+      } catch (e) {
+        iso = null;
+      }
+      if (generation !== qaInline.parseGen) return null;
+      qaInline.parseCache.set(key, iso);
+    }
+    if (iso) return { iso, matchedLen: attempt.length };
+    const lastSpace = attempt.lastIndexOf(" ");
+    if (lastSpace < 0) break;
+    attempt = attempt.slice(0, lastSpace).replace(/\s+$/, "");
+  }
+  return null;
+}
+
+async function processQuickAddInput() {
+  const input = document.getElementById("quick-add-input");
+  const text = input.value;
+  const generation = ++qaInline.parseGen;
+
+  // Priority: !!1..!!4
+  const prioMatch = /!!([1-4])(?!\d)/.exec(text);
+  qaInline.priority = prioMatch
+    ? { start: prioMatch.index, end: prioMatch.index + prioMatch[0].length, value: parseInt(prioMatch[1], 10) }
+    : null;
+
+  // Project: #<word>, non-breaking-space allowed for multi-word names that we
+  // injected ourselves after a menu selection.
+  const projMatch = /#([^\s@#!]+(?: [^\s@#!]+)*)/u.exec(text);
+  if (projMatch) {
+    const raw = projMatch[1];
+    const needle = raw.replace(/ /g, " ").toLowerCase();
+    const exact = activeProjects().find(p => p.name.toLowerCase() === needle);
+    qaInline.project = {
+      start: projMatch.index,
+      end: projMatch.index + projMatch[0].length,
+      text: raw,
+      id: exact ? exact.id : null,
+      name: exact ? exact.name : null,
+    };
+  } else {
+    qaInline.project = null;
+  }
+
+  // Date: @<phrase> with longest-match shrinking
+  qaInline.date = null;
+  qaInline.dateUnresolved = null;
+  const at = findAtPhrase(text);
+  if (at && at.phrase.trim()) {
+    const phraseTrim = at.phrase.replace(/\s+$/, "");
+    const matched = await parseShrinking(phraseTrim, generation);
+    if (generation !== qaInline.parseGen) return; // a newer keystroke is in flight
+    if (matched) {
+      qaInline.date = {
+        start: at.atIndex,
+        end: at.atIndex + 1 + matched.matchedLen,
+        iso: matched.iso,
+        text: phraseTrim.slice(0, matched.matchedLen),
+      };
+    } else {
+      qaInline.dateUnresolved = { start: at.atIndex, end: at.atIndex + 1 + phraseTrim.length };
+    }
+  }
+
+  renderQuickAddOverlay();
+  updateProjectMenu();
+}
+
+function renderQuickAddOverlay() {
+  const input = document.getElementById("quick-add-input");
+  const overlay = document.getElementById("qa-overlay");
+  const text = input.value;
+  const ranges = [];
+  if (qaInline.date) ranges.push({ start: qaInline.date.start, end: qaInline.date.end, cls: "qa-mark-date" });
+  if (qaInline.dateUnresolved) ranges.push({ start: qaInline.dateUnresolved.start, end: qaInline.dateUnresolved.end, cls: "qa-mark-unresolved" });
+  if (qaInline.project && qaInline.project.id) ranges.push({ start: qaInline.project.start, end: qaInline.project.end, cls: "qa-mark-project" });
+  if (qaInline.priority) ranges.push({ start: qaInline.priority.start, end: qaInline.priority.end, cls: `qa-mark-prio${qaInline.priority.value}` });
+  ranges.sort((a, b) => a.start - b.start);
+
+  let html = "";
+  let cursor = 0;
+  for (const r of ranges) {
+    if (r.start < cursor) continue; // shouldn't happen, but stay defensive
+    html += escapeHTML(text.slice(cursor, r.start));
+    html += `<span class="qa-mark ${r.cls}">${escapeHTML(text.slice(r.start, r.end))}</span>`;
+    cursor = r.end;
+  }
+  html += escapeHTML(text.slice(cursor));
+  overlay.innerHTML = html || "&#8203;";
+}
+
+function updateProjectMenu() {
+  const menu = document.getElementById("qa-project-menu");
+  // Only show when the user is mid-typing an unresolved #token.
+  if (!qaInline.project || qaInline.project.id) {
+    closeProjectMenu();
+    return;
+  }
+  const needle = qaInline.project.text.replace(/ /g, " ").toLowerCase();
+  const items = activeProjects()
+    .filter(p => p.name.toLowerCase().includes(needle))
+    .sort((a, b) => {
+      // Prefer prefix matches, then alphabetical.
+      const ap = a.name.toLowerCase().startsWith(needle) ? 0 : 1;
+      const bp = b.name.toLowerCase().startsWith(needle) ? 0 : 1;
+      if (ap !== bp) return ap - bp;
+      return a.name.localeCompare(b.name);
+    });
+  qaInline.menu.items = items;
+  qaInline.menu.activeIdx = 0;
+  if (items.length === 0) {
+    menu.innerHTML = `<div class="qa-project-empty">Keine Projekte für „${escapeHTML(needle)}"</div>`;
+    menu.classList.remove("hidden");
+    qaInline.menu.visible = true;
+    return;
+  }
+  menu.innerHTML = items.map((p, i) => `
+    <div class="qa-project-item ${i === 0 ? "active" : ""}" data-idx="${i}">
+      <span class="dot" style="background:${escapeHTML(projectColor(p))}"></span>
+      <span>${escapeHTML(p.name)}</span>
+    </div>
+  `).join("");
+  menu.classList.remove("hidden");
+  qaInline.menu.visible = true;
+  menu.querySelectorAll(".qa-project-item").forEach(el => {
+    el.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      selectProjectFromMenu(parseInt(el.dataset.idx, 10));
+    });
+  });
+}
+
+function closeProjectMenu() {
+  const menu = document.getElementById("qa-project-menu");
+  menu.classList.add("hidden");
+  qaInline.menu.visible = false;
+  qaInline.menu.items = [];
+}
+
+function highlightActiveMenuItem() {
+  const menu = document.getElementById("qa-project-menu");
+  menu.querySelectorAll(".qa-project-item").forEach((el, i) => {
+    el.classList.toggle("active", i === qaInline.menu.activeIdx);
+    if (i === qaInline.menu.activeIdx) el.scrollIntoView({ block: "nearest" });
+  });
+}
+
+function selectProjectFromMenu(idx) {
+  const p = qaInline.menu.items[idx];
+  if (!p || !qaInline.project) return;
+  const input = document.getElementById("quick-add-input");
+  const text = input.value;
+  // Use non-breaking spaces so multi-word names stay one token under our regex.
+  const nbName = p.name.replace(/ /g, " ");
+  const before = text.slice(0, qaInline.project.start);
+  const after = text.slice(qaInline.project.end);
+  const replacement = "#" + nbName;
+  input.value = before + replacement + after;
+  const newCursor = before.length + replacement.length;
+  input.setSelectionRange(newCursor, newCursor);
+  closeProjectMenu();
+  input.focus();
+  processQuickAddInput();
+}
+
 function wireQuickAdd() {
   const form = document.getElementById("quick-add-form");
+  const input = document.getElementById("quick-add-input");
+
   document.getElementById("qa-recurrence").addEventListener("change", (e) => {
     document.getElementById("qa-recur-custom-wrap").classList.toggle("hidden", e.target.value !== "custom");
   });
+
+  input.addEventListener("input", processQuickAddInput);
+  input.addEventListener("keydown", (e) => {
+    if (qaInline.menu.visible && qaInline.menu.items.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        qaInline.menu.activeIdx = (qaInline.menu.activeIdx + 1) % qaInline.menu.items.length;
+        highlightActiveMenuItem();
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        qaInline.menu.activeIdx = (qaInline.menu.activeIdx - 1 + qaInline.menu.items.length) % qaInline.menu.items.length;
+        highlightActiveMenuItem();
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        selectProjectFromMenu(qaInline.menu.activeIdx);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeProjectMenu();
+        return;
+      }
+    }
+  });
+  // Closing the menu on blur is wrapped in a small timeout so a mousedown on a
+  // menu item still registers before the input loses focus.
+  input.addEventListener("blur", () => setTimeout(closeProjectMenu, 120));
+
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const title = document.getElementById("quick-add-input").value.trim();
+    let title = input.value;
+    let projectId = null, priority = 0, visibleFrom = null;
+
+    const ranges = [];
+    if (qaInline.priority) {
+      priority = qaInline.priority.value;
+      ranges.push({ start: qaInline.priority.start, end: qaInline.priority.end });
+    }
+    if (qaInline.project && qaInline.project.id) {
+      projectId = qaInline.project.id;
+      ranges.push({ start: qaInline.project.start, end: qaInline.project.end });
+    }
+    if (qaInline.date) {
+      visibleFrom = qaInline.date.iso;
+      ranges.push({ start: qaInline.date.start, end: qaInline.date.end });
+    }
+    ranges.sort((a, b) => b.start - a.start);
+    for (const r of ranges) title = title.slice(0, r.start) + title.slice(r.end);
+    // Collapse whitespace left behind by stripped tokens.
+    title = title.replace(/\s+/g, " ").trim();
     if (!title) return;
-    const projectSel = document.getElementById("qa-project").value;
+
+    const projectFallback = document.getElementById("qa-project").value;
     const body = {
       title,
-      project_id: projectSel || defaultProjectForView(),
-      priority: parseInt(document.getElementById("qa-priority").value, 10),
-      visible_from: document.getElementById("qa-visible-from").value || "",
+      project_id: projectId || projectFallback || defaultProjectForView(),
+      priority: priority || parseInt(document.getElementById("qa-priority").value, 10),
+      visible_from: visibleFrom || document.getElementById("qa-visible-from").value || "",
       deadline: document.getElementById("qa-deadline").value || "",
       recurrence_rule: readRecurrence("qa-recurrence", "qa-recur-custom"),
     };
@@ -615,7 +871,10 @@ function wireQuickAdd() {
     setRecurrenceControls("qa-recurrence", "qa-recur-custom-wrap", "qa-recur-custom", "");
     clearDateHint("qa-visible-from");
     clearDateHint("qa-deadline");
-    refresh(); // refresh calls setQuickAddDefaults() which re-fills visible_from + project
+    qaInline.date = qaInline.dateUnresolved = qaInline.project = qaInline.priority = null;
+    closeProjectMenu();
+    renderQuickAddOverlay();
+    refresh();
   });
 }
 
@@ -827,6 +1086,7 @@ async function boot() {
   wireNLDateInput("qa-deadline");
   wireNLDateInput("td-visible-from");
   wireNLDateInput("td-deadline");
+  renderQuickAddOverlay();
   wireSidebarNav();
   wireQuickAdd();
   wireTaskDialog();
