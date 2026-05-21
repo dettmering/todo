@@ -71,13 +71,15 @@
               <option value="3">P3</option>
               <option value="4" selected>P4</option>
             </select>
-            <label class="field">
+            <label class="field nl-date-field">
               <span>Sichtbar ab</span>
-              <input type="date" id="qa-visible-from" />
+              <input type="text" id="qa-visible-from" placeholder="heute, mo, 27.5., KW 32" autocomplete="off" />
+              <span class="date-hint" data-for="qa-visible-from"></span>
             </label>
-            <label class="field">
+            <label class="field nl-date-field">
               <span>Deadline</span>
-              <input type="date" id="qa-deadline" />
+              <input type="text" id="qa-deadline" placeholder="morgen, +5, ende juni" autocomplete="off" />
+              <span class="date-hint" data-for="qa-deadline"></span>
             </label>
             <label class="field">
               <span>Wiederholung</span>
@@ -133,8 +135,14 @@
         </label>
       </div>
       <div class="row">
-        <label>Sichtbar ab <input type="date" id="td-visible-from" /></label>
-        <label>Deadline <input type="date" id="td-deadline" /></label>
+        <label>Sichtbar ab
+          <input type="text" id="td-visible-from" placeholder="heute, mo, 27.5., KW 32" autocomplete="off" />
+          <span class="date-hint" data-for="td-visible-from"></span>
+        </label>
+        <label>Deadline
+          <input type="text" id="td-deadline" placeholder="morgen, +5, ende juni" autocomplete="off" />
+          <span class="date-hint" data-for="td-deadline"></span>
+        </label>
       </div>
       <div class="row">
         <label>Wiederholung <select id="td-recurrence"></select></label>

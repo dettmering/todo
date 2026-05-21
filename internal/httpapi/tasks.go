@@ -2,12 +2,33 @@ package httpapi
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/till/todo/internal/domain"
+	"github.com/till/todo/internal/nldate"
 	"github.com/till/todo/internal/service"
 	"github.com/till/todo/internal/storage"
 )
+
+// parseDateInput accepts either an empty string, an ISO date (YYYY-MM-DD), or
+// a German natural-language phrase ("morgen", "Freitag", "27.5.", ...).
+// Returns the zero LocalDate for empty input.
+func parseDateInput(s string) (domain.LocalDate, error) {
+	if s == "" {
+		return domain.LocalDate{}, nil
+	}
+	if d, err := domain.ParseDate(s); err == nil {
+		return d, nil
+	}
+	today := domain.DateOf(time.Now().UTC())
+	d, err := nldate.ParseDate(s, today)
+	if err != nil {
+		return domain.LocalDate{}, fmt.Errorf("could not parse %q", s)
+	}
+	return d, nil
+}
 
 type taskCreateReq struct {
 	Title          string `json:"title"`
@@ -67,12 +88,12 @@ func (h *Handler) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, errorResp{Error: "invalid JSON: " + err.Error()})
 		return
 	}
-	vf, err := domain.ParseDate(req.VisibleFrom)
+	vf, err := parseDateInput(req.VisibleFrom)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, errorResp{Error: "visible_from: " + err.Error()})
 		return
 	}
-	dl, err := domain.ParseDate(req.Deadline)
+	dl, err := parseDateInput(req.Deadline)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, errorResp{Error: "deadline: " + err.Error()})
 		return
@@ -132,7 +153,7 @@ func (h *Handler) handlePatchTask(w http.ResponseWriter, r *http.Request) {
 		patch.Priority = &p
 	}
 	if req.VisibleFrom != nil {
-		d, err := domain.ParseDate(*req.VisibleFrom)
+		d, err := parseDateInput(*req.VisibleFrom)
 		if err != nil {
 			writeJSON(w, http.StatusBadRequest, errorResp{Error: "visible_from: " + err.Error()})
 			return
@@ -140,7 +161,7 @@ func (h *Handler) handlePatchTask(w http.ResponseWriter, r *http.Request) {
 		patch.VisibleFrom = &d
 	}
 	if req.Deadline != nil {
-		d, err := domain.ParseDate(*req.Deadline)
+		d, err := parseDateInput(*req.Deadline)
 		if err != nil {
 			writeJSON(w, http.StatusBadRequest, errorResp{Error: "deadline: " + err.Error()})
 			return

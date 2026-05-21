@@ -34,4 +34,6 @@ func (h *Handler) routes() {
 	h.mux.HandleFunc("GET /api/projects/{id}", h.handleGetProject)
 	h.mux.HandleFunc("PATCH /api/projects/{id}", h.handlePatchProject)
 	h.mux.HandleFunc("DELETE /api/projects/{id}", h.handleDeleteProject)
+
+	h.mux.HandleFunc("POST /api/parse", h.handleParse)
 }

@@ -17,6 +17,9 @@ async function jsonOrError(res) {
 }
 
 const api = {
+  async parse(text) {
+    return fetch("/api/parse", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) }).then(jsonOrError);
+  },
   async listProjects() { return fetch("/api/projects?include_archived=true").then(jsonOrError); },
   async createProject(body) {
     return fetch("/api/projects", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(jsonOrError);
@@ -138,6 +141,51 @@ const state = {
   view: { kind: "today" }, // or { kind: "project", id }, { kind: "upcoming" }, { kind: "all-open" }
   openCounts: {}, // project_id -> number of open tasks
 };
+
+// Convert ISO YYYY-MM-DD to German DD.MM.YYYY for display in NL date inputs.
+// The backend parser accepts both, so we can present the friendlier form.
+function isoToDE(iso) {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}.${m}.${y}`;
+}
+
+// Hooks up an input element for natural-language date entry. On blur (or
+// Enter), the text is sent to /api/parse; the parsed date appears as a small
+// hint next to the field. Empty input clears the hint.
+function wireNLDateInput(inputId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const hint = document.querySelector(`.date-hint[data-for="${inputId}"]`);
+  let lastQuery = "";
+  async function update() {
+    const text = input.value.trim();
+    if (text === lastQuery) return;
+    lastQuery = text;
+    if (!hint) return;
+    if (!text) { hint.textContent = ""; hint.classList.remove("bad"); return; }
+    try {
+      const res = await api.parse(text);
+      if (res.visible_from) {
+        hint.textContent = "→ " + formatDate(res.visible_from);
+        hint.classList.remove("bad");
+      } else {
+        hint.textContent = "?";
+        hint.classList.add("bad");
+      }
+    } catch (err) {
+      hint.textContent = "?";
+      hint.classList.add("bad");
+    }
+  }
+  input.addEventListener("blur", update);
+  input.addEventListener("change", update);
+}
+
+function clearDateHint(inputId) {
+  const hint = document.querySelector(`.date-hint[data-for="${inputId}"]`);
+  if (hint) { hint.textContent = ""; hint.classList.remove("bad"); }
+}
 
 function todayISO() {
   const d = new Date();
@@ -371,7 +419,7 @@ function setQuickAddDefaults() {
     }
   }
   const visibleFromEl = document.getElementById("qa-visible-from");
-  if (visibleFromEl && !visibleFromEl.value) visibleFromEl.value = todayISO();
+  if (visibleFromEl && !visibleFromEl.value) visibleFromEl.value = "heute";
   const prioSel = document.getElementById("qa-priority");
   if (prioSel && !prioSel.value) prioSel.value = "4";
 }
@@ -565,6 +613,8 @@ function wireQuickAdd() {
     form.reset();
     document.getElementById("qa-priority").value = "4";
     setRecurrenceControls("qa-recurrence", "qa-recur-custom-wrap", "qa-recur-custom", "");
+    clearDateHint("qa-visible-from");
+    clearDateHint("qa-deadline");
     refresh(); // refresh calls setQuickAddDefaults() which re-fills visible_from + project
   });
 }
@@ -578,8 +628,10 @@ function openTaskDialog(t) {
   document.getElementById("td-description").value = t.description || "";
   document.getElementById("td-project").value = t.project_id;
   document.getElementById("td-priority").value = String(t.priority);
-  document.getElementById("td-visible-from").value = t.visible_from || "";
-  document.getElementById("td-deadline").value = t.deadline || "";
+  document.getElementById("td-visible-from").value = isoToDE(t.visible_from);
+  document.getElementById("td-deadline").value = isoToDE(t.deadline);
+  clearDateHint("td-visible-from");
+  clearDateHint("td-deadline");
   setRecurrenceControls("td-recurrence", "td-recur-custom-wrap", "td-recur-custom", t.recurrence_rule || "");
   document.getElementById("td-error").classList.add("hidden");
   dlg.showModal();
@@ -771,6 +823,10 @@ async function boot() {
   if (todayIconEl) todayIconEl.innerHTML = todayIconSVG();
   fillRecurrenceSelect("qa-recurrence");
   fillRecurrenceSelect("td-recurrence");
+  wireNLDateInput("qa-visible-from");
+  wireNLDateInput("qa-deadline");
+  wireNLDateInput("td-visible-from");
+  wireNLDateInput("td-deadline");
   wireSidebarNav();
   wireQuickAdd();
   wireTaskDialog();
