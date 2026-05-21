@@ -33,6 +33,9 @@ func Open(path string) (*Store, error) {
 	if err := s.seedInbox(); err != nil {
 		return nil, err
 	}
+	if err := s.backfillSlugs(); err != nil {
+		return nil, err
+	}
 	return s, nil
 }
 
@@ -72,6 +75,8 @@ var migrations = []migrationStep{
 	{3, `CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);`},
 	{4, `CREATE INDEX IF NOT EXISTS idx_tasks_status  ON tasks(status);`},
 	{5, `ALTER TABLE projects ADD COLUMN color TEXT NOT NULL DEFAULT '';`},
+	{6, `ALTER TABLE projects ADD COLUMN slug TEXT NOT NULL DEFAULT '';`},
+	{7, `CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_slug ON projects(slug) WHERE slug != '';`},
 }
 
 func (s *Store) migrate() error {
@@ -104,11 +109,54 @@ func (s *Store) seedInbox() error {
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
 	_, err := s.db.Exec(
-		`INSERT INTO projects (id, name, description, sort_order, archived, color, created_at, updated_at)
-		 VALUES (?, ?, '', 0, 0, ?, ?, ?)`,
-		domain.InboxID, "Inbox", "#246fe0", now, now,
+		`INSERT INTO projects (id, name, slug, description, sort_order, archived, color, created_at, updated_at)
+		 VALUES (?, ?, ?, '', 0, 0, ?, ?, ?)`,
+		domain.InboxID, "Inbox", "inbox", "#246fe0", now, now,
 	)
 	return err
+}
+
+// backfillSlugs populates any project rows that still have an empty slug
+// (e.g., projects that existed before migration 6 was introduced). Conflicts
+// are resolved deterministically by appending "-2", "-3", … in the order the
+// rows are processed (sort_order ASC, name ASC), so the result is stable.
+func (s *Store) backfillSlugs() error {
+	rows, err := s.db.Query(`SELECT id, name FROM projects WHERE slug = '' ORDER BY sort_order ASC, name ASC`)
+	if err != nil {
+		return fmt.Errorf("backfillSlugs select: %w", err)
+	}
+	type row struct{ id, name string }
+	var pending []row
+	for rows.Next() {
+		var r row
+		if err := rows.Scan(&r.id, &r.name); err != nil {
+			rows.Close()
+			return err
+		}
+		pending = append(pending, r)
+	}
+	rows.Close()
+	if len(pending) == 0 {
+		return nil
+	}
+	for _, r := range pending {
+		base := domain.Slugify(r.name)
+		slug := base
+		for n := 2; ; n++ {
+			var taken int
+			if err := s.db.QueryRow(`SELECT COUNT(*) FROM projects WHERE slug = ?`, slug).Scan(&taken); err != nil {
+				return err
+			}
+			if taken == 0 {
+				break
+			}
+			slug = fmt.Sprintf("%s-%d", base, n)
+		}
+		if _, err := s.db.Exec(`UPDATE projects SET slug = ? WHERE id = ?`, slug, r.id); err != nil {
+			return fmt.Errorf("backfillSlugs update %s: %w", r.id, err)
+		}
+	}
+	return nil
 }
 
 // helpers shared by repos

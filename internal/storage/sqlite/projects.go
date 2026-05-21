@@ -10,12 +10,12 @@ import (
 
 type ProjectRepo struct{ db *sql.DB }
 
-const projectCols = `id, name, description, sort_order, archived, color, created_at, updated_at`
+const projectCols = `id, name, slug, description, sort_order, archived, color, created_at, updated_at`
 
 func (r *ProjectRepo) Create(ctx context.Context, p *domain.Project) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO projects (`+projectCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		p.ID, p.Name, p.Description, p.SortOrder, boolToInt(p.Archived), p.Color,
+		`INSERT INTO projects (`+projectCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		p.ID, p.Name, p.Slug, p.Description, p.SortOrder, boolToInt(p.Archived), p.Color,
 		timeString(p.CreatedAt), timeString(p.UpdatedAt),
 	)
 	return err
@@ -32,8 +32,8 @@ func (r *ProjectRepo) Get(ctx context.Context, id string) (*domain.Project, erro
 
 func (r *ProjectRepo) Update(ctx context.Context, p *domain.Project) error {
 	res, err := r.db.ExecContext(ctx,
-		`UPDATE projects SET name = ?, description = ?, sort_order = ?, archived = ?, color = ?, updated_at = ? WHERE id = ?`,
-		p.Name, p.Description, p.SortOrder, boolToInt(p.Archived), p.Color, timeString(p.UpdatedAt), p.ID,
+		`UPDATE projects SET name = ?, slug = ?, description = ?, sort_order = ?, archived = ?, color = ?, updated_at = ? WHERE id = ?`,
+		p.Name, p.Slug, p.Description, p.SortOrder, boolToInt(p.Archived), p.Color, timeString(p.UpdatedAt), p.ID,
 	)
 	if err != nil {
 		return err
@@ -90,7 +90,7 @@ func scanProject(s rowScanner) (*domain.Project, error) {
 	var p domain.Project
 	var archived int
 	var createdAt, updatedAt string
-	if err := s.Scan(&p.ID, &p.Name, &p.Description, &p.SortOrder, &archived, &p.Color, &createdAt, &updatedAt); err != nil {
+	if err := s.Scan(&p.ID, &p.Name, &p.Slug, &p.Description, &p.SortOrder, &archived, &p.Color, &createdAt, &updatedAt); err != nil {
 		return nil, err
 	}
 	p.Archived = archived != 0

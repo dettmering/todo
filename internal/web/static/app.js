@@ -34,6 +34,9 @@ const api = {
     const q = new URLSearchParams(params);
     return fetch("/api/tasks?" + q.toString()).then(jsonOrError);
   },
+  async getTask(id) {
+    return fetch(`/api/tasks/${id}`).then(jsonOrError);
+  },
   async createTask(body) {
     return fetch("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(jsonOrError);
   },
@@ -141,6 +144,114 @@ const state = {
   view: { kind: "today" }, // or { kind: "project", id }, { kind: "upcoming" }, { kind: "all-open" }
   openCounts: {}, // project_id -> number of open tasks
 };
+
+// ---------- URL router ----------
+// URL scheme:
+//   /                          → today (canonicalised to /today via replaceState)
+//   /today, /upcoming, /inbox  → standard views
+//   /projects/<slug>           → project view (slug resolved against state.projects)
+//   /tasks/<id>                → opens task modal on top of the task's natural background view
+// Unknown paths fall back to /today.
+
+function projectBySlug(slug) { return state.projects.find(p => p.slug === slug); }
+
+function parsePath(pathname) {
+  const trimmed = pathname.replace(/\/+$/, "") || "/";
+  if (trimmed === "/" || trimmed === "/today") return { view: { kind: "today" } };
+  if (trimmed === "/upcoming") return { view: { kind: "upcoming" } };
+  if (trimmed === "/inbox") return { view: { kind: "inbox" } };
+  const proj = trimmed.match(/^\/projects\/([^\/]+)$/);
+  if (proj) return { view: { kind: "project", slug: decodeURIComponent(proj[1]) } };
+  const task = trimmed.match(/^\/tasks\/([^\/]+)$/);
+  if (task) return { view: { kind: "today" }, openTaskId: decodeURIComponent(task[1]) };
+  return { view: { kind: "today" } };
+}
+
+function viewToPath(view) {
+  switch (view.kind) {
+    case "today":    return "/today";
+    case "upcoming": return "/upcoming";
+    case "inbox":    return "/inbox";
+    case "project": {
+      const p = projectById(view.id);
+      const slug = p && p.slug ? p.slug : view.id;
+      return `/projects/${encodeURIComponent(slug)}`;
+    }
+  }
+  return "/today";
+}
+
+// pushView updates state.view, syncs the URL, and re-renders. Use replace=true
+// when canonicalising the URL on first load so the back button still works.
+function pushView(view, { replace = false } = {}) {
+  state.view = view;
+  const path = viewToPath(view);
+  if (location.pathname !== path) {
+    if (replace) history.replaceState({}, "", path);
+    else history.pushState({}, "", path);
+  }
+  refresh();
+}
+
+function pushTaskUrl(taskId) {
+  const path = `/tasks/${encodeURIComponent(taskId)}`;
+  if (location.pathname !== path) history.pushState({}, "", path);
+}
+
+function popTaskUrl() {
+  if (/^\/tasks\//.test(location.pathname)) history.back();
+}
+
+// Guard so popstate handling doesn't re-push history entries when it opens/closes modals programmatically.
+let routerSuppressPush = false;
+
+async function handlePopState() {
+  const parsed = parsePath(location.pathname);
+  const dlg = document.getElementById("task-dialog");
+  const modalOpen = dlg && dlg.open;
+  routerSuppressPush = true;
+  try {
+    if (parsed.openTaskId) {
+      // Direct task URL: ensure background view is the task's project, then open modal.
+      try {
+        const t = await api.getTask(parsed.openTaskId);
+        applyBackgroundViewForTask(t);
+        await refresh();
+        openTaskDialogInternal(t);
+      } catch (err) {
+        // Task gone or fetch failed → redirect to today.
+        pushView({ kind: "today" }, { replace: true });
+      }
+    } else {
+      if (modalOpen) dlg.close();
+      const view = resolveViewFromPath(parsed.view);
+      state.view = view;
+      await refresh();
+    }
+  } finally {
+    routerSuppressPush = false;
+  }
+}
+
+// Resolves a parsed view to a concrete state.view. Project slugs are looked up
+// against the cached project list; unknown slugs degrade to today.
+function resolveViewFromPath(parsedView) {
+  if (parsedView.kind === "project") {
+    const p = projectBySlug(parsedView.slug);
+    if (!p) return { kind: "today" };
+    return { kind: "project", id: p.id };
+  }
+  return parsedView;
+}
+
+// Picks the natural background view for a task: its project, or inbox for inbox tasks.
+function applyBackgroundViewForTask(t) {
+  if (t.project_id === "inbox") {
+    state.view = { kind: "inbox" };
+  } else {
+    state.view = { kind: "project", id: t.project_id };
+  }
+}
 
 // Convert ISO YYYY-MM-DD to German DD.MM.YYYY for display in NL date inputs.
 // The backend parser accepts both, so we can present the friendlier form.
@@ -283,7 +394,7 @@ function renderSidebar() {
   for (const p of projects) {
     const el = document.createElement("a");
     el.className = "project-item";
-    el.href = "#";
+    el.href = viewToPath({ kind: "project", id: p.id });
     el.dataset.projectId = p.id;
     if (state.view.kind === "project" && state.view.id === p.id) el.classList.add("active");
     const count = state.openCounts[p.id] || 0;
@@ -295,9 +406,10 @@ function renderSidebar() {
       <span class="project-count">${count > 0 ? count : ""}</span>
     `;
     el.addEventListener("click", (e) => {
+      // Cmd/Ctrl-click should open in a new tab — let the browser handle it.
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
       e.preventDefault();
-      state.view = { kind: "project", id: p.id };
-      refresh();
+      pushView({ kind: "project", id: p.id });
     });
     if (canEdit) {
       el.addEventListener("dblclick", (e) => {
@@ -845,7 +957,9 @@ function wireQuickAdd() {
 
 // ---------- Edit dialog ----------
 
-function openTaskDialog(t) {
+// openTaskDialogInternal opens the modal without touching browser history.
+// Used by popstate/boot when the URL itself caused the modal to open.
+function openTaskDialogInternal(t) {
   const dlg = document.getElementById("task-dialog");
   dlg.dataset.id = t.id;
   document.getElementById("td-title").value = t.title;
@@ -861,8 +975,20 @@ function openTaskDialog(t) {
   dlg.showModal();
 }
 
+// openTaskDialog is the user-facing entry point. It pushes a history entry so
+// the URL reflects the open modal (and back/share works).
+function openTaskDialog(t) {
+  if (!routerSuppressPush) pushTaskUrl(t.id);
+  openTaskDialogInternal(t);
+}
+
 function wireTaskDialog() {
   const dlg = document.getElementById("task-dialog");
+  dlg.addEventListener("close", () => {
+    // Sync URL back to background view whenever the modal closes (cancel, save,
+    // delete, ESC). Skip when popstate already drove the close.
+    if (!routerSuppressPush) popTaskUrl();
+  });
   document.getElementById("td-cancel").addEventListener("click", () => dlg.close("cancel"));
   document.getElementById("td-save").addEventListener("click", async (e) => {
     e.preventDefault();
@@ -1003,13 +1129,14 @@ function wireProjectDialog() {
     if (!confirm(`Projekt "${p ? p.name : ""}" wirklich löschen?`)) return;
     try {
       await api.deleteProject(projectDialogState.id);
-      // If we were viewing this project, fall back to "today".
-      if (state.view.kind === "project" && state.view.id === projectDialogState.id) {
-        state.view = { kind: "today" };
-      }
+      const fallbackToToday = state.view.kind === "project" && state.view.id === projectDialogState.id;
       dlg.close();
       state.projects = await api.listProjects();
-      await refresh();
+      if (fallbackToToday) {
+        pushView({ kind: "today" });
+      } else {
+        await refresh();
+      }
     } catch (err) {
       showProjectDialogError(err.message);
     }
@@ -1021,9 +1148,9 @@ function wireProjectDialog() {
 function wireSidebarNav() {
   document.querySelectorAll(".sidebar-nav .nav-item").forEach(el => {
     el.addEventListener("click", (e) => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
       e.preventDefault();
-      state.view = { kind: el.dataset.view };
-      refresh();
+      pushView({ kind: el.dataset.view });
     });
   });
 }
@@ -1054,8 +1181,29 @@ async function boot() {
   wireTaskDialog();
   wireProjectDialog();
   wireShortcuts();
+  window.addEventListener("popstate", () => { handlePopState(); });
   state.projects = await api.listProjects();
-  await refresh();
+
+  const parsed = parsePath(location.pathname);
+  if (parsed.openTaskId) {
+    // Deep link to a task: set background view first, then open modal.
+    let task;
+    try {
+      task = await api.getTask(parsed.openTaskId);
+    } catch (err) {
+      pushView({ kind: "today" }, { replace: true });
+      return;
+    }
+    applyBackgroundViewForTask(task);
+    // Replace history so the background view is recoverable when the modal closes.
+    history.replaceState({}, "", viewToPath(state.view));
+    history.pushState({}, "", `/tasks/${encodeURIComponent(task.id)}`);
+    await refresh();
+    openTaskDialogInternal(task);
+    return;
+  }
+  const view = resolveViewFromPath(parsed.view);
+  pushView(view, { replace: true });
 }
 
 boot();

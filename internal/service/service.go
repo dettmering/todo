@@ -321,10 +321,15 @@ func (s *Service) CreateProject(ctx context.Context, in ProjectInput) (*domain.P
 	if in.Color != "" && !isValidHexColor(in.Color) {
 		return nil, fmt.Errorf("%w: color must be a hex like #1a2b3c", ErrValidation)
 	}
+	slug, err := ensureUniqueSlug(ctx, s.projects, domain.Slugify(in.Name), "")
+	if err != nil {
+		return nil, err
+	}
 	now := s.clock()
 	p := &domain.Project{
 		ID:          newID("project"),
 		Name:        in.Name,
+		Slug:        slug,
 		Description: in.Description,
 		SortOrder:   in.SortOrder,
 		Color:       in.Color,
@@ -372,6 +377,13 @@ func (s *Service) UpdateProject(ctx context.Context, id string, p ProjectPatch) 
 			return nil, fmt.Errorf("%w: name cannot be empty", ErrValidation)
 		}
 		pr.Name = name
+	}
+	if pr.Slug == "" {
+		slug, err := ensureUniqueSlug(ctx, s.projects, domain.Slugify(pr.Name), pr.ID)
+		if err != nil {
+			return nil, err
+		}
+		pr.Slug = slug
 	}
 	if p.Description != nil {
 		pr.Description = *p.Description

@@ -111,6 +111,7 @@ func (t Task) Overdue(today LocalDate) bool {
 type Project struct {
 	ID          string
 	Name        string
+	Slug        string // URL-safe identifier, derived from Name; stable across renames
 	Description string
 	SortOrder   int
 	Archived    bool

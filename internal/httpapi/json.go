@@ -77,6 +77,7 @@ func toTaskDTO(t *domain.Task) taskDTO {
 type projectDTO struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
+	Slug        string `json:"slug"`
 	Description string `json:"description"`
 	SortOrder   int    `json:"sort_order"`
 	Archived    bool   `json:"archived"`
@@ -87,7 +88,7 @@ type projectDTO struct {
 
 func toProjectDTO(p *domain.Project) projectDTO {
 	return projectDTO{
-		ID: p.ID, Name: p.Name, Description: p.Description,
+		ID: p.ID, Name: p.Name, Slug: p.Slug, Description: p.Description,
 		SortOrder: p.SortOrder, Archived: p.Archived, Color: p.Color,
 		CreatedAt: p.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt: p.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),

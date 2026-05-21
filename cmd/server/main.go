@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path"
 	"syscall"
 	"time"
 
@@ -47,7 +48,11 @@ func main() {
 	root.Handle("/static/", http.StripPrefix("/static/", http.FileServerFS(webFS)))
 	root.Handle("/api/", httpapi.New(svc))
 	root.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
+		// SPA catch-all: every path without a file extension serves index.html so
+		// the client-side router can handle /today, /projects/<slug>, /tasks/<id>,
+		// etc. Paths with an extension (favicon.ico, missing.png) fall through to
+		// 404 so the browser doesn't try to render HTML as an image.
+		if path.Ext(r.URL.Path) != "" {
 			http.NotFound(w, r)
 			return
 		}
