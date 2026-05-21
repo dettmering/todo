@@ -54,12 +54,15 @@
 
       <div class="quick-add">
         <form id="quick-add-form">
-          <input
-            type="text"
-            id="quick-add-input"
-            placeholder="Aufgabe hinzufügen — Eingabe speichert"
-            autocomplete="off"
-          />
+          <div class="quick-add-input-wrap">
+            <input
+              type="text"
+              id="quick-add-input"
+              placeholder="Aufgabe hinzufügen — Eingabe speichert"
+              autocomplete="off"
+            />
+            <button type="submit" class="do-it-btn" id="do-it-btn">DO IT</button>
+          </div>
           <div class="quick-add-options">
             <select id="qa-project"></select>
             <select id="qa-priority">
@@ -76,6 +79,13 @@
               <span>Deadline</span>
               <input type="date" id="qa-deadline" />
             </label>
+            <label class="field">
+              <span>Wiederholung</span>
+              <select id="qa-recurrence"></select>
+            </label>
+          </div>
+          <div class="quick-add-custom-recur hidden" id="qa-recur-custom-wrap">
+            <input type="text" id="qa-recur-custom" placeholder="RRULE, z.B. FREQ=WEEKLY;BYDAY=MO,WE" />
           </div>
         </form>
       </div>
@@ -126,6 +136,13 @@
         <label>Sichtbar ab <input type="date" id="td-visible-from" /></label>
         <label>Deadline <input type="date" id="td-deadline" /></label>
       </div>
+      <div class="row">
+        <label>Wiederholung <select id="td-recurrence"></select></label>
+        <label id="td-recur-custom-wrap" class="hidden">Eigene RRULE
+          <input type="text" id="td-recur-custom" placeholder="FREQ=WEEKLY;BYDAY=MO" />
+        </label>
+      </div>
+      <p class="dialog-error hidden" id="td-error"></p>
       <menu>
         <button value="cancel" type="button" id="td-cancel">Abbrechen</button>
         <button value="default" id="td-save">Speichern</button>

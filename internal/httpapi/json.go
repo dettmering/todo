@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/till/todo/internal/domain"
+	"github.com/till/todo/internal/recurrence"
 	"github.com/till/todo/internal/service"
 )
 
@@ -44,8 +45,9 @@ type taskDTO struct {
 	Priority       int     `json:"priority"`
 	VisibleFrom    string  `json:"visible_from,omitempty"`
 	Deadline       string  `json:"deadline,omitempty"`
-	RecurrenceRule string  `json:"recurrence_rule,omitempty"`
-	CreatedAt      string  `json:"created_at"`
+	RecurrenceRule  string `json:"recurrence_rule,omitempty"`
+	RecurrenceLabel string `json:"recurrence_label,omitempty"`
+	CreatedAt       string `json:"created_at"`
 	UpdatedAt      string  `json:"updated_at"`
 	CompletedAt    *string `json:"completed_at,omitempty"`
 }
@@ -60,9 +62,10 @@ func toTaskDTO(t *domain.Task) taskDTO {
 		Priority:       int(t.Priority),
 		VisibleFrom:    t.VisibleFrom.String(),
 		Deadline:       t.Deadline.String(),
-		RecurrenceRule: t.RecurrenceRule,
-		CreatedAt:      t.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		UpdatedAt:      t.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		RecurrenceRule:  t.RecurrenceRule,
+		RecurrenceLabel: recurrence.HumanLabel(t.RecurrenceRule),
+		CreatedAt:       t.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt:       t.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 	if t.CompletedAt != nil {
 		s := t.CompletedAt.Format("2006-01-02T15:04:05Z07:00")

@@ -48,6 +48,67 @@ const api = {
   },
 };
 
+// Recurrence presets — value is the canonical RRULE string posted to the API.
+// "" = no recurrence, "custom" = show a free-text RRULE input.
+const RECURRENCE_PRESETS = [
+  { value: "",                                       label: "Keine Wiederholung" },
+  { value: "FREQ=DAILY",                             label: "Täglich" },
+  { value: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR",       label: "Werktäglich" },
+  { value: "FREQ=WEEKLY",                            label: "Wöchentlich" },
+  { value: "FREQ=WEEKLY;INTERVAL=2",                 label: "Alle 2 Wochen" },
+  { value: "FREQ=MONTHLY",                           label: "Monatlich" },
+  { value: "FREQ=MONTHLY;INTERVAL=3",                label: "Alle 3 Monate" },
+  { value: "FREQ=YEARLY",                            label: "Jährlich" },
+  { value: "custom",                                 label: "Eigene RRULE…" },
+];
+
+function fillRecurrenceSelect(id) {
+  const el = document.getElementById(id);
+  if (!el || el.dataset.filled === "1") return;
+  for (const p of RECURRENCE_PRESETS) {
+    const opt = document.createElement("option");
+    opt.value = p.value;
+    opt.textContent = p.label;
+    el.appendChild(opt);
+  }
+  el.dataset.filled = "1";
+}
+
+// Returns the rule the user has currently selected/typed in the given pair of
+// controls, or "" if none. Selecting "custom" reads from the custom input.
+function readRecurrence(selectId, customId) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return "";
+  if (sel.value === "custom") {
+    return document.getElementById(customId).value.trim();
+  }
+  return sel.value;
+}
+
+// Snap selector + custom field to a given RRULE string. If the rule matches a
+// preset exactly, the preset is picked; otherwise "custom" is selected and the
+// rule appears in the custom input.
+function setRecurrenceControls(selectId, customWrapId, customId, rule) {
+  const sel = document.getElementById(selectId);
+  const wrap = document.getElementById(customWrapId);
+  const cust = document.getElementById(customId);
+  if (!sel) return;
+  const matched = RECURRENCE_PRESETS.some(p => p.value === rule && p.value !== "custom");
+  if (matched) {
+    sel.value = rule;
+    if (wrap) wrap.classList.add("hidden");
+    if (cust) cust.value = "";
+  } else if (rule) {
+    sel.value = "custom";
+    if (wrap) wrap.classList.remove("hidden");
+    if (cust) cust.value = rule;
+  } else {
+    sel.value = "";
+    if (wrap) wrap.classList.add("hidden");
+    if (cust) cust.value = "";
+  }
+}
+
 const PROJECT_COLOR_PRESETS = [
   { name: "Tomate",    hex: "#db4c3f" },
   { name: "Orange",    hex: "#eb8909" },
@@ -408,8 +469,8 @@ function createTaskLI(t, today) {
   li.innerHTML = `
     <div class="checkbox ${priorityClass(t.priority)}${isCompleted ? " checked" : ""}" title="${isCompleted ? "Wieder öffnen" : "Erledigen"}"></div>
     <div class="body">
-      <div class="title">${escapeHTML(t.title)}${t.recurrence_rule ? ` <span class="recur" title="Wiederkehrend">${ICON.repeat}</span>` : ""}</div>
-      ${dateParts.length ? `<div class="dates">${dateParts.join('<span class="date-sep">·</span>')}</div>` : ""}
+      <div class="title">${escapeHTML(t.title)}</div>
+      ${(dateParts.length || t.recurrence_label) ? `<div class="dates">${dateParts.join('<span class="date-sep">·</span>')}${t.recurrence_label ? `${dateParts.length ? '<span class="date-sep">·</span>' : ""}<span class="date-item recur-label">${ICON.repeat}<span>${escapeHTML(t.recurrence_label)}</span></span>` : ""}</div>` : ""}
     </div>
     ${state.view.kind === "project" ? "" : `
     <div class="task-project" title="${escapeHTML(projectName(t.project_id))}">
@@ -494,6 +555,9 @@ function renderTasks(tasks, completedToday = []) {
 
 function wireQuickAdd() {
   const form = document.getElementById("quick-add-form");
+  document.getElementById("qa-recurrence").addEventListener("change", (e) => {
+    document.getElementById("qa-recur-custom-wrap").classList.toggle("hidden", e.target.value !== "custom");
+  });
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const title = document.getElementById("quick-add-input").value.trim();
@@ -505,10 +569,17 @@ function wireQuickAdd() {
       priority: parseInt(document.getElementById("qa-priority").value, 10),
       visible_from: document.getElementById("qa-visible-from").value || "",
       deadline: document.getElementById("qa-deadline").value || "",
+      recurrence_rule: readRecurrence("qa-recurrence", "qa-recur-custom"),
     };
-    await api.createTask(body);
+    try {
+      await api.createTask(body);
+    } catch (err) {
+      alert(err.message || "Fehler beim Speichern");
+      return;
+    }
     form.reset();
     document.getElementById("qa-priority").value = "4";
+    setRecurrenceControls("qa-recurrence", "qa-recur-custom-wrap", "qa-recur-custom", "");
     refresh(); // refresh calls setQuickAddDefaults() which re-fills visible_from + project
   });
 }
@@ -524,6 +595,8 @@ function openTaskDialog(t) {
   document.getElementById("td-priority").value = String(t.priority);
   document.getElementById("td-visible-from").value = t.visible_from || "";
   document.getElementById("td-deadline").value = t.deadline || "";
+  setRecurrenceControls("td-recurrence", "td-recur-custom-wrap", "td-recur-custom", t.recurrence_rule || "");
+  document.getElementById("td-error").classList.add("hidden");
   dlg.showModal();
 }
 
@@ -540,10 +613,22 @@ function wireTaskDialog() {
       priority: parseInt(document.getElementById("td-priority").value, 10),
       visible_from: document.getElementById("td-visible-from").value || "",
       deadline: document.getElementById("td-deadline").value || "",
+      recurrence_rule: readRecurrence("td-recurrence", "td-recur-custom"),
     };
-    await api.patchTask(id, body);
+    try {
+      await api.patchTask(id, body);
+    } catch (err) {
+      const el = document.getElementById("td-error");
+      el.textContent = err.message || "Fehler beim Speichern";
+      el.classList.remove("hidden");
+      return;
+    }
     dlg.close();
     refresh();
+  });
+  // Toggle visibility of the custom-RRULE inputs when the user picks "custom".
+  document.getElementById("td-recurrence").addEventListener("change", (e) => {
+    document.getElementById("td-recur-custom-wrap").classList.toggle("hidden", e.target.value !== "custom");
   });
 }
 
@@ -684,6 +769,8 @@ function wireShortcuts() {
 async function boot() {
   const todayIconEl = document.getElementById("today-icon");
   if (todayIconEl) todayIconEl.innerHTML = todayIconSVG();
+  fillRecurrenceSelect("qa-recurrence");
+  fillRecurrenceSelect("td-recurrence");
   wireSidebarNav();
   wireQuickAdd();
   wireTaskDialog();

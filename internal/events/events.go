@@ -18,6 +18,7 @@ const (
 	TaskDeleted         EventType = "task.deleted"
 	TaskRescheduled     EventType = "task.rescheduled"
 	TaskDeadlineChanged EventType = "task.deadline_changed"
+	TaskRecurrenceGen   EventType = "task.recurrence_generated"
 	ProjectCreated      EventType = "project.created"
 	ProjectUpdated      EventType = "project.updated"
 	ProjectDeleted      EventType = "project.deleted"

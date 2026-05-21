@@ -224,6 +224,48 @@ body {
 .quick-add-options input[type="date"]:hover { border-color: var(--p4); }
 .field { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
 
+.quick-add-custom-recur { margin-top: 6px; }
+.quick-add-custom-recur input[type="text"] {
+  width: 100%;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  background: var(--main-bg);
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.date-item.recur-label { color: var(--text-muted); }
+.date-item.recur-label svg { width: 14px; height: 14px; }
+
+.quick-add-input-wrap {
+  position: relative;
+  display: block;
+}
+.quick-add-input-wrap input[type="text"] {
+  padding-right: 84px; /* leave room for the embedded button */
+}
+.do-it-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #db4c3f;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.12s ease;
+}
+.do-it-btn:hover { background: #c73e32; }
+.do-it-btn:active { transform: translateY(calc(-50% + 1px)); }
+.do-it-btn:focus-visible { outline: 2px solid var(--p4); outline-offset: 2px; }
+
 /* ---------- Task list ---------- */
 .task-list { list-style: none; margin: 0; padding: 0; }
 

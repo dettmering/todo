@@ -14,6 +14,7 @@ import (
 
 	"github.com/till/todo/internal/domain"
 	"github.com/till/todo/internal/events"
+	"github.com/till/todo/internal/recurrence"
 	"github.com/till/todo/internal/storage"
 )
 
@@ -70,6 +71,13 @@ func (s *Service) CreateTask(ctx context.Context, in TaskInput) (*domain.Task, e
 	}
 	if !in.Priority.Valid() {
 		return nil, fmt.Errorf("%w: priority must be 1..4", ErrValidation)
+	}
+	if in.RecurrenceRule != "" {
+		r, err := recurrence.Parse(in.RecurrenceRule)
+		if err != nil {
+			return nil, fmt.Errorf("%w: recurrence_rule: %s", ErrValidation, err.Error())
+		}
+		in.RecurrenceRule = r.Canonical()
 	}
 
 	now := s.clock()
@@ -147,7 +155,15 @@ func (s *Service) UpdateTask(ctx context.Context, id string, p TaskPatch) (*doma
 		t.Deadline = *p.Deadline
 	}
 	if p.RecurrenceRule != nil {
-		t.RecurrenceRule = *p.RecurrenceRule
+		rule := *p.RecurrenceRule
+		if rule != "" {
+			parsed, err := recurrence.Parse(rule)
+			if err != nil {
+				return nil, fmt.Errorf("%w: recurrence_rule: %s", ErrValidation, err.Error())
+			}
+			rule = parsed.Canonical()
+		}
+		t.RecurrenceRule = rule
 	}
 	t.UpdatedAt = s.clock()
 	if err := s.tasks.Update(ctx, t); err != nil {
@@ -199,10 +215,69 @@ func (s *Service) CompleteTask(ctx context.Context, id string) (*domain.Task, er
 		return nil, mapErr(err)
 	}
 	s.bus.Publish(ctx, events.TaskCompleted, t)
-	// Recurrence handling (Modell B from Lastenheft 4.6) is intentionally not
-	// implemented yet — when an RRULE engine is added, emit task.recurrence_generated
-	// here after creating the next instance.
+
+	// Modell B (Lastenheft 4.6): when a recurring task is completed, spawn a
+	// fresh open instance for the next occurrence. The new task inherits all
+	// scheduling-relevant fields; the next visible_from is rolled forward to
+	// today if the original was already in the past.
+	if t.RecurrenceRule != "" {
+		if next, err := s.spawnNextInstance(ctx, t, now); err == nil && next != nil {
+			s.bus.Publish(ctx, events.TaskCreated, next)
+			s.bus.Publish(ctx, events.TaskRecurrenceGen, next)
+		}
+	}
 	return t, nil
+}
+
+// spawnNextInstance creates the follow-up task for a recurring completion.
+// Errors are returned but not propagated up: the completion has already been
+// persisted, and we don't want a bad RRULE (validated at create/update) to
+// retroactively fail the user's "done" click.
+func (s *Service) spawnNextInstance(ctx context.Context, prev *domain.Task, now time.Time) (*domain.Task, error) {
+	rule, err := recurrence.Parse(prev.RecurrenceRule)
+	if err != nil {
+		return nil, err
+	}
+	today := domain.DateOf(now)
+	nextVisible, err := rule.Next(prev.VisibleFrom, today)
+	if err != nil {
+		return nil, err
+	}
+	// Deadline rolls forward by the same delta as visible_from, so a task
+	// "appear Mon, due Fri" recurring weekly stays a 4-day window.
+	var nextDeadline domain.LocalDate
+	if !prev.Deadline.IsZero() {
+		base := prev.VisibleFrom
+		if base.IsZero() {
+			base = today
+		}
+		nextDeadline = shiftDeadline(prev.Deadline, base, nextVisible)
+	}
+	t := &domain.Task{
+		ID:             newID("task"),
+		Title:          prev.Title,
+		Description:    prev.Description,
+		ProjectID:      prev.ProjectID,
+		Status:         domain.StatusOpen,
+		Priority:       prev.Priority,
+		VisibleFrom:    nextVisible,
+		Deadline:       nextDeadline,
+		RecurrenceRule: prev.RecurrenceRule,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+	if err := s.tasks.Create(ctx, t); err != nil {
+		return nil, err
+	}
+	return t, nil
+}
+
+func shiftDeadline(deadline, fromBase, toBase domain.LocalDate) domain.LocalDate {
+	from := time.Date(fromBase.Year, fromBase.Month, fromBase.Day, 0, 0, 0, 0, time.UTC)
+	to := time.Date(toBase.Year, toBase.Month, toBase.Day, 0, 0, 0, 0, time.UTC)
+	dl := time.Date(deadline.Year, deadline.Month, deadline.Day, 0, 0, 0, 0, time.UTC)
+	delta := to.Sub(from)
+	return domain.DateOf(dl.Add(delta))
 }
 
 func (s *Service) DeleteTask(ctx context.Context, id string) error {
