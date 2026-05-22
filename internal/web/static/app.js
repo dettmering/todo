@@ -1067,7 +1067,9 @@ function openTaskDialog(t) {
 function quickRescheduleISO(kind) {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
-  if (kind === "tomorrow") {
+  if (kind === "today") {
+    // no-op: d is already today at midnight
+  } else if (kind === "tomorrow") {
     d.setDate(d.getDate() + 1);
   } else if (kind === "weekend") {
     // Next Saturday (or today if today is Saturday and you want today? — we go
