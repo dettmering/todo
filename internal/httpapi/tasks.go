@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -105,11 +106,39 @@ func (h *Handler) handleListTasks(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
+	names, err := h.projectNames(r.Context())
+	if err != nil {
+		writeError(w, err)
+		return
+	}
 	out := make([]taskDTO, 0, len(tasks))
 	for _, t := range tasks {
-		out = append(out, toTaskDTO(t))
+		out = append(out, toTaskDTO(t, names[t.ProjectID]))
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+func (h *Handler) projectNames(ctx context.Context) (map[string]string, error) {
+	projects, err := h.svc.ListProjects(ctx, false)
+	if err != nil {
+		return nil, err
+	}
+	m := make(map[string]string, len(projects))
+	for _, p := range projects {
+		m[p.ID] = p.Name
+	}
+	return m, nil
+}
+
+func (h *Handler) projectName(ctx context.Context, id string) string {
+	if id == "" {
+		return ""
+	}
+	p, err := h.svc.GetProject(ctx, id)
+	if err != nil {
+		return ""
+	}
+	return p.Name
 }
 
 func (h *Handler) handleCreateTask(w http.ResponseWriter, r *http.Request) {
@@ -142,7 +171,7 @@ func (h *Handler) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, toTaskDTO(t))
+	writeJSON(w, http.StatusCreated, toTaskDTO(t, h.projectName(r.Context(), t.ProjectID)))
 }
 
 func (h *Handler) handleGetTask(w http.ResponseWriter, r *http.Request) {
@@ -152,7 +181,7 @@ func (h *Handler) handleGetTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, toTaskDTO(t))
+	writeJSON(w, http.StatusOK, toTaskDTO(t, h.projectName(r.Context(), t.ProjectID)))
 }
 
 type taskPatchReq struct {
@@ -203,7 +232,7 @@ func (h *Handler) handlePatchTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, toTaskDTO(t))
+	writeJSON(w, http.StatusOK, toTaskDTO(t, h.projectName(r.Context(), t.ProjectID)))
 }
 
 func (h *Handler) handleCompleteTask(w http.ResponseWriter, r *http.Request) {
@@ -213,7 +242,7 @@ func (h *Handler) handleCompleteTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, toTaskDTO(t))
+	writeJSON(w, http.StatusOK, toTaskDTO(t, h.projectName(r.Context(), t.ProjectID)))
 }
 
 func (h *Handler) handleReopenTask(w http.ResponseWriter, r *http.Request) {
@@ -223,7 +252,7 @@ func (h *Handler) handleReopenTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, toTaskDTO(t))
+	writeJSON(w, http.StatusOK, toTaskDTO(t, h.projectName(r.Context(), t.ProjectID)))
 }
 
 func (h *Handler) handleDeleteTask(w http.ResponseWriter, r *http.Request) {

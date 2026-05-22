@@ -232,6 +232,7 @@ Soft-Delete: `status = "deleted"`. Antwort: `204 No Content`.
   "title": "Steuererklärung machen",
   "description": "Belege liegen im Ordner '2025'.",
   "project_id": "inbox",
+  "project_name": "Inbox",
   "status": "open",
   "priority": 2,
   "visible_from": "2026-05-23",

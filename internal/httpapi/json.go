@@ -41,6 +41,7 @@ type taskDTO struct {
 	Title          string  `json:"title"`
 	Description    string  `json:"description"`
 	ProjectID      string  `json:"project_id"`
+	ProjectName    string  `json:"project_name"`
 	Status         string  `json:"status"`
 	Priority       int     `json:"priority"`
 	VisibleFrom    string  `json:"visible_from,omitempty"`
@@ -52,12 +53,13 @@ type taskDTO struct {
 	CompletedAt    *string `json:"completed_at,omitempty"`
 }
 
-func toTaskDTO(t *domain.Task) taskDTO {
+func toTaskDTO(t *domain.Task, projectName string) taskDTO {
 	d := taskDTO{
 		ID:             t.ID,
 		Title:          t.Title,
 		Description:    t.Description,
 		ProjectID:      t.ProjectID,
+		ProjectName:    projectName,
 		Status:         string(t.Status),
 		Priority:       int(t.Priority),
 		VisibleFrom:    t.VisibleFrom.String(),
