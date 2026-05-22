@@ -606,6 +606,7 @@ function createTaskLI(t, today) {
     <div class="checkbox ${priorityClass(t.priority)}${isCompleted ? " checked" : ""}" title="${isCompleted ? "Wieder öffnen" : "Erledigen"}"></div>
     <div class="body">
       <div class="title">${escapeHTML(t.title)}</div>
+      ${t.description && t.description.trim() ? `<div class="desc">${renderDescPreview(t.description)}</div>` : ""}
       ${(dateParts.length || t.recurrence_label) ? `<div class="dates">${dateParts.join('<span class="date-sep">·</span>')}${t.recurrence_label ? `${dateParts.length ? '<span class="date-sep">·</span>' : ""}<span class="date-item recur-label">${ICON.repeat}<span>${escapeHTML(t.recurrence_label)}</span></span>` : ""}</div>` : ""}
     </div>
     ${state.view.kind === "project" ? "" : `
@@ -980,6 +981,16 @@ function updateTaskDialogPriorityButtons(priority) {
   document.querySelectorAll("#td-priority-buttons .td-prio").forEach(btn => {
     btn.classList.toggle("selected", btn.dataset.priority === p);
   });
+}
+
+function renderDescPreview(md) {
+  const text = (md || "").replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  try {
+    return window.marked.parseInline(text, { gfm: true });
+  } catch (e) {
+    return escapeHTML(text);
+  }
 }
 
 // Render the description as HTML via marked, or show a placeholder if empty.
