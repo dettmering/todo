@@ -19,6 +19,7 @@ import (
 	"github.com/till/todo/internal/service"
 	"github.com/till/todo/internal/storage/sqlite"
 	"github.com/till/todo/internal/web"
+	"github.com/till/todo/internal/webhook"
 )
 
 func main() {
@@ -36,10 +37,13 @@ func main() {
 	defer store.Close()
 
 	bus := events.NewBus()
-	// Future: bus.Subscribe(webhookDispatcher.Handle) once Lastenheft 5.11 is implemented.
 	bus.Subscribe(func(ctx context.Context, e events.Event) {
 		slog.Info("event", "type", e.Type)
 	})
+	if url := os.Getenv("WEBHOOK_URL"); url != "" {
+		bus.Subscribe(webhook.New(url).Handle)
+		slog.Info("webhook configured", "url", url)
+	}
 
 	svc := service.New(store.Tasks(), store.Projects(), bus)
 
