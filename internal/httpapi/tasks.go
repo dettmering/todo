@@ -13,6 +13,35 @@ import (
 	"github.com/till/todo/internal/storage"
 )
 
+// parseISOWeek parses an ISO-8601 week string like "2026-W21" and returns the
+// Monday and Sunday of that week as LocalDates.
+func parseISOWeek(s string) (domain.LocalDate, domain.LocalDate, error) {
+	if len(s) != 8 || s[4] != '-' || s[5] != 'W' {
+		return domain.LocalDate{}, domain.LocalDate{}, fmt.Errorf("expected YYYY-Www")
+	}
+	var year, week int
+	if _, err := fmt.Sscanf(s, "%4d-W%2d", &year, &week); err != nil {
+		return domain.LocalDate{}, domain.LocalDate{}, err
+	}
+	if week < 1 || week > 53 {
+		return domain.LocalDate{}, domain.LocalDate{}, fmt.Errorf("week out of range")
+	}
+	// ISO week 1 contains the year's first Thursday. Start from Jan 4 (always
+	// in week 1), walk back to Monday, then advance week-1 weeks.
+	jan4 := time.Date(year, 1, 4, 0, 0, 0, 0, time.UTC)
+	weekday := int(jan4.Weekday())
+	if weekday == 0 {
+		weekday = 7 // Sunday → 7
+	}
+	weekOneMonday := jan4.AddDate(0, 0, 1-weekday)
+	monday := weekOneMonday.AddDate(0, 0, (week-1)*7)
+	if y, w := monday.ISOWeek(); y != year || w != week {
+		return domain.LocalDate{}, domain.LocalDate{}, fmt.Errorf("invalid ISO week %d for year %d", week, year)
+	}
+	sunday := monday.AddDate(0, 0, 6)
+	return domain.DateOf(monday), domain.DateOf(sunday), nil
+}
+
 // parseDateInput accepts either an empty string, an ISO date (YYYY-MM-DD), or
 // a German natural-language phrase ("morgen", "Freitag", "27.5.", ...).
 // Returns the zero LocalDate for empty input.
@@ -60,15 +89,29 @@ func (h *Handler) handleListTasks(w http.ResponseWriter, r *http.Request) {
 	case "deleted":
 		f.Status = domain.StatusDeleted
 	}
-	if v := q.Get("date"); v != "" {
-		d, err := domain.ParseDate(v)
+	week := q.Get("week")
+	switch {
+	case week != "":
+		if q.Get("date") != "" || q.Get("from") != "" || q.Get("to") != "" {
+			writeJSON(w, http.StatusBadRequest, errorResp{Error: "week cannot be combined with date/from/to"})
+			return
+		}
+		mon, sun, err := parseISOWeek(week)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, errorResp{Error: "week must be YYYY-Www (e.g. 2026-W21)"})
+			return
+		}
+		f.VisibleFromGTE = mon
+		f.VisibleFromLTE = sun
+	case q.Get("date") != "":
+		d, err := domain.ParseDate(q.Get("date"))
 		if err != nil {
 			writeJSON(w, http.StatusBadRequest, errorResp{Error: "date must be YYYY-MM-DD"})
 			return
 		}
 		f.VisibleFromGTE = d
 		f.VisibleFromLTE = d
-	} else {
+	default:
 		if v := q.Get("from"); v != "" {
 			d, err := domain.ParseDate(v)
 			if err != nil {

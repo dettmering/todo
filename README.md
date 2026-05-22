@@ -109,14 +109,16 @@ Query-Parameter (alle optional):
 | `date` | `YYYY-MM-DD` | Nur Tasks, deren `visible_from` exakt dieser Tag ist (Shortcut für `from=…&to=…` mit demselben Wert) |
 | `from` | `YYYY-MM-DD` | Untere Grenze für `visible_from` (inklusiv) |
 | `to` | `YYYY-MM-DD` | Obere Grenze für `visible_from` (inklusiv) |
+| `week` | `YYYY-Www` (z. B. `2026-W21`) | ISO-Kalenderwoche; entspricht `from=Montag&to=Sonntag` dieser KW |
 | `sort` | `priority`, `deadline`, `visible_from`, `created_at` | Sortierung; ohne Angabe gilt die Default-Sortierung aus 5.6 |
 
-`date`, `from` und `to` filtern über die Spalte **`visible_from`** (die
-geplante Anzeige-/Erscheinungs­datum­spalte) und sind mit `project_id`,
+`date`, `from`, `to` und `week` filtern über die Spalte **`visible_from`**
+(die geplante Anzeige-/Erscheinungs­datum­spalte) und sind mit `project_id`,
 `status`, `scope` und `sort` frei kombinierbar.
 
 - `date=X` ist exakt äquivalent zu `from=X&to=X`. Wird `date` zusätzlich zu
   `from`/`to` gesetzt, gewinnt `date`.
+- `week` darf **nicht** mit `date`/`from`/`to` kombiniert werden (400).
 - Tasks **ohne** `visible_from` werden bei aktivem Datumsfilter **nicht**
   zurückgegeben — sie haben kein planbares Datum, das gematcht werden könnte.
 - Für Zukunfts-Ranges willst du in der Regel `scope=all` ergänzen, sonst
@@ -129,7 +131,7 @@ geplante Anzeige-/Erscheinungs­datum­spalte) und sind mit `project_id`,
 curl 'http://localhost:8080/api/tasks?date=2026-05-22&scope=all'
 
 # Diese Woche, sortiert nach Priorität, nur Projekt "renovierung"
-curl 'http://localhost:8080/api/tasks?from=2026-05-18&to=2026-05-24&scope=all&project_id=project_…&sort=priority'
+curl 'http://localhost:8080/api/tasks?week=2026-W21&scope=all&project_id=project_…&sort=priority'
 
 # Bereits erledigte Tasks an einem bestimmten Tag
 curl 'http://localhost:8080/api/tasks?date=2026-05-20&status=completed&scope=all'
