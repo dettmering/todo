@@ -120,7 +120,7 @@ func (r *TaskRepo) List(ctx context.Context, f storage.TaskFilter) ([]*domain.Ta
 func orderClause(s storage.TaskSort) string {
 	switch s {
 	case storage.SortPriority:
-		return `priority ASC, deadline ASC, created_at ASC`
+		return `priority ASC, visible_from ASC`
 	case storage.SortDeadline:
 		return `(deadline = '') ASC, deadline ASC, priority ASC`
 	case storage.SortVisibleFrom:
