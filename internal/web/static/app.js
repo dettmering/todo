@@ -31,7 +31,9 @@ const api = {
     return fetch(`/api/projects/${id}`, { method: "DELETE" }).then(jsonOrError);
   },
   async listTasks(params = {}) {
-    const q = new URLSearchParams(params);
+    // Always pass the client's local "today" so the server's visibility filter
+    // (visible_from <= today) uses the user's local date rather than UTC.
+    const q = new URLSearchParams({ today: todayISO(), ...params });
     return fetch("/api/tasks?" + q.toString()).then(jsonOrError);
   },
   async getTask(id) {

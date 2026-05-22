@@ -152,6 +152,14 @@ func (h *Handler) handleListTasks(w http.ResponseWriter, r *http.Request) {
 	}
 	f.CompletedAtGTE = compGTE
 	f.CompletedAtLTE = compLTE
+	if today := q.Get("today"); today != "" {
+		d, err := domain.ParseDate(today)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, errorResp{Error: "today must be YYYY-MM-DD"})
+			return
+		}
+		f.Today = d
+	}
 	switch q.Get("sort") {
 	case "priority":
 		f.Sort = storage.SortPriority
