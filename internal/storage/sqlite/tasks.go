@@ -86,6 +86,17 @@ func (r *TaskRepo) List(ctx context.Context, f storage.TaskFilter) ([]*domain.Ta
 		where = append(where, `visible_from != '' AND visible_from <= ?`)
 		args = append(args, f.VisibleFromLTE.String())
 	}
+	if !f.CompletedAtGTE.IsZero() {
+		where = append(where, `completed_at IS NOT NULL AND completed_at >= ?`)
+		args = append(args, f.CompletedAtGTE.String()+"T00:00:00Z")
+	}
+	if !f.CompletedAtLTE.IsZero() {
+		// Upper bound is start of the next day so the whole UTC day is included
+		// regardless of sub-second precision in the stored RFC3339 string.
+		next := time.Date(f.CompletedAtLTE.Year, f.CompletedAtLTE.Month, f.CompletedAtLTE.Day+1, 0, 0, 0, 0, time.UTC)
+		where = append(where, `completed_at IS NOT NULL AND completed_at < ?`)
+		args = append(args, next.Format("2006-01-02T15:04:05Z"))
+	}
 	if len(f.Priorities) > 0 {
 		ph := strings.Repeat("?,", len(f.Priorities))
 		ph = ph[:len(ph)-1]

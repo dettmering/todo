@@ -23,6 +23,12 @@ type TaskFilter struct {
 	// since they have no scheduled date to compare against.
 	VisibleFromGTE domain.LocalDate
 	VisibleFromLTE domain.LocalDate
+
+	// CompletedAtGTE / CompletedAtLTE filter on the completed_at column,
+	// interpreted as full UTC days (inclusive on both ends). Tasks that were
+	// never completed are excluded when either bound is set.
+	CompletedAtGTE domain.LocalDate
+	CompletedAtLTE domain.LocalDate
 }
 
 type TaskSort string

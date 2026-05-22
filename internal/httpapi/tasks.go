@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/till/todo/internal/domain"
@@ -70,6 +71,54 @@ type taskCreateReq struct {
 	RecurrenceRule string `json:"recurrence_rule"`
 }
 
+// parseDateRangeParams reads a date-range from the given query parameter
+// names. dateP is a single-day shortcut (sets both bounds). weekP accepts
+// an ISO week (YYYY-Www) and sets bounds to Mon..Sun. dateP and weekP
+// cannot be combined with each other or with fromP/toP.
+func parseDateRangeParams(q url.Values, dateP, fromP, toP, weekP string) (domain.LocalDate, domain.LocalDate, error) {
+	week := q.Get(weekP)
+	date := q.Get(dateP)
+	from := q.Get(fromP)
+	to := q.Get(toP)
+	switch {
+	case week != "":
+		if date != "" || from != "" || to != "" {
+			return domain.LocalDate{}, domain.LocalDate{}, fmt.Errorf("%s cannot be combined with %s/%s/%s", weekP, dateP, fromP, toP)
+		}
+		mon, sun, err := parseISOWeek(week)
+		if err != nil {
+			return domain.LocalDate{}, domain.LocalDate{}, fmt.Errorf("%s must be YYYY-Www (e.g. 2026-W21)", weekP)
+		}
+		return mon, sun, nil
+	case date != "":
+		d, err := domain.ParseDate(date)
+		if err != nil {
+			return domain.LocalDate{}, domain.LocalDate{}, fmt.Errorf("%s must be YYYY-MM-DD", dateP)
+		}
+		return d, d, nil
+	default:
+		var gte, lte domain.LocalDate
+		if from != "" {
+			d, err := domain.ParseDate(from)
+			if err != nil {
+				return domain.LocalDate{}, domain.LocalDate{}, fmt.Errorf("%s must be YYYY-MM-DD", fromP)
+			}
+			gte = d
+		}
+		if to != "" {
+			d, err := domain.ParseDate(to)
+			if err != nil {
+				return domain.LocalDate{}, domain.LocalDate{}, fmt.Errorf("%s must be YYYY-MM-DD", toP)
+			}
+			lte = d
+		}
+		if !gte.IsZero() && !lte.IsZero() && lte.Before(gte) {
+			return domain.LocalDate{}, domain.LocalDate{}, fmt.Errorf("%s must be on or after %s", toP, fromP)
+		}
+		return gte, lte, nil
+	}
+}
+
 func (h *Handler) handleListTasks(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	f := storage.TaskFilter{
@@ -89,50 +138,20 @@ func (h *Handler) handleListTasks(w http.ResponseWriter, r *http.Request) {
 	case "deleted":
 		f.Status = domain.StatusDeleted
 	}
-	week := q.Get("week")
-	switch {
-	case week != "":
-		if q.Get("date") != "" || q.Get("from") != "" || q.Get("to") != "" {
-			writeJSON(w, http.StatusBadRequest, errorResp{Error: "week cannot be combined with date/from/to"})
-			return
-		}
-		mon, sun, err := parseISOWeek(week)
-		if err != nil {
-			writeJSON(w, http.StatusBadRequest, errorResp{Error: "week must be YYYY-Www (e.g. 2026-W21)"})
-			return
-		}
-		f.VisibleFromGTE = mon
-		f.VisibleFromLTE = sun
-	case q.Get("date") != "":
-		d, err := domain.ParseDate(q.Get("date"))
-		if err != nil {
-			writeJSON(w, http.StatusBadRequest, errorResp{Error: "date must be YYYY-MM-DD"})
-			return
-		}
-		f.VisibleFromGTE = d
-		f.VisibleFromLTE = d
-	default:
-		if v := q.Get("from"); v != "" {
-			d, err := domain.ParseDate(v)
-			if err != nil {
-				writeJSON(w, http.StatusBadRequest, errorResp{Error: "from must be YYYY-MM-DD"})
-				return
-			}
-			f.VisibleFromGTE = d
-		}
-		if v := q.Get("to"); v != "" {
-			d, err := domain.ParseDate(v)
-			if err != nil {
-				writeJSON(w, http.StatusBadRequest, errorResp{Error: "to must be YYYY-MM-DD"})
-				return
-			}
-			f.VisibleFromLTE = d
-		}
-		if !f.VisibleFromGTE.IsZero() && !f.VisibleFromLTE.IsZero() && f.VisibleFromLTE.Before(f.VisibleFromGTE) {
-			writeJSON(w, http.StatusBadRequest, errorResp{Error: "to must be on or after from"})
-			return
-		}
+	visGTE, visLTE, err := parseDateRangeParams(q, "date", "from", "to", "week")
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResp{Error: err.Error()})
+		return
 	}
+	f.VisibleFromGTE = visGTE
+	f.VisibleFromLTE = visLTE
+	compGTE, compLTE, err := parseDateRangeParams(q, "completed_date", "completed_from", "completed_to", "completed_week")
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResp{Error: err.Error()})
+		return
+	}
+	f.CompletedAtGTE = compGTE
+	f.CompletedAtLTE = compLTE
 	switch q.Get("sort") {
 	case "priority":
 		f.Sort = storage.SortPriority

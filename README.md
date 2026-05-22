@@ -110,15 +110,24 @@ Query-Parameter (alle optional):
 | `from` | `YYYY-MM-DD` | Untere Grenze für `visible_from` (inklusiv) |
 | `to` | `YYYY-MM-DD` | Obere Grenze für `visible_from` (inklusiv) |
 | `week` | `YYYY-Www` (z. B. `2026-W21`) | ISO-Kalenderwoche; entspricht `from=Montag&to=Sonntag` dieser KW |
+| `completed_date` | `YYYY-MM-DD` | Nur Tasks, die an diesem UTC-Tag erledigt wurden |
+| `completed_from` | `YYYY-MM-DD` | Untere Grenze für `completed_at` (inklusiv, UTC-Tag) |
+| `completed_to` | `YYYY-MM-DD` | Obere Grenze für `completed_at` (inklusiv, UTC-Tag) |
+| `completed_week` | `YYYY-Www` | ISO-Kalenderwoche auf `completed_at` |
 | `sort` | `priority`, `deadline`, `visible_from`, `created_at` | Sortierung; ohne Angabe gilt die Default-Sortierung aus 5.6 |
 
 `date`, `from`, `to` und `week` filtern über die Spalte **`visible_from`**
-(die geplante Anzeige-/Erscheinungs­datum­spalte) und sind mit `project_id`,
-`status`, `scope` und `sort` frei kombinierbar.
+(die geplante Anzeige-/Erscheinungs­datum­spalte). Die `completed_*`-Pendants
+filtern über **`completed_at`** (UTC). Beide Achsen sind mit `project_id`,
+`status`, `scope`, `sort` **und** miteinander frei kombinierbar.
 
-- `date=X` ist exakt äquivalent zu `from=X&to=X`. Wird `date` zusätzlich zu
-  `from`/`to` gesetzt, gewinnt `date`.
-- `week` darf **nicht** mit `date`/`from`/`to` kombiniert werden (400).
+- `date=X` ist exakt äquivalent zu `from=X&to=X` (analog für `completed_*`).
+- `week`/`completed_week` darf **nicht** mit `date`/`from`/`to` derselben
+  Achse kombiniert werden (400).
+- Tasks ohne `completed_at` werden bei aktivem `completed_*`-Filter
+  ausgeschlossen — typischerweise willst du also `status=completed` dazu.
+- Achtung Zeitzone: `completed_at` wird in **UTC** gespeichert; ein Task,
+  der lokal um 23:30 (CEST) erledigt wurde, fällt schon auf den UTC-Folgetag.
 - Tasks **ohne** `visible_from` werden bei aktivem Datumsfilter **nicht**
   zurückgegeben — sie haben kein planbares Datum, das gematcht werden könnte.
 - Für Zukunfts-Ranges willst du in der Regel `scope=all` ergänzen, sonst
@@ -133,8 +142,11 @@ curl 'http://localhost:8080/api/tasks?date=2026-05-22&scope=all'
 # Diese Woche, sortiert nach Priorität, nur Projekt "renovierung"
 curl 'http://localhost:8080/api/tasks?week=2026-W21&scope=all&project_id=project_…&sort=priority'
 
-# Bereits erledigte Tasks an einem bestimmten Tag
+# Bereits erledigte Tasks an einem bestimmten Tag (geplanter Tag)
 curl 'http://localhost:8080/api/tasks?date=2026-05-20&status=completed&scope=all'
+
+# Was wurde diese Woche erledigt?
+curl 'http://localhost:8080/api/tasks?status=completed&completed_week=2026-W21&scope=all'
 ```
 
 Antwort: `200 OK`, JSON-Array aus Task-Objekten (siehe unten).
