@@ -59,6 +59,36 @@ func (h *Handler) handleListTasks(w http.ResponseWriter, r *http.Request) {
 	case "deleted":
 		f.Status = domain.StatusDeleted
 	}
+	if v := q.Get("date"); v != "" {
+		d, err := domain.ParseDate(v)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, errorResp{Error: "date must be YYYY-MM-DD"})
+			return
+		}
+		f.VisibleFromGTE = d
+		f.VisibleFromLTE = d
+	} else {
+		if v := q.Get("from"); v != "" {
+			d, err := domain.ParseDate(v)
+			if err != nil {
+				writeJSON(w, http.StatusBadRequest, errorResp{Error: "from must be YYYY-MM-DD"})
+				return
+			}
+			f.VisibleFromGTE = d
+		}
+		if v := q.Get("to"); v != "" {
+			d, err := domain.ParseDate(v)
+			if err != nil {
+				writeJSON(w, http.StatusBadRequest, errorResp{Error: "to must be YYYY-MM-DD"})
+				return
+			}
+			f.VisibleFromLTE = d
+		}
+		if !f.VisibleFromGTE.IsZero() && !f.VisibleFromLTE.IsZero() && f.VisibleFromLTE.Before(f.VisibleFromGTE) {
+			writeJSON(w, http.StatusBadRequest, errorResp{Error: "to must be on or after from"})
+			return
+		}
+	}
 	switch q.Get("sort") {
 	case "priority":
 		f.Sort = storage.SortPriority

@@ -78,6 +78,14 @@ func (r *TaskRepo) List(ctx context.Context, f storage.TaskFilter) ([]*domain.Ta
 		where = append(where, `(visible_from = '' OR visible_from <= ?)`)
 		args = append(args, today.String())
 	}
+	if !f.VisibleFromGTE.IsZero() {
+		where = append(where, `visible_from != '' AND visible_from >= ?`)
+		args = append(args, f.VisibleFromGTE.String())
+	}
+	if !f.VisibleFromLTE.IsZero() {
+		where = append(where, `visible_from != '' AND visible_from <= ?`)
+		args = append(args, f.VisibleFromLTE.String())
+	}
 	if len(f.Priorities) > 0 {
 		ph := strings.Repeat("?,", len(f.Priorities))
 		ph = ph[:len(ph)-1]

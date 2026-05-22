@@ -106,7 +106,34 @@ Query-Parameter (alle optional):
 | `project_id` | `inbox`, `project_…` | Nur Tasks dieses Projekts |
 | `status` | `open`, `completed`, `deleted` | Status-Filter; ohne Angabe gilt mit Default-Scope „nur open" |
 | `scope` | `all` | Hebt den Sichtbarkeits-Filter (Lastenheft 5.5) auf — auch zukünftige `visible_from`-Tasks sind dabei |
+| `date` | `YYYY-MM-DD` | Nur Tasks, deren `visible_from` exakt dieser Tag ist (Shortcut für `from=…&to=…` mit demselben Wert) |
+| `from` | `YYYY-MM-DD` | Untere Grenze für `visible_from` (inklusiv) |
+| `to` | `YYYY-MM-DD` | Obere Grenze für `visible_from` (inklusiv) |
 | `sort` | `priority`, `deadline`, `visible_from`, `created_at` | Sortierung; ohne Angabe gilt die Default-Sortierung aus 5.6 |
+
+`date`, `from` und `to` filtern über die Spalte **`visible_from`** (die
+geplante Anzeige-/Erscheinungs­datum­spalte) und sind mit `project_id`,
+`status`, `scope` und `sort` frei kombinierbar.
+
+- `date=X` ist exakt äquivalent zu `from=X&to=X`. Wird `date` zusätzlich zu
+  `from`/`to` gesetzt, gewinnt `date`.
+- Tasks **ohne** `visible_from` werden bei aktivem Datumsfilter **nicht**
+  zurückgegeben — sie haben kein planbares Datum, das gematcht werden könnte.
+- Für Zukunfts-Ranges willst du in der Regel `scope=all` ergänzen, sonst
+  greift zusätzlich der Sichtbarkeits-Filter (`visible_from ≤ heute`) und
+  schneidet die Zukunft weg.
+- `to` muss `≥ from` sein, sonst 400.
+
+```bash
+# Alle Tasks für heute (inkl. Vergangenheit-Sichtbarkeit egal)
+curl 'http://localhost:8080/api/tasks?date=2026-05-22&scope=all'
+
+# Diese Woche, sortiert nach Priorität, nur Projekt "renovierung"
+curl 'http://localhost:8080/api/tasks?from=2026-05-18&to=2026-05-24&scope=all&project_id=project_…&sort=priority'
+
+# Bereits erledigte Tasks an einem bestimmten Tag
+curl 'http://localhost:8080/api/tasks?date=2026-05-20&status=completed&scope=all'
+```
 
 Antwort: `200 OK`, JSON-Array aus Task-Objekten (siehe unten).
 

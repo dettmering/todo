@@ -11,12 +11,18 @@ import (
 // TaskFilter captures the query knobs the list view and API need.
 // All fields are optional; the zero value means "no constraint".
 type TaskFilter struct {
-	ProjectID    string
-	Status       domain.TaskStatus
-	OnlyVisible  bool           // applies the visible_from <= today rule
-	Today        domain.LocalDate
-	Priorities   []domain.Priority
-	Sort         TaskSort
+	ProjectID   string
+	Status      domain.TaskStatus
+	OnlyVisible bool // applies the visible_from <= today rule
+	Today       domain.LocalDate
+	Priorities  []domain.Priority
+	Sort        TaskSort
+
+	// VisibleFromGTE / VisibleFromLTE filter on the visible_from column.
+	// Tasks with an empty visible_from are excluded when either bound is set,
+	// since they have no scheduled date to compare against.
+	VisibleFromGTE domain.LocalDate
+	VisibleFromLTE domain.LocalDate
 }
 
 type TaskSort string
