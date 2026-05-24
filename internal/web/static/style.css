@@ -786,7 +786,8 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   gap: 6px;
 }
 .td-field-control select,
-.td-field-control input[type="text"] {
+.td-field-control input[type="text"],
+.td-field-control input[type="date"] {
   width: 100%;
   font-size: 13px;
   padding: 7px 9px;
@@ -799,7 +800,8 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   transition: border-color 0.15s;
 }
 .td-field-control select:focus,
-.td-field-control input[type="text"]:focus { border-color: var(--accent); }
+.td-field-control input[type="text"]:focus,
+.td-field-control input[type="date"]:focus { border-color: var(--accent); }
 .td-field-control .date-hint { margin-left: 0; min-width: auto; }
 
 .td-priority-buttons {

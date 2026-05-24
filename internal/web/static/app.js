@@ -1051,9 +1051,8 @@ function openTaskDialogInternal(t) {
   document.getElementById("td-description").value = t.description || "";
   document.getElementById("td-project").value = t.project_id;
   document.getElementById("td-priority").value = String(t.priority);
-  document.getElementById("td-visible-from").value = isoToDE(t.visible_from);
+  document.getElementById("td-visible-from").value = t.visible_from || "";
   document.getElementById("td-deadline").value = isoToDE(t.deadline);
-  clearDateHint("td-visible-from");
   clearDateHint("td-deadline");
   setRecurrenceControls("td-recurrence", "td-recur-custom-wrap", "td-recur-custom", t.recurrence_rule || "");
   document.getElementById("td-error").classList.add("hidden");
@@ -1210,10 +1209,7 @@ function wireTaskDialog() {
     btn.addEventListener("click", () => {
       const iso = quickRescheduleISO(btn.dataset.quick);
       if (!iso) return;
-      const input = document.getElementById("td-visible-from");
-      input.value = isoToDE(iso);
-      // Trigger NL parser hint refresh.
-      input.dispatchEvent(new Event("change"));
+      document.getElementById("td-visible-from").value = iso;
     });
   });
 
@@ -1409,7 +1405,6 @@ async function boot() {
   const todayIconEl = document.getElementById("today-icon");
   if (todayIconEl) todayIconEl.innerHTML = todayIconSVG();
   fillRecurrenceSelect("td-recurrence");
-  wireNLDateInput("td-visible-from");
   wireNLDateInput("td-deadline");
   renderQuickAddOverlay();
   wireSidebarNav();
