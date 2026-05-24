@@ -1064,6 +1064,14 @@ function openTaskDialogInternal(t) {
   // Make sure the editor is hidden whenever we (re)open the modal.
   document.getElementById("td-description").classList.add("hidden");
   document.getElementById("td-description-rendered").classList.remove("hidden");
+  // Reset the mobile "more details" collapse so every opening starts compact.
+  const layout = dlg.querySelector(".td-layout");
+  if (layout) layout.classList.remove("show-extra");
+  const moreBtn = document.getElementById("td-more-toggle");
+  if (moreBtn) {
+    moreBtn.textContent = "Weitere Details";
+    moreBtn.setAttribute("aria-expanded", "false");
+  }
   dlg.showModal();
   // Title textarea height needs the dialog to be visible to measure correctly.
   requestAnimationFrame(() => autoGrow(titleEl));
@@ -1112,6 +1120,16 @@ function wireTaskDialog() {
   });
   document.getElementById("td-cancel").addEventListener("click", () => dlg.close("cancel"));
   document.getElementById("td-close").addEventListener("click", () => dlg.close("cancel"));
+
+  const moreBtn = document.getElementById("td-more-toggle");
+  if (moreBtn) {
+    moreBtn.addEventListener("click", () => {
+      const layout = dlg.querySelector(".td-layout");
+      const expanded = layout.classList.toggle("show-extra");
+      moreBtn.textContent = expanded ? "Weniger anzeigen" : "Weitere Details";
+      moreBtn.setAttribute("aria-expanded", expanded ? "true" : "false");
+    });
+  }
 
   document.getElementById("td-save").addEventListener("click", async (e) => {
     e.preventDefault();
@@ -1341,6 +1359,38 @@ function wireSidebarNav() {
   });
 }
 
+// wireMobileNav handles the hamburger drawer for narrow viewports.
+function wireMobileNav() {
+  const btn = document.getElementById("menu-toggle");
+  const sidebar = document.getElementById("sidebar");
+  const backdrop = document.getElementById("sidebar-backdrop");
+  if (!btn || !sidebar || !backdrop) return;
+  const open = () => {
+    backdrop.hidden = false;
+    requestAnimationFrame(() => {
+      sidebar.classList.add("open");
+      backdrop.classList.add("visible");
+    });
+    btn.setAttribute("aria-expanded", "true");
+  };
+  const close = () => {
+    sidebar.classList.remove("open");
+    backdrop.classList.remove("visible");
+    btn.setAttribute("aria-expanded", "false");
+  };
+  btn.addEventListener("click", () => {
+    if (sidebar.classList.contains("open")) close();
+    else open();
+  });
+  backdrop.addEventListener("click", close);
+  sidebar.addEventListener("click", (e) => {
+    if (e.target.closest(".nav-item, .project-item")) close();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && sidebar.classList.contains("open")) close();
+  });
+}
+
 // ---------- Keyboard shortcuts (Lastenheft 6.2) ----------
 
 function wireShortcuts() {
@@ -1363,6 +1413,7 @@ async function boot() {
   wireNLDateInput("td-deadline");
   renderQuickAddOverlay();
   wireSidebarNav();
+  wireMobileNav();
   wireQuickAdd();
   wireTaskDialog();
   wireProjectDialog();

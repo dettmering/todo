@@ -8,7 +8,7 @@
 </head>
 <body>
   <div class="app">
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <div class="logo">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4 12 9 17 20 6"/></svg>
@@ -48,6 +48,9 @@
 
     <main class="main">
       <header class="main-header">
+        <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Menü öffnen" aria-controls="sidebar" aria-expanded="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+        </button>
         <h1 id="view-title">Heute</h1>
         <div class="main-meta" id="view-subtitle"></div>
       </header>
@@ -73,6 +76,7 @@
       <div id="empty-state" class="empty hidden">Keine offenen Aufgaben.</div>
     </main>
   </div>
+  <div class="sidebar-backdrop" id="sidebar-backdrop" hidden></div>
 
   <dialog id="project-dialog">
     <form method="dialog">
@@ -151,7 +155,7 @@
           </div>
         </div>
 
-        <div class="td-field">
+        <div class="td-field td-field-extra">
           <div class="td-field-label">Deadline</div>
           <div class="td-field-control">
             <input type="text" id="td-deadline" placeholder="morgen, +5, ende juni" autocomplete="off" />
@@ -170,13 +174,15 @@
           <input type="hidden" id="td-priority" value="4" />
         </div>
 
-        <div class="td-field">
+        <div class="td-field td-field-extra">
           <div class="td-field-label">Wiederholung</div>
           <div class="td-field-control"><select id="td-recurrence"></select></div>
           <div class="td-field-control td-recur-custom hidden" id="td-recur-custom-wrap">
             <input type="text" id="td-recur-custom" placeholder="FREQ=WEEKLY;BYDAY=MO" />
           </div>
         </div>
+
+        <button type="button" class="td-mobile-more" id="td-more-toggle" aria-expanded="false">Weitere Details</button>
 
         <div class="td-sidebar-actions">
           <button type="button" id="td-delete" class="td-link-danger">Löschen</button>
