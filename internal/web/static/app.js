@@ -571,16 +571,16 @@ function groupTasksByWeek(tasks) {
   undated.sort(compareTasks);
   const groups = [];
   if (undated.length) groups.push({ key: "none", label: "Ohne Datum", range: "", past: false, current: false, tasks: undated });
-  const today = new Date(); today.setHours(0,0,0,0);
-  const thisYear = today.getFullYear();
+  const todayStr = todayISO();
+  const thisYear = new Date().getFullYear();
   for (const g of weeks) {
     const { monday, sunday } = isoWeekRange(g.year, g.week);
     const range = `${formatDayMonth(monday)}–${formatDayMonth(sunday)}`;
     const label = g.year === thisYear ? `KW ${g.week}` : `KW ${g.week} (${g.year})`;
-    // A week is "past" once its Sunday lies strictly before today;
-    // "current" if today falls within Monday..Sunday inclusive.
-    const past = sunday.getTime() < today.getTime();
-    const current = !past && monday.getTime() <= today.getTime();
+    const mondayStr = `${monday.getUTCFullYear()}-${String(monday.getUTCMonth()+1).padStart(2,"0")}-${String(monday.getUTCDate()).padStart(2,"0")}`;
+    const sundayStr = `${sunday.getUTCFullYear()}-${String(sunday.getUTCMonth()+1).padStart(2,"0")}-${String(sunday.getUTCDate()).padStart(2,"0")}`;
+    const past = sundayStr < todayStr;
+    const current = !past && mondayStr <= todayStr;
     groups.push({ key: g.key, label, range, past, current, tasks: g.tasks });
   }
   return groups;
