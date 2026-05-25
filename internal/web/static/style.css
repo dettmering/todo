@@ -4,8 +4,10 @@
   --sidebar-text: #202020;
   --sidebar-muted: #666666;
   --accent: #dc4c3e;
+  --accent-hover: #c44035;
   --accent-soft: #fee6e3;
   --main-bg: #ffffff;
+  --surface: #fafafa;
   --text: #202020;
   --text-secondary: #4d4d4d;
   --text-muted: #666666;
@@ -20,10 +22,47 @@
   --due-today: #058527;
   --due-tomorrow: #ad6200;
   --due-future: #246fe0;
+  --danger-bg: #fde7e5;
+  --deadline-color: #a8650a;
+  --date-sep: #d0d0d0;
+  --shadow-dialog: rgba(0,0,0,0.18);
+  --shadow-menu: rgba(0,0,0,0.12);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --sidebar-bg: #1e1e1e;
+    --sidebar-text: #e8e8e8;
+    --sidebar-muted: #888888;
+    --accent: #e05549;
+    --accent-hover: #c94a3f;
+    --accent-soft: #3d2120;
+    --main-bg: #1a1a1a;
+    --surface: #252525;
+    --text: #e8e8e8;
+    --text-secondary: #b3b3b3;
+    --text-muted: #888888;
+    --border: #333333;
+    --border-strong: #3d3d3d;
+    --hover: #2e2e2e;
+    --p1: #e05549;
+    --p2: #f5a623;
+    --p3: #4b8df8;
+    --p4: #737373;
+    --overdue: #e05549;
+    --due-today: #2da94f;
+    --due-tomorrow: #d4881a;
+    --due-future: #4b8df8;
+    --danger-bg: #3d2120;
+    --deadline-color: #d4881a;
+    --date-sep: #4a4a4a;
+    --shadow-dialog: rgba(0,0,0,0.5);
+    --shadow-menu: rgba(0,0,0,0.4);
+  }
 }
 
 * { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; height: 100%; }
+html, body { margin: 0; padding: 0; height: 100%; color-scheme: light dark; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", system-ui, sans-serif;
   color: var(--text-secondary);
@@ -264,7 +303,7 @@ body {
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 24px var(--shadow-menu);
   z-index: 20;
   padding: 4px;
 }
@@ -292,7 +331,7 @@ body {
   right: 6px;
   top: 50%;
   transform: translateY(-50%);
-  background: #db4c3f;
+  background: var(--accent);
   color: #fff;
   border: none;
   border-radius: 6px;
@@ -304,7 +343,7 @@ body {
   font-family: inherit;
   transition: background 0.12s ease;
 }
-.do-it-btn:hover { background: #c73e32; }
+.do-it-btn:hover { background: var(--accent-hover); }
 .do-it-btn:active { transform: translateY(calc(-50% + 1px)); }
 .do-it-btn:focus-visible { outline: 2px solid var(--p4); outline-offset: 2px; }
 
@@ -449,8 +488,8 @@ body {
 .task .date-item.due-tomorrow { color: var(--due-tomorrow); }
 .task .date-item.due-future { color: var(--due-future); }
 .task .date-item.overdue { color: var(--overdue); font-weight: 500; }
-.task .date-item.deadline { color: #a8650a; }
-.task .date-sep { color: #d0d0d0; }
+.task .date-item.deadline { color: var(--deadline-color); }
+.task .date-sep { color: var(--date-sep); }
 
 .task .task-project {
   font-size: 12px;
@@ -485,9 +524,10 @@ dialog {
   border: 0;
   border-radius: 10px;
   padding: 0;
-  box-shadow: 0 16px 48px rgba(0,0,0,0.18);
+  box-shadow: 0 16px 48px var(--shadow-dialog);
   min-width: 460px;
   color: var(--text);
+  background: var(--main-bg);
 }
 dialog::backdrop { background: rgba(0,0,0,0.4); }
 dialog form { padding: 20px 24px; display: flex; flex-direction: column; gap: 12px; }
@@ -526,7 +566,7 @@ dialog menu button[value="default"] {
   color: white;
   border-color: var(--accent);
 }
-dialog menu button[value="default"]:hover { background: #c44035; border-color: #c44035; }
+dialog menu button[value="default"]:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 dialog menu button.danger {
   background: var(--main-bg);
   color: var(--p1);
@@ -534,7 +574,7 @@ dialog menu button.danger {
   margin-right: auto;
 }
 dialog menu button.danger:hover {
-  background: #fde7e5;
+  background: var(--danger-bg);
   border-color: var(--p1);
 }
 
@@ -570,7 +610,7 @@ dialog menu button.danger:hover {
 .dialog-error {
   margin: 0;
   padding: 8px 12px;
-  background: #fde7e5;
+  background: var(--danger-bg);
   color: var(--p1);
   border-radius: 6px;
   font-size: 12px;
@@ -602,7 +642,7 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   justify-content: space-between;
   padding: 10px 16px;
   border-bottom: 1px solid var(--border);
-  background: #fafafa;
+  background: var(--surface);
 }
 .td-breadcrumb {
   display: inline-flex;
@@ -766,7 +806,7 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
 .td-description-input:focus { border-color: var(--accent); }
 
 .td-sidebar {
-  background: #fafafa;
+  background: var(--surface);
   border-left: 1px solid var(--border);
   padding: 18px 18px 14px;
   overflow-y: auto;
@@ -882,7 +922,7 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   color: #fff;
   border-color: var(--accent);
 }
-.td-btn-primary:hover { background: #c44035; border-color: #c44035; }
+.td-btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 .td-link-danger {
   background: transparent;
   border: 0;
@@ -893,7 +933,7 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   padding: 4px 6px;
   border-radius: 6px;
 }
-.td-link-danger:hover { background: #fde7e5; }
+.td-link-danger:hover { background: var(--danger-bg); }
 
 @media (max-width: 720px) {
   /* ---------- Layout ---------- */
@@ -1020,7 +1060,7 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
     bottom: 0;
     margin: 12px -16px 0;
     padding: 10px 16px;
-    background: #fafafa;
+    background: var(--surface);
     border-top: 1px solid var(--border);
     z-index: 4;
   }
