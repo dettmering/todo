@@ -4,6 +4,7 @@ package storage
 
 import (
 	"context"
+	"time"
 
 	"github.com/till/todo/internal/domain"
 )
@@ -55,4 +56,19 @@ type ProjectRepo interface {
 	Update(ctx context.Context, p *domain.Project) error
 	List(ctx context.Context, includeArchived bool) ([]*domain.Project, error)
 	Delete(ctx context.Context, id string) error
+}
+
+// AuditFilter narrows the audit log query. Zero values mean "no constraint".
+// FromUTC is inclusive, ToUTC is exclusive — the caller is expected to expand
+// a calendar-day range into the right UTC half-open interval.
+type AuditFilter struct {
+	TaskID  string
+	FromUTC time.Time
+	ToUTC   time.Time
+	Limit   int
+}
+
+type AuditRepo interface {
+	Append(ctx context.Context, e *domain.AuditEntry) error
+	List(ctx context.Context, f AuditFilter) ([]*domain.AuditEntry, error)
 }

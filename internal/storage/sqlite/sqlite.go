@@ -77,6 +77,17 @@ var migrations = []migrationStep{
 	{5, `ALTER TABLE projects ADD COLUMN color TEXT NOT NULL DEFAULT '';`},
 	{6, `ALTER TABLE projects ADD COLUMN slug TEXT NOT NULL DEFAULT '';`},
 	{7, `CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_slug ON projects(slug) WHERE slug != '';`},
+	{8, `CREATE TABLE IF NOT EXISTS audit_log (
+		id         TEXT PRIMARY KEY,
+		task_id    TEXT NOT NULL,
+		task_title TEXT NOT NULL DEFAULT '',
+		action     TEXT NOT NULL,
+		old_value  TEXT NOT NULL DEFAULT '',
+		new_value  TEXT NOT NULL DEFAULT '',
+		at         TEXT NOT NULL
+	);`},
+	{9, `CREATE INDEX IF NOT EXISTS idx_audit_task ON audit_log(task_id);`},
+	{10, `CREATE INDEX IF NOT EXISTS idx_audit_at ON audit_log(at);`},
 }
 
 func (s *Store) migrate() error {
@@ -183,7 +194,9 @@ var ErrNotFound = errors.New("storage: not found")
 var (
 	_ storage.TaskRepo    = (*TaskRepo)(nil)
 	_ storage.ProjectRepo = (*ProjectRepo)(nil)
+	_ storage.AuditRepo   = (*AuditRepo)(nil)
 )
 
 func (s *Store) Tasks() *TaskRepo       { return &TaskRepo{db: s.db} }
 func (s *Store) Projects() *ProjectRepo { return &ProjectRepo{db: s.db} }
+func (s *Store) Audit() *AuditRepo      { return &AuditRepo{db: s.db} }

@@ -54,6 +54,10 @@ const api = {
   async deleteTask(id) {
     return fetch(`/api/tasks/${id}`, { method: "DELETE" }).then(jsonOrError);
   },
+  async listAudit(params = {}) {
+    const q = new URLSearchParams(params);
+    return fetch("/api/audit?" + q.toString()).then(jsonOrError);
+  },
 };
 
 // Recurrence presets — value is the canonical RRULE string posted to the API.
@@ -143,8 +147,9 @@ function projectById(id) { return state.projects.find(p => p.id === id); }
 
 const state = {
   projects: [],
-  view: { kind: "today" }, // or { kind: "project", id }, { kind: "upcoming" }, { kind: "all-open" }
+  view: { kind: "today" }, // or { kind: "project", id }, { kind: "upcoming" }, { kind: "activity" }
   openCounts: {}, // project_id -> number of open tasks
+  activity: { from: null, to: null }, // ISO date range for the activity view
 };
 
 // ---------- URL router ----------
@@ -162,6 +167,7 @@ function parsePath(pathname) {
   if (trimmed === "/" || trimmed === "/today") return { view: { kind: "today" } };
   if (trimmed === "/upcoming") return { view: { kind: "upcoming" } };
   if (trimmed === "/inbox") return { view: { kind: "inbox" } };
+  if (trimmed === "/activity") return { view: { kind: "activity" } };
   const proj = trimmed.match(/^\/projects\/([^\/]+)$/);
   if (proj) return { view: { kind: "project", slug: decodeURIComponent(proj[1]) } };
   const task = trimmed.match(/^\/tasks\/([^\/]+)$/);
@@ -174,6 +180,7 @@ function viewToPath(view) {
     case "today":    return "/today";
     case "upcoming": return "/upcoming";
     case "inbox":    return "/inbox";
+    case "activity": return "/activity";
     case "project": {
       const p = projectById(view.id);
       const slug = p && p.slug ? p.slug : view.id;
@@ -450,6 +457,7 @@ function viewTitle() {
     case "today": return "Heute";
     case "upcoming": return "Demnächst";
     case "inbox": return "Inbox";
+    case "activity": return "Aktivität";
     case "project": {
       const p = state.projects.find(p => p.id === state.view.id);
       return p ? p.name : "Projekt";
@@ -482,6 +490,19 @@ function defaultProjectForView() {
 async function refresh() {
   document.getElementById("view-title").textContent = viewTitle();
   document.getElementById("view-subtitle").textContent = new Date().toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "long" });
+
+  if (state.view.kind === "activity") {
+    setActivityViewVisible(true);
+    // The sidebar counts still come from a quick open-task fetch so the
+    // sidebar doesn't go blank while you browse history.
+    const allOpen = await api.listTasks({ status: "open", scope: "all" });
+    recomputeSidebarCounts(allOpen);
+    renderSidebar();
+    await renderActivity();
+    return;
+  }
+  setActivityViewVisible(false);
+
   const isToday = state.view.kind === "today";
   const fetches = [
     api.listTasks(buildTaskQuery()),
@@ -498,6 +519,12 @@ async function refresh() {
     ? (results[2] || []).filter(t => t.completed_at && t.completed_at.slice(0, 10) === todayISO())
     : [];
 
+  recomputeSidebarCounts(allOpen);
+  renderSidebar();
+  renderTasks(tasks, completedToday);
+}
+
+function recomputeSidebarCounts(allOpen) {
   const today = todayISO();
   state.openCounts = {};
   let todayCount = 0;
@@ -510,8 +537,226 @@ async function refresh() {
   const inboxCount = state.openCounts["inbox"] || 0;
   const inboxCountEl = document.getElementById("inbox-count");
   if (inboxCountEl) inboxCountEl.textContent = inboxCount > 0 ? inboxCount : "";
-  renderSidebar();
-  renderTasks(tasks, completedToday);
+}
+
+function setActivityViewVisible(visible) {
+  const av = document.getElementById("activity-view");
+  const qa = document.querySelector(".quick-add");
+  const list = document.getElementById("task-list");
+  const empty = document.getElementById("empty-state");
+  if (visible) {
+    av.classList.remove("hidden");
+    if (qa) qa.classList.add("hidden");
+    if (list) list.classList.add("hidden");
+    if (empty) empty.classList.add("hidden");
+  } else {
+    av.classList.add("hidden");
+    if (qa) qa.classList.remove("hidden");
+    if (list) list.classList.remove("hidden");
+  }
+}
+
+// ---------- Activity view ----------
+
+const ACTIVITY_LABEL = {
+  created:               "erstellt",
+  completed:             "abgehakt",
+  reopened:              "wieder geöffnet",
+  deleted:               "gelöscht",
+  visible_from_set:      "Startdatum gesetzt",
+  visible_from_cleared:  "Startdatum entfernt",
+  visible_from_changed:  "Startdatum geändert",
+  deadline_set:          "Deadline gesetzt",
+  deadline_cleared:      "Deadline entfernt",
+  deadline_changed:      "Deadline geändert",
+  project_changed:       "Projekt geändert",
+};
+
+const ACTIVITY_ICON = {
+  created:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+  completed: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 9 17 20 6"/></svg>',
+  reopened:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>',
+  deleted:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>',
+  date:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/></svg>',
+  deadline:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 4h12l-2 4 2 4H5"/></svg>',
+  project:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>',
+};
+
+function activityIconFor(action) {
+  if (action === "created" || action === "completed" || action === "reopened" || action === "deleted") {
+    return { svg: ACTIVITY_ICON[action], cls: action };
+  }
+  if (action.startsWith("visible_from")) return { svg: ACTIVITY_ICON.date, cls: "date" };
+  if (action.startsWith("deadline"))     return { svg: ACTIVITY_ICON.deadline, cls: "deadline" };
+  if (action === "project_changed")      return { svg: ACTIVITY_ICON.project, cls: "project" };
+  return { svg: ACTIVITY_ICON.date, cls: "" };
+}
+
+function activityDiffHTML(e) {
+  // Dates: format human-friendly.
+  const isDate = e.action.startsWith("visible_from") || e.action.startsWith("deadline");
+  const fmt = (v) => isDate ? (v ? formatDate(v) : "—") : (v || "—");
+  if (e.action === "project_changed") {
+    return `<span class="activity-diff"><span class="activity-diff-old">${escapeHTML(e.old_value || "—")}</span><span class="activity-diff-sep">→</span><span class="activity-diff-new">${escapeHTML(e.new_value || "—")}</span></span>`;
+  }
+  if (e.action.endsWith("_set")) {
+    return `<span class="activity-diff"><span class="activity-diff-new">${escapeHTML(fmt(e.new_value))}</span></span>`;
+  }
+  if (e.action.endsWith("_cleared")) {
+    return `<span class="activity-diff"><span class="activity-diff-old">${escapeHTML(fmt(e.old_value))}</span></span>`;
+  }
+  if (e.action.endsWith("_changed")) {
+    return `<span class="activity-diff"><span class="activity-diff-old">${escapeHTML(fmt(e.old_value))}</span><span class="activity-diff-sep">→</span><span class="activity-diff-new">${escapeHTML(fmt(e.new_value))}</span></span>`;
+  }
+  return "";
+}
+
+function ensureActivityRange() {
+  if (!state.activity.from || !state.activity.to) {
+    const t = todayISO();
+    state.activity.from = t;
+    state.activity.to = t;
+  }
+}
+
+function syncActivityInputs() {
+  ensureActivityRange();
+  document.getElementById("activity-from").value = state.activity.from;
+  document.getElementById("activity-to").value = state.activity.to;
+}
+
+function shiftActivityDay(deltaDays) {
+  ensureActivityRange();
+  const shift = (iso) => {
+    const [y, m, d] = iso.split("-").map(Number);
+    const dt = new Date(y, m - 1, d);
+    dt.setDate(dt.getDate() + deltaDays);
+    const yyyy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, "0");
+    const dd = String(dt.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
+  state.activity.from = shift(state.activity.from);
+  state.activity.to = shift(state.activity.to);
+  syncActivityInputs();
+  renderActivity();
+}
+
+function formatActivityDayHeader(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  const label = dt.toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
+  if (iso === todayISO()) return `Heute · ${label}`;
+  return label;
+}
+
+async function renderActivity() {
+  ensureActivityRange();
+  syncActivityInputs();
+  const list = document.getElementById("activity-list");
+  const empty = document.getElementById("activity-empty");
+  list.innerHTML = "";
+  let entries;
+  try {
+    if (state.activity.from === state.activity.to) {
+      entries = await api.listAudit({ date: state.activity.from });
+    } else {
+      entries = await api.listAudit({ from: state.activity.from, to: state.activity.to });
+    }
+  } catch (err) {
+    empty.classList.remove("hidden");
+    empty.textContent = "Fehler beim Laden: " + (err.message || err);
+    return;
+  }
+  if (!entries || entries.length === 0) {
+    empty.classList.remove("hidden");
+    empty.textContent = "Keine Aktivität in diesem Zeitraum.";
+    return;
+  }
+  empty.classList.add("hidden");
+
+  // Group by local calendar day.
+  const groups = new Map(); // iso -> entries[]
+  for (const e of entries) {
+    const dt = new Date(e.at);
+    const yyyy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, "0");
+    const dd = String(dt.getDate()).padStart(2, "0");
+    const iso = `${yyyy}-${mm}-${dd}`;
+    if (!groups.has(iso)) groups.set(iso, []);
+    groups.get(iso).push(e);
+  }
+  // Newest day first.
+  const days = [...groups.keys()].sort((a, b) => b.localeCompare(a));
+  for (const iso of days) {
+    const header = document.createElement("li");
+    header.className = "activity-day";
+    header.innerHTML = `<span>${escapeHTML(formatActivityDayHeader(iso))}</span><span class="activity-day-count">${groups.get(iso).length}</span>`;
+    list.appendChild(header);
+    for (const e of groups.get(iso)) {
+      list.appendChild(createActivityLI(e));
+    }
+  }
+}
+
+function createActivityLI(e) {
+  const li = document.createElement("li");
+  li.className = "activity-entry";
+  const dt = new Date(e.at);
+  const time = dt.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  const icon = activityIconFor(e.action);
+  const label = ACTIVITY_LABEL[e.action] || e.action;
+  const diff = activityDiffHTML(e);
+  li.innerHTML = `
+    <span class="activity-time">${escapeHTML(time)}</span>
+    <span class="activity-icon ${icon.cls}">${icon.svg}</span>
+    <span class="activity-body">
+      <a class="activity-task-link" href="/tasks/${encodeURIComponent(e.task_id)}">${escapeHTML(e.task_title || "(ohne Titel)")}</a>
+      <span class="activity-action"> · ${escapeHTML(label)}</span>
+      ${diff ? " " + diff : ""}
+    </span>
+  `;
+  const link = li.querySelector(".activity-task-link");
+  link.addEventListener("click", async (ev) => {
+    if (ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.button === 1) return;
+    ev.preventDefault();
+    try {
+      const t = await api.getTask(e.task_id);
+      openTaskDialog(t);
+    } catch (err) {
+      alert("Aufgabe nicht mehr verfügbar.");
+    }
+  });
+  return li;
+}
+
+function wireActivityControls() {
+  const fromI = document.getElementById("activity-from");
+  const toI = document.getElementById("activity-to");
+  if (!fromI || !toI) return;
+  fromI.addEventListener("change", () => {
+    if (!fromI.value) return;
+    state.activity.from = fromI.value;
+    if (state.activity.to < state.activity.from) state.activity.to = state.activity.from;
+    syncActivityInputs();
+    renderActivity();
+  });
+  toI.addEventListener("change", () => {
+    if (!toI.value) return;
+    state.activity.to = toI.value;
+    if (state.activity.to < state.activity.from) state.activity.from = state.activity.to;
+    syncActivityInputs();
+    renderActivity();
+  });
+  document.getElementById("activity-prev").addEventListener("click", () => shiftActivityDay(-1));
+  document.getElementById("activity-next").addEventListener("click", () => shiftActivityDay(1));
+  document.getElementById("activity-today").addEventListener("click", () => {
+    const t = todayISO();
+    state.activity.from = t;
+    state.activity.to = t;
+    syncActivityInputs();
+    renderActivity();
+  });
 }
 
 function isoWeek(isoDate) {
@@ -1412,6 +1657,7 @@ async function boot() {
   wireQuickAdd();
   wireTaskDialog();
   wireProjectDialog();
+  wireActivityControls();
   wireShortcuts();
   window.addEventListener("popstate", () => { handlePopState(); });
   state.projects = await api.listProjects();

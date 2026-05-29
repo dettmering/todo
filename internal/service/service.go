@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -26,12 +27,19 @@ var (
 type Service struct {
 	tasks    storage.TaskRepo
 	projects storage.ProjectRepo
+	audit    storage.AuditRepo
 	bus      *events.Bus
 	clock    func() time.Time
 }
 
-func New(tasks storage.TaskRepo, projects storage.ProjectRepo, bus *events.Bus) *Service {
-	return &Service{tasks: tasks, projects: projects, bus: bus, clock: func() time.Time { return time.Now().UTC() }}
+func New(tasks storage.TaskRepo, projects storage.ProjectRepo, audit storage.AuditRepo, bus *events.Bus) *Service {
+	return &Service{
+		tasks:    tasks,
+		projects: projects,
+		audit:    audit,
+		bus:      bus,
+		clock:    func() time.Time { return time.Now().UTC() },
+	}
 }
 
 // SetClock is for tests.
@@ -97,6 +105,7 @@ func (s *Service) CreateTask(ctx context.Context, in TaskInput) (*domain.Task, e
 	if err := s.tasks.Create(ctx, t); err != nil {
 		return nil, err
 	}
+	s.writeAudit(ctx, t, domain.AuditCreated, "", "", now)
 	s.bus.Publish(ctx, events.TaskCreated, t)
 	return t, nil
 }
@@ -117,8 +126,9 @@ func (s *Service) UpdateTask(ctx context.Context, id string, p TaskPatch) (*doma
 	if err != nil {
 		return nil, mapErr(err)
 	}
-	deadlineChanged := false
-	rescheduled := false
+	oldVisibleFrom := t.VisibleFrom
+	oldDeadline := t.Deadline
+	oldProjectID := t.ProjectID
 
 	if p.Title != nil {
 		title := strings.TrimSpace(*p.Title)
@@ -143,15 +153,9 @@ func (s *Service) UpdateTask(ctx context.Context, id string, p TaskPatch) (*doma
 		t.Priority = *p.Priority
 	}
 	if p.VisibleFrom != nil {
-		if *p.VisibleFrom != t.VisibleFrom {
-			rescheduled = true
-		}
 		t.VisibleFrom = *p.VisibleFrom
 	}
 	if p.Deadline != nil {
-		if *p.Deadline != t.Deadline {
-			deadlineChanged = true
-		}
 		t.Deadline = *p.Deadline
 	}
 	if p.RecurrenceRule != nil {
@@ -165,10 +169,25 @@ func (s *Service) UpdateTask(ctx context.Context, id string, p TaskPatch) (*doma
 		}
 		t.RecurrenceRule = rule
 	}
-	t.UpdatedAt = s.clock()
+	now := s.clock()
+	t.UpdatedAt = now
 	if err := s.tasks.Update(ctx, t); err != nil {
 		return nil, mapErr(err)
 	}
+	rescheduled := t.VisibleFrom != oldVisibleFrom
+	deadlineChanged := t.Deadline != oldDeadline
+	projectChanged := t.ProjectID != oldProjectID
+
+	if rescheduled {
+		s.auditDateChange(ctx, t, domain.AuditVisibleFromSet, domain.AuditVisibleFromCleared, domain.AuditVisibleFromChanged, oldVisibleFrom, t.VisibleFrom, now)
+	}
+	if deadlineChanged {
+		s.auditDateChange(ctx, t, domain.AuditDeadlineSet, domain.AuditDeadlineCleared, domain.AuditDeadlineChanged, oldDeadline, t.Deadline, now)
+	}
+	if projectChanged {
+		s.writeAudit(ctx, t, domain.AuditProjectChanged, s.projectNameOrID(ctx, oldProjectID), s.projectNameOrID(ctx, t.ProjectID), now)
+	}
+
 	s.bus.Publish(ctx, events.TaskUpdated, t)
 	if rescheduled {
 		s.bus.Publish(ctx, events.TaskRescheduled, t)
@@ -191,10 +210,12 @@ func (s *Service) ReopenTask(ctx context.Context, id string) (*domain.Task, erro
 	}
 	t.Status = domain.StatusOpen
 	t.CompletedAt = nil
-	t.UpdatedAt = s.clock()
+	now := s.clock()
+	t.UpdatedAt = now
 	if err := s.tasks.Update(ctx, t); err != nil {
 		return nil, mapErr(err)
 	}
+	s.writeAudit(ctx, t, domain.AuditReopened, "", "", now)
 	s.bus.Publish(ctx, events.TaskUpdated, t)
 	return t, nil
 }
@@ -214,6 +235,7 @@ func (s *Service) CompleteTask(ctx context.Context, id string) (*domain.Task, er
 	if err := s.tasks.Update(ctx, t); err != nil {
 		return nil, mapErr(err)
 	}
+	s.writeAudit(ctx, t, domain.AuditCompleted, "", "", now)
 	s.bus.Publish(ctx, events.TaskCompleted, t)
 
 	// Modell B (Lastenheft 4.6): when a recurring task is completed, spawn a
@@ -222,6 +244,7 @@ func (s *Service) CompleteTask(ctx context.Context, id string) (*domain.Task, er
 	// today if the original was already in the past.
 	if t.RecurrenceRule != "" {
 		if next, err := s.spawnNextInstance(ctx, t, now); err == nil && next != nil {
+			s.writeAudit(ctx, next, domain.AuditCreated, "", "", now)
 			s.bus.Publish(ctx, events.TaskCreated, next)
 			s.bus.Publish(ctx, events.TaskRecurrenceGen, next)
 		}
@@ -288,6 +311,7 @@ func (s *Service) DeleteTask(ctx context.Context, id string) error {
 	if err := s.tasks.Delete(ctx, id); err != nil {
 		return mapErr(err)
 	}
+	s.writeAudit(ctx, t, domain.AuditDeleted, "", "", s.clock())
 	s.bus.Publish(ctx, events.TaskDeleted, t)
 	return nil
 }
@@ -437,6 +461,60 @@ func (s *Service) ListProjects(ctx context.Context, includeArchived bool) ([]*do
 func (s *Service) GetProject(ctx context.Context, id string) (*domain.Project, error) {
 	pr, err := s.projects.Get(ctx, id)
 	return pr, mapErr(err)
+}
+
+// ---------- Audit log ----------
+
+func (s *Service) writeAudit(ctx context.Context, t *domain.Task, action domain.AuditAction, oldVal, newVal string, at time.Time) {
+	if s.audit == nil {
+		return
+	}
+	e := &domain.AuditEntry{
+		ID:        newID("audit"),
+		TaskID:    t.ID,
+		TaskTitle: t.Title,
+		Action:    action,
+		OldValue:  oldVal,
+		NewValue:  newVal,
+		At:        at,
+	}
+	if err := s.audit.Append(ctx, e); err != nil {
+		slog.Error("audit append", "task_id", t.ID, "action", action, "err", err)
+	}
+}
+
+// auditDateChange picks the right action (set/cleared/changed) based on whether
+// the date was added, removed, or moved.
+func (s *Service) auditDateChange(ctx context.Context, t *domain.Task, setA, clearedA, changedA domain.AuditAction, oldD, newD domain.LocalDate, at time.Time) {
+	switch {
+	case oldD.IsZero() && !newD.IsZero():
+		s.writeAudit(ctx, t, setA, "", newD.String(), at)
+	case !oldD.IsZero() && newD.IsZero():
+		s.writeAudit(ctx, t, clearedA, oldD.String(), "", at)
+	default:
+		s.writeAudit(ctx, t, changedA, oldD.String(), newD.String(), at)
+	}
+}
+
+// projectNameOrID resolves a project name for audit display. Falls back to the
+// raw ID if the project can't be looked up — better than dropping the entry.
+func (s *Service) projectNameOrID(ctx context.Context, id string) string {
+	if id == "" {
+		return ""
+	}
+	p, err := s.projects.Get(ctx, id)
+	if err != nil || p == nil {
+		return id
+	}
+	return p.Name
+}
+
+// ListAudit returns audit entries matching the given filter.
+func (s *Service) ListAudit(ctx context.Context, f storage.AuditFilter) ([]*domain.AuditEntry, error) {
+	if s.audit == nil {
+		return nil, nil
+	}
+	return s.audit.List(ctx, f)
 }
 
 func mapErr(err error) error {

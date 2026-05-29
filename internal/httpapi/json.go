@@ -88,6 +88,28 @@ type projectDTO struct {
 	UpdatedAt   string `json:"updated_at"`
 }
 
+type auditDTO struct {
+	ID        string `json:"id"`
+	TaskID    string `json:"task_id"`
+	TaskTitle string `json:"task_title"`
+	Action    string `json:"action"`
+	OldValue  string `json:"old_value,omitempty"`
+	NewValue  string `json:"new_value,omitempty"`
+	At        string `json:"at"`
+}
+
+func toAuditDTO(e *domain.AuditEntry) auditDTO {
+	return auditDTO{
+		ID:        e.ID,
+		TaskID:    e.TaskID,
+		TaskTitle: e.TaskTitle,
+		Action:    string(e.Action),
+		OldValue:  e.OldValue,
+		NewValue:  e.NewValue,
+		At:        e.At.Format("2006-01-02T15:04:05Z07:00"),
+	}
+}
+
 func toProjectDTO(p *domain.Project) projectDTO {
 	return projectDTO{
 		ID: p.ID, Name: p.Name, Slug: p.Slug, Description: p.Description,
