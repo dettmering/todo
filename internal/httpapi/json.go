@@ -37,37 +37,45 @@ func writeError(w http.ResponseWriter, err error) {
 // DTOs intentionally use snake_case keys to match the Lastenheft examples.
 
 type taskDTO struct {
-	ID             string  `json:"id"`
-	Title          string  `json:"title"`
-	Description    string  `json:"description"`
-	ProjectID      string  `json:"project_id"`
-	ProjectName    string  `json:"project_name"`
-	Status         string  `json:"status"`
-	Priority       int     `json:"priority"`
-	VisibleFrom    string  `json:"visible_from,omitempty"`
-	Deadline       string  `json:"deadline,omitempty"`
-	RecurrenceRule  string `json:"recurrence_rule,omitempty"`
-	RecurrenceLabel string `json:"recurrence_label,omitempty"`
-	CreatedAt       string `json:"created_at"`
-	UpdatedAt      string  `json:"updated_at"`
-	CompletedAt    *string `json:"completed_at,omitempty"`
+	ID              string       `json:"id"`
+	Title           string       `json:"title"`
+	Description     string       `json:"description"`
+	ProjectID       string       `json:"project_id"`
+	ProjectName     string       `json:"project_name"`
+	Status          string       `json:"status"`
+	Priority        int          `json:"priority"`
+	VisibleFrom     string       `json:"visible_from,omitempty"`
+	Deadline        string       `json:"deadline,omitempty"`
+	RecurrenceRule  string       `json:"recurrence_rule,omitempty"`
+	RecurrenceLabel string       `json:"recurrence_label,omitempty"`
+	CreatedAt       string       `json:"created_at"`
+	UpdatedAt       string       `json:"updated_at"`
+	CompletedAt     *string      `json:"completed_at,omitempty"`
+	CommentCount    int          `json:"comment_count,omitempty"`
+	Comments        []commentDTO `json:"comments"`
 }
 
-func toTaskDTO(t *domain.Task, projectName string) taskDTO {
+func toTaskDTO(t *domain.Task, projectName string, comments []*domain.Comment) taskDTO {
+	cs := make([]commentDTO, 0, len(comments))
+	for _, c := range comments {
+		cs = append(cs, toCommentDTO(c))
+	}
 	d := taskDTO{
-		ID:             t.ID,
-		Title:          t.Title,
-		Description:    t.Description,
-		ProjectID:      t.ProjectID,
-		ProjectName:    projectName,
-		Status:         string(t.Status),
-		Priority:       int(t.Priority),
-		VisibleFrom:    t.VisibleFrom.String(),
-		Deadline:       t.Deadline.String(),
+		ID:              t.ID,
+		Title:           t.Title,
+		Description:     t.Description,
+		ProjectID:       t.ProjectID,
+		ProjectName:     projectName,
+		Status:          string(t.Status),
+		Priority:        int(t.Priority),
+		VisibleFrom:     t.VisibleFrom.String(),
+		Deadline:        t.Deadline.String(),
 		RecurrenceRule:  t.RecurrenceRule,
 		RecurrenceLabel: recurrence.HumanLabel(t.RecurrenceRule),
 		CreatedAt:       t.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt:       t.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		CommentCount:    len(cs),
+		Comments:        cs,
 	}
 	if t.CompletedAt != nil {
 		s := t.CompletedAt.Format("2006-01-02T15:04:05Z07:00")
@@ -107,6 +115,22 @@ func toAuditDTO(e *domain.AuditEntry) auditDTO {
 		OldValue:  e.OldValue,
 		NewValue:  e.NewValue,
 		At:        e.At.Format("2006-01-02T15:04:05Z07:00"),
+	}
+}
+
+type commentDTO struct {
+	ID        string `json:"id"`
+	TaskID    string `json:"task_id"`
+	Body      string `json:"body"`
+	CreatedAt string `json:"created_at"`
+}
+
+func toCommentDTO(c *domain.Comment) commentDTO {
+	return commentDTO{
+		ID:        c.ID,
+		TaskID:    c.TaskID,
+		Body:      c.Body,
+		CreatedAt: c.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 }
 

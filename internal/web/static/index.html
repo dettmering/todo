@@ -144,6 +144,19 @@
           <textarea id="td-description" class="td-description-input hidden" placeholder="Beschreibung"></textarea>
         </div>
         <p class="dialog-error hidden" id="td-error"></p>
+
+        <section class="td-comments">
+          <div class="td-comments-header">Kommentare</div>
+          <form class="td-comment-form" id="td-comment-form">
+            <textarea id="td-comment-input" class="td-comment-input" rows="2" placeholder="Kommentar schreiben (Markdown unterstützt)…"></textarea>
+            <div class="td-comment-actions">
+              <span class="td-comment-hint">Markdown unterstützt</span>
+              <button type="submit" class="td-btn td-btn-primary" id="td-comment-submit">Kommentar</button>
+            </div>
+            <p class="dialog-error hidden" id="td-comment-error"></p>
+          </form>
+          <ul class="td-comment-list" id="td-comment-list"></ul>
+        </section>
       </section>
 
       <aside class="td-sidebar">

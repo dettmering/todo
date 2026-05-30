@@ -181,11 +181,26 @@ func (h *Handler) handleListTasks(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
+	commentsByTask, err := h.svc.CommentsByTasks(r.Context())
+	if err != nil {
+		writeError(w, err)
+		return
+	}
 	out := make([]taskDTO, 0, len(tasks))
 	for _, t := range tasks {
-		out = append(out, toTaskDTO(t, names[t.ProjectID]))
+		out = append(out, toTaskDTO(t, names[t.ProjectID], commentsByTask[t.ID]))
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+// commentsFor returns one task's comments (newest first), swallowing errors
+// (a comment-fetch failure should never block returning the task itself).
+func (h *Handler) commentsFor(ctx context.Context, taskID string) []*domain.Comment {
+	comments, err := h.svc.ListComments(ctx, taskID)
+	if err != nil {
+		return nil
+	}
+	return comments
 }
 
 func (h *Handler) projectNames(ctx context.Context) (map[string]string, error) {
@@ -241,7 +256,7 @@ func (h *Handler) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, toTaskDTO(t, h.projectName(r.Context(), t.ProjectID)))
+	writeJSON(w, http.StatusCreated, toTaskDTO(t, h.projectName(r.Context(), t.ProjectID), h.commentsFor(r.Context(), t.ID)))
 }
 
 func (h *Handler) handleGetTask(w http.ResponseWriter, r *http.Request) {
@@ -251,7 +266,7 @@ func (h *Handler) handleGetTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, toTaskDTO(t, h.projectName(r.Context(), t.ProjectID)))
+	writeJSON(w, http.StatusOK, toTaskDTO(t, h.projectName(r.Context(), t.ProjectID), h.commentsFor(r.Context(), t.ID)))
 }
 
 type taskPatchReq struct {
@@ -302,7 +317,7 @@ func (h *Handler) handlePatchTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, toTaskDTO(t, h.projectName(r.Context(), t.ProjectID)))
+	writeJSON(w, http.StatusOK, toTaskDTO(t, h.projectName(r.Context(), t.ProjectID), h.commentsFor(r.Context(), t.ID)))
 }
 
 func (h *Handler) handleCompleteTask(w http.ResponseWriter, r *http.Request) {
@@ -312,7 +327,7 @@ func (h *Handler) handleCompleteTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, toTaskDTO(t, h.projectName(r.Context(), t.ProjectID)))
+	writeJSON(w, http.StatusOK, toTaskDTO(t, h.projectName(r.Context(), t.ProjectID), h.commentsFor(r.Context(), t.ID)))
 }
 
 func (h *Handler) handleReopenTask(w http.ResponseWriter, r *http.Request) {
@@ -322,7 +337,7 @@ func (h *Handler) handleReopenTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, toTaskDTO(t, h.projectName(r.Context(), t.ProjectID)))
+	writeJSON(w, http.StatusOK, toTaskDTO(t, h.projectName(r.Context(), t.ProjectID), h.commentsFor(r.Context(), t.ID)))
 }
 
 func (h *Handler) handleDeleteTask(w http.ResponseWriter, r *http.Request) {

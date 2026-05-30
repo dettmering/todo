@@ -288,6 +288,28 @@ Das System muss natürlichsprachige Eingaben für Datum und Wiederholung unterst
 
 ---
 
+## 4.8 Kommentare
+
+Eine Aufgabe kann beliebig viele Kommentare tragen. Ein Kommentar ist eine
+zeitgestempelte Notiz mit Markdown-Inhalt.
+
+### Attribute eines Kommentars
+
+* `id` — eindeutige ID (`comment_*`)
+* `task_id` — zugehörige Aufgabe
+* `body` — Inhalt als Markdown-Quelltext
+* `created_at` — Zeitpunkt der Erstellung
+
+### Anforderungen
+
+* Kommentare sind append-only (kein Bearbeiten oder Löschen im MVP)
+* der Inhalt unterstützt Markdown; die Darstellung rendert das Markup
+* Kommentare werden absteigend nach Aktualität (neueste zuerst) angezeigt
+* das Setzen von Kommentaren muss auch automatisiert über die API möglich sein
+* Kommentare können an Aufgaben in jedem Status gehängt werden (auch erledigte)
+
+---
+
 ## 5. Funktionale Anforderungen
 
 ## 5.1 Aufgaben erstellen
@@ -502,6 +524,8 @@ API-Endpunkte für:
 * Wiederholungsregeln lesen
 * natürlichsprachige Eingabe parsen
 * Webhook-Abonnements verwalten
+* Kommentare einer Aufgabe lesen
+* Kommentar zu einer Aufgabe erstellen
 
 ### Beispielhafte API-Endpunkte
 
@@ -512,6 +536,8 @@ GET    /api/tasks/{id}
 PATCH  /api/tasks/{id}
 POST   /api/tasks/{id}/complete
 DELETE /api/tasks/{id}
+GET    /api/tasks/{id}/comments
+POST   /api/tasks/{id}/comments
 
 GET    /api/projects
 POST   /api/projects
@@ -572,6 +598,7 @@ Webhook-Ereignisse bei:
 * Projekt aktualisiert
 * Projekt gelöscht
 * wiederkehrende Aufgabe erzeugt nächste Instanz
+* Kommentar erstellt
 
 ### Beispielhafte Events
 
@@ -586,6 +613,7 @@ task.recurrence_generated
 project.created
 project.updated
 project.deleted
+comment.created
 ```
 
 ### Webhook-Payload Beispiel
@@ -623,6 +651,30 @@ Empfohlener Signaturheader:
 ```http
 X-Webhook-Signature: sha256=<signature>
 ```
+
+---
+
+## 5.12 Kommentare
+
+### LA-F-011 Aufgaben kommentieren
+
+Das System muss erlauben, eine Aufgabe mit Kommentaren zu versehen.
+
+**Muss-Kriterien:**
+
+* unter einer Aufgabe können Kommentare erfasst werden (Eingabefeld + Absenden)
+* das Eingabefeld unterstützt Markdown
+* nach dem Absenden erscheinen die Kommentare absteigend nach Aktualität
+  (neueste zuerst) unterhalb des Eingabefeldes
+* Kommentare können auch automatisiert über die API gesetzt werden
+* in der Listenansicht zeigt ein Eintrag eine kleine Sprechblase mit der Anzahl
+  seiner Kommentare — nur wenn mindestens ein Kommentar vorhanden ist
+* das Erstellen eines Kommentars löst das Event `comment.created` aus
+
+**Verhalten:**
+
+* leere Kommentare (nur Leerzeichen) werden abgelehnt
+* Kommentare sind append-only — kein Bearbeiten oder Löschen im MVP
 
 ---
 
@@ -713,6 +765,17 @@ Empfehlung:
 }
 ```
 
+### Comment
+
+```json
+{
+  "id": "comment_123",
+  "task_id": "task_123",
+  "body": "Habe den **Rasenmäher** aus der Werkstatt geholt.",
+  "created_at": "2026-05-20T20:05:00Z"
+}
+```
+
 ### Project
 
 ```json
@@ -757,6 +820,7 @@ Der MVP enthält ausschließlich:
 * erledigen
 * löschen/archivieren
 * anzeigen
+* kommentieren
 
 ### Projekte
 
@@ -818,6 +882,9 @@ Das System gilt als fachlich abgenommen, wenn folgende Szenarien funktionieren:
 18. Beim Abschließen einer Aufgabe wird ein Webhook ausgelöst.
 19. Webhook-Payloads enthalten alle relevanten Aufgabendaten.
 20. Webhook-Fehler werden protokolliert und erneut versucht.
+21. Eine Aufgabe kann über die Weboberfläche kommentiert werden; Kommentare werden mit Markdown gerendert und neueste zuerst angezeigt.
+22. Kommentare können über die API gelesen und erstellt werden.
+23. In der Listenansicht erscheint bei kommentierten Aufgaben eine Sprechblase mit der Kommentaranzahl.
 
 ---
 
@@ -828,7 +895,6 @@ Folgende Todoist-nahe Funktionen werden bewusst nicht übernommen:
 * Kollaboration
 * Teams
 * Gäste
-* Kommentare
 * Datei-Uploads
 * Zuweisungen
 * Labels, sofern nicht später gewünscht
@@ -849,6 +915,11 @@ Folgende Todoist-nahe Funktionen werden bewusst nicht übernommen:
 * KI-Assistenz
 * Templates
 * komplexe Custom Filter Syntax
+
+> Hinweis: Kommentare wurden bewusst aus dieser Streichliste herausgenommen und
+> in Abschnitt 4.8 / 5.12 aufgenommen. Gemeint sind hier ausschließlich
+> persönliche Notizen an einer Aufgabe (Single-User), nicht die
+> Kollaborations-Kommentare aus Todoist (Mentions, Zuweisungen, Benachrichtigungen).
 
 ---
 

@@ -489,6 +489,8 @@ body {
 .task .date-item.due-future { color: var(--due-future); }
 .task .date-item.overdue { color: var(--overdue); font-weight: 500; }
 .task .date-item.deadline { color: var(--deadline-color); }
+.task .date-item.comment-count { color: var(--text-muted); }
+.task .date-item.comment-count svg { width: 13px; height: 13px; }
 .task .date-sep { color: var(--date-sep); }
 
 .task .task-project {
@@ -804,6 +806,72 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   background: var(--main-bg);
 }
 .td-description-input:focus { border-color: var(--accent); }
+
+/* ---------- Comments ---------- */
+.td-comments {
+  margin-top: 24px;
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+}
+.td-comments-header {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.td-comment-form { margin-bottom: 18px; }
+.td-comment-input {
+  width: 100%;
+  font-size: 14px;
+  color: var(--text);
+  font-family: inherit;
+  line-height: 1.55;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 8px 10px;
+  outline: 0;
+  resize: vertical;
+  min-height: 52px;
+  background: var(--main-bg);
+  box-sizing: border-box;
+}
+.td-comment-input:focus { border-color: var(--accent); }
+.td-comment-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+}
+.td-comment-hint { font-size: 12px; color: var(--text-muted); }
+
+.td-comment-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.td-comment {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--surface);
+}
+.td-comment-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.td-comment-body {
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.td-comment-body > :first-child { margin-top: 0; }
+.td-comment-body > :last-child { margin-bottom: 0; }
 
 .td-sidebar {
   background: var(--surface);

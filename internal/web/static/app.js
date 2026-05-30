@@ -58,6 +58,12 @@ const api = {
     const q = new URLSearchParams(params);
     return fetch("/api/audit?" + q.toString()).then(jsonOrError);
   },
+  async listComments(taskId) {
+    return fetch(`/api/tasks/${taskId}/comments`).then(jsonOrError);
+  },
+  async addComment(taskId, body) {
+    return fetch(`/api/tasks/${taskId}/comments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body }) }).then(jsonOrError);
+  },
 };
 
 // Recurrence presets — value is the canonical RRULE string posted to the API.
@@ -376,6 +382,7 @@ const ICON = {
   edit:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
   trash:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>',
   hashtag:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>',
+  comment:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>',
 };
 
 function todayIconSVG() {
@@ -847,6 +854,13 @@ function createTaskLI(t, today) {
     const overdue = t.deadline < today;
     dateParts.push(`<span class="date-item ${overdue ? "overdue" : "deadline"}">${ICON.flag}<span>${escapeHTML(smartDateLabel(t.deadline))}</span></span>`);
   }
+  if (t.recurrence_label) {
+    dateParts.push(`<span class="date-item recur-label">${ICON.repeat}<span>${escapeHTML(t.recurrence_label)}</span></span>`);
+  }
+  if (t.comment_count) {
+    const label = t.comment_count === 1 ? "1 Kommentar" : `${t.comment_count} Kommentare`;
+    dateParts.push(`<span class="date-item comment-count" title="${escapeHTML(label)}">${ICON.comment}<span>${t.comment_count}</span></span>`);
+  }
   const isCompleted = t.status === "completed";
   if (isCompleted) li.classList.add("completed");
   li.innerHTML = `
@@ -854,7 +868,7 @@ function createTaskLI(t, today) {
     <div class="body">
       <div class="title">${escapeHTML(t.title)}</div>
       ${t.description && t.description.trim() ? `<div class="desc">${renderDescPreview(t.description)}</div>` : ""}
-      ${(dateParts.length || t.recurrence_label) ? `<div class="dates">${dateParts.join('<span class="date-sep">·</span>')}${t.recurrence_label ? `${dateParts.length ? '<span class="date-sep">·</span>' : ""}<span class="date-item recur-label">${ICON.repeat}<span>${escapeHTML(t.recurrence_label)}</span></span>` : ""}</div>` : ""}
+      ${dateParts.length ? `<div class="dates">${dateParts.join('<span class="date-sep">·</span>')}</div>` : ""}
     </div>
     ${state.view.kind === "project" ? "" : `
     <div class="task-project" title="${escapeHTML(projectName(t.project_id))}">
@@ -1286,6 +1300,54 @@ function autoGrow(el) {
   el.style.height = el.scrollHeight + "px";
 }
 
+// ---------- Task comments ----------
+
+// Human-readable timestamp for a comment, in the user's locale.
+function formatCommentTime(iso) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleString("de-DE", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
+// Render a comment's Markdown body to HTML (same safe defaults as descriptions).
+function renderCommentBody(md) {
+  const text = (md || "").trim();
+  try {
+    return window.marked.parse(text, { breaks: true, gfm: true });
+  } catch (e) {
+    return escapeHTML(text);
+  }
+}
+
+// Render the comment list (server returns newest first).
+function renderComments(comments) {
+  const list = document.getElementById("td-comment-list");
+  list.innerHTML = "";
+  for (const c of (comments || [])) {
+    const li = document.createElement("li");
+    li.className = "td-comment";
+    li.innerHTML = `
+      <div class="td-comment-meta">${escapeHTML(formatCommentTime(c.created_at))}</div>
+      <div class="td-comment-body">${renderCommentBody(c.body)}</div>
+    `;
+    list.appendChild(li);
+  }
+}
+
+// Fetch + render a task's comments. Best-effort: failures just leave it empty.
+async function loadComments(taskId) {
+  const list = document.getElementById("td-comment-list");
+  list.innerHTML = "";
+  try {
+    renderComments(await api.listComments(taskId));
+  } catch (e) {
+    /* ignore */
+  }
+}
+
 // openTaskDialogInternal opens the modal without touching browser history.
 // Used by popstate/boot when the URL itself caused the modal to open.
 function openTaskDialogInternal(t) {
@@ -1308,6 +1370,10 @@ function openTaskDialogInternal(t) {
   // Make sure the editor is hidden whenever we (re)open the modal.
   document.getElementById("td-description").classList.add("hidden");
   document.getElementById("td-description-rendered").classList.remove("hidden");
+  // Comments: reset the input and (re)load the list for this task.
+  document.getElementById("td-comment-input").value = "";
+  document.getElementById("td-comment-error").classList.add("hidden");
+  loadComments(t.id);
   // Reset the mobile "more details" collapse so every opening starts compact.
   const layout = dlg.querySelector(".td-layout");
   if (layout) layout.classList.remove("show-extra");
@@ -1462,6 +1528,41 @@ function wireTaskDialog() {
   document.getElementById("td-recurrence").addEventListener("change", (e) => {
     document.getElementById("td-recur-custom-wrap").classList.toggle("hidden", e.target.value !== "custom");
   });
+  // Comments: submit on form submit (button) or Ctrl/Cmd+Enter in the textarea.
+  const commentForm = document.getElementById("td-comment-form");
+  const commentInput = document.getElementById("td-comment-input");
+  commentForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const id = dlg.dataset.id;
+    if (!id) return;
+    const body = commentInput.value.trim();
+    const errEl = document.getElementById("td-comment-error");
+    errEl.classList.add("hidden");
+    if (!body) return;
+    try {
+      await api.addComment(id, body);
+    } catch (err) {
+      errEl.textContent = err.message || "Fehler beim Speichern";
+      errEl.classList.remove("hidden");
+      return;
+    }
+    commentInput.value = "";
+    commentInput.style.height = "auto";
+    await loadComments(id);
+    // Keep the list badge in sync behind the open modal.
+    refresh();
+  });
+  commentInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      commentForm.requestSubmit();
+    }
+  });
+  commentInput.addEventListener("input", () => {
+    commentInput.style.height = "auto";
+    commentInput.style.height = commentInput.scrollHeight + "px";
+  });
+
   document.getElementById("td-delete").addEventListener("click", async (e) => {
     e.preventDefault();
     const id = dlg.dataset.id;

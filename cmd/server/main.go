@@ -45,7 +45,7 @@ func main() {
 		slog.Info("webhook configured", "url", url)
 	}
 
-	svc := service.New(store.Tasks(), store.Projects(), store.Audit(), bus)
+	svc := service.New(store.Tasks(), store.Projects(), store.Audit(), store.Comments(), bus)
 
 	webFS := web.Static()
 	root := http.NewServeMux()

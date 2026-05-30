@@ -72,3 +72,15 @@ type AuditRepo interface {
 	Append(ctx context.Context, e *domain.AuditEntry) error
 	List(ctx context.Context, f AuditFilter) ([]*domain.AuditEntry, error)
 }
+
+// CommentRepo stores task comments. Comments are append-only; there is no
+// update or delete path today.
+type CommentRepo interface {
+	Create(ctx context.Context, c *domain.Comment) error
+	// List returns the comments for one task, newest first.
+	List(ctx context.Context, taskID string) ([]*domain.Comment, error)
+	// ListByTasks returns a task_id -> comments map (each newest first). With no
+	// taskIDs it covers every task; pass a subset to restrict the scan. Tasks
+	// without comments are simply absent from the map.
+	ListByTasks(ctx context.Context, taskIDs ...string) (map[string][]*domain.Comment, error)
+}

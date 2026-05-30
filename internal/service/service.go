@@ -28,15 +28,17 @@ type Service struct {
 	tasks    storage.TaskRepo
 	projects storage.ProjectRepo
 	audit    storage.AuditRepo
+	comments storage.CommentRepo
 	bus      *events.Bus
 	clock    func() time.Time
 }
 
-func New(tasks storage.TaskRepo, projects storage.ProjectRepo, audit storage.AuditRepo, bus *events.Bus) *Service {
+func New(tasks storage.TaskRepo, projects storage.ProjectRepo, audit storage.AuditRepo, comments storage.CommentRepo, bus *events.Bus) *Service {
 	return &Service{
 		tasks:    tasks,
 		projects: projects,
 		audit:    audit,
+		comments: comments,
 		bus:      bus,
 		clock:    func() time.Time { return time.Now().UTC() },
 	}
@@ -515,6 +517,52 @@ func (s *Service) ListAudit(ctx context.Context, f storage.AuditFilter) ([]*doma
 		return nil, nil
 	}
 	return s.audit.List(ctx, f)
+}
+
+// ---------- Comments ----------
+
+// AddComment attaches a Markdown note to a task. The body is trimmed and must
+// be non-empty; the task must exist (and not be hard-gone). Works for any task
+// status so notes can still be added to completed tasks.
+func (s *Service) AddComment(ctx context.Context, taskID, body string) (*domain.Comment, error) {
+	if s.comments == nil {
+		return nil, fmt.Errorf("%w: comments not available", ErrValidation)
+	}
+	body = strings.TrimSpace(body)
+	if body == "" {
+		return nil, fmt.Errorf("%w: comment body is required", ErrValidation)
+	}
+	if _, err := s.tasks.Get(ctx, taskID); err != nil {
+		return nil, mapErr(err)
+	}
+	c := &domain.Comment{
+		ID:        newID("comment"),
+		TaskID:    taskID,
+		Body:      body,
+		CreatedAt: s.clock(),
+	}
+	if err := s.comments.Create(ctx, c); err != nil {
+		return nil, err
+	}
+	s.bus.Publish(ctx, events.CommentCreated, c)
+	return c, nil
+}
+
+// ListComments returns a task's comments, newest first.
+func (s *Service) ListComments(ctx context.Context, taskID string) ([]*domain.Comment, error) {
+	if s.comments == nil {
+		return nil, nil
+	}
+	return s.comments.List(ctx, taskID)
+}
+
+// CommentsByTasks returns a task_id -> comments map (each newest first). With no
+// taskIDs it covers every task; pass a subset to restrict the scan.
+func (s *Service) CommentsByTasks(ctx context.Context, taskIDs ...string) (map[string][]*domain.Comment, error) {
+	if s.comments == nil {
+		return map[string][]*domain.Comment{}, nil
+	}
+	return s.comments.ListByTasks(ctx, taskIDs...)
 }
 
 func mapErr(err error) error {

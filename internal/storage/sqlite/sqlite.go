@@ -88,6 +88,13 @@ var migrations = []migrationStep{
 	);`},
 	{9, `CREATE INDEX IF NOT EXISTS idx_audit_task ON audit_log(task_id);`},
 	{10, `CREATE INDEX IF NOT EXISTS idx_audit_at ON audit_log(at);`},
+	{11, `CREATE TABLE IF NOT EXISTS comments (
+		id         TEXT PRIMARY KEY,
+		task_id    TEXT NOT NULL,
+		body       TEXT NOT NULL,
+		created_at TEXT NOT NULL
+	);`},
+	{12, `CREATE INDEX IF NOT EXISTS idx_comments_task ON comments(task_id);`},
 }
 
 func (s *Store) migrate() error {
@@ -195,8 +202,10 @@ var (
 	_ storage.TaskRepo    = (*TaskRepo)(nil)
 	_ storage.ProjectRepo = (*ProjectRepo)(nil)
 	_ storage.AuditRepo   = (*AuditRepo)(nil)
+	_ storage.CommentRepo = (*CommentRepo)(nil)
 )
 
 func (s *Store) Tasks() *TaskRepo       { return &TaskRepo{db: s.db} }
 func (s *Store) Projects() *ProjectRepo { return &ProjectRepo{db: s.db} }
 func (s *Store) Audit() *AuditRepo      { return &AuditRepo{db: s.db} }
+func (s *Store) Comments() *CommentRepo { return &CommentRepo{db: s.db} }
