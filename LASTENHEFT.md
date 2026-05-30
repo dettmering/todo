@@ -4,6 +4,12 @@
 **Scope:** Single-User, webbasiert, Listenansicht, API-first
 **Nicht-Ziel:** Kollaboration, Mobile/Desktop-Apps, SSO, Analytics, Alarme, Kalenderintegration, Board-/Kanban-Ansicht
 
+> **Hinweis zum Dokumentstatus:** Dieses Lastenheft ist mit dem Implementierungsstand
+> abgeglichen. Abschnitte, die über den aktuellen Code hinausgehen oder bewusst
+> reduziert umgesetzt wurden, sind mit einem **Status:**-Vermerk gekennzeichnet
+> (umgesetzt · teilweise · geplant). Maßgeblich für das tatsächliche Verhalten ist
+> der Code; siehe `CLAUDE.md` für die Architektur.
+
 ---
 
 ## 1. Zielsetzung
@@ -119,15 +125,20 @@ Ein Projekt gruppiert Aufgaben thematisch.
 
 ### Attribute eines Projekts
 
-| Attribut           | Beschreibung                   |
-| ------------------ | ------------------------------ |
-| ID                 | Eindeutige technische Kennung  |
-| Name               | Projektname                    |
-| Beschreibung       | Optional                       |
-| Sortierreihenfolge | Reihenfolge in der UI          |
-| Aktiv/Inaktiv      | Projekt kann archiviert werden |
-| Erstellt am        | Erstellzeitpunkt               |
-| Aktualisiert am    | Letzte Änderung                |
+| Attribut           | Beschreibung                                                     |
+| ------------------ | ---------------------------------------------------------------- |
+| ID                 | Eindeutige technische Kennung (`project_*`, Inbox = `inbox`)     |
+| Name               | Projektname                                                      |
+| Slug               | URL-sichere Kennung, aus dem Namen abgeleitet, stabil bei Umbenennung; eindeutig; dient dem Routing (`/projects/<slug>`) |
+| Beschreibung       | Optional                                                        |
+| Farbe              | Optionale CSS-Hex-Farbe (`#246fe0`), leer = Standardfarbe       |
+| Sortierreihenfolge | Reihenfolge in der UI                                           |
+| Aktiv/Inaktiv      | Projekt kann archiviert werden                                  |
+| Erstellt am        | Erstellzeitpunkt                                               |
+| Aktualisiert am    | Letzte Änderung                                                |
+
+**Status:** umgesetzt. Slug und Farbe sind über die Implementierung hinzugekommen
+und im Datenmodell (Abschnitt 7) sowie der API enthalten.
 
 Beispiele:
 
@@ -265,26 +276,54 @@ Für dieses Lastenheft wird **Modell B empfohlen**, weil es API- und Webhook-fre
 
 Das System muss natürlichsprachige Eingaben für Datum und Wiederholung unterstützen.
 
-### Beispiele
+### Datumsphrasen (umgesetzt)
 
-| Eingabe                      | Erwartetes Ergebnis                        |
-| ---------------------------- | ------------------------------------------ |
-| `morgen`                     | Erscheinungsdatum morgen                   |
-| `nächsten Montag`            | Erscheinungsdatum nächster Montag          |
-| `jeden Montag`               | Wiederholung wöchentlich montags           |
-| `alle 2 Wochen`              | Wiederholung alle 2 Wochen                 |
-| `jeden ersten des Monats`    | monatliche Wiederholung                    |
-| `am 31.12.`                  | konkretes Datum                            |
-| `in 3 Tagen`                 | relatives Erscheinungsdatum                |
-| `KW41` | Am Montag der 41. Kalenderwoche |
+Der Parser (`internal/nldate`, Endpunkt `POST /api/parse`) erkennt deutsche
+Datumsangaben. Erkannte Phrasen (case-insensitiv, Whitespace egal):
+
+| Eingabe                          | Erwartetes Ergebnis                          |
+| -------------------------------- | -------------------------------------------- |
+| `heute` / `heu`                  | heute                                        |
+| `morgen` / `mor`                 | morgen                                       |
+| `übermorgen`                     | in zwei Tagen                                |
+| `gestern`                        | gestern                                      |
+| `montag`..`sonntag`, `mo`..`so`  | nächstes Vorkommen des Wochentags            |
+| `nächsten Montag`                | wie bloßer Wochentag (nächstes Vorkommen)    |
+| `nächste Woche`                  | Montag der nächsten ISO-Woche                |
+| `nächsten Monat` / `nächstes Jahr` | gleicher Tag, begrenzt auf Monatslänge      |
+| `in 3 Tagen` / `in 2 Wochen` / `in 1 Monat` / `in 1 Jahr` | relatives Datum     |
+| `+5` / `+5 Tage` / `+5d`         | heute + N Tage                               |
+| `anfang/mitte/ende <Monat>`      | 1. / 15. / letzter Tag des Monats            |
+| `monatsanfang` / `monatsende`    | erster / letzter Tag des aktuellen Monats    |
+| `27.1.` / `27.01.`               | konkretes Datum (laufendes Jahr, sonst nächstes) |
+| `27.1.2027`                      | exaktes Datum                                |
+| `2026-05-21`                     | ISO-Datum                                    |
+| `KW32` / `kw 32`                 | Montag der 32. ISO-Kalenderwoche             |
+
+### Wiederholungsphrasen
+
+**Status:** **noch nicht umgesetzt.** Die natürlichsprachige Erkennung von
+Wiederholungen (`jeden Montag`, `alle 2 Wochen`, `jeden ersten des Monats`) ist
+in `internal/nldate` als dokumentierter Stub angelegt, aber nicht aktiv. `POST
+/api/parse` liefert daher heute nur ein `visible_from`, kein `recurrence_rule`.
+
+Wiederholungen werden stattdessen **strukturiert** gesetzt:
+
+* im Frontend über ein Auswahlfeld mit Presets (Täglich, Werktäglich,
+  Wöchentlich, Alle 2 Wochen, Monatlich, Alle 3 Monate, Jährlich, eigene RRULE)
+* über die API direkt als RRULE-String im Feld `recurrence_rule`
+
+Siehe Abschnitt 4.6 für den unterstützten RRULE-Umfang.
 
 ### Anforderungen
 
 * natürliche Sprache mindestens auf Deutsch
-* optional Englisch
+* optional Englisch (**nicht umgesetzt**)
 * Parser muss Datum, Deadline und Wiederholung unterscheiden können
+  (Datum/Deadline: umgesetzt; Wiederholung: siehe oben)
 * erkannte Werte müssen vor dem Speichern sichtbar oder prüfbar sein
-* fehlerhafte oder mehrdeutige Eingaben dürfen nicht stillschweigend falsch interpretiert werden
+* fehlerhafte oder mehrdeutige Eingaben dürfen nicht stillschweigend falsch
+  interpretiert werden (unerkannte Eingabe → HTTP 422)
 
 ---
 
@@ -307,6 +346,46 @@ zeitgestempelte Notiz mit Markdown-Inhalt.
 * Kommentare werden absteigend nach Aktualität (neueste zuerst) angezeigt
 * das Setzen von Kommentaren muss auch automatisiert über die API möglich sein
 * Kommentare können an Aufgaben in jedem Status gehängt werden (auch erledigte)
+
+---
+
+## 4.9 Aktivitätsprotokoll (Audit-Log)
+
+**Status:** umgesetzt (über das ursprüngliche Lastenheft hinausgehend).
+
+Das System führt ein Protokoll über die wichtigsten Zustandsänderungen einer
+Aufgabe. Jeder Eintrag wird beim Eintreten der Änderung im Service-Layer
+geschrieben und ist über die API sowie die Frontend-Ansicht „Aktivität"
+einsehbar.
+
+### Protokollierte Aktionen
+
+| Aktion                   | Bedeutung                                |
+| ------------------------ | ---------------------------------------- |
+| `created`                | Aufgabe erstellt                         |
+| `completed`              | Aufgabe abgeschlossen                    |
+| `reopened`               | Abgeschlossene Aufgabe wieder geöffnet   |
+| `deleted`                | Aufgabe gelöscht                         |
+| `visible_from_set/cleared/changed` | Erscheinungsdatum gesetzt/entfernt/geändert |
+| `deadline_set/cleared/changed`     | Deadline gesetzt/entfernt/geändert        |
+| `project_changed`        | Projekt gewechselt (Werte = Projektnamen) |
+
+### Attribute eines Eintrags
+
+* `id` — eindeutige ID (`audit_*`)
+* `task_id` — zugehörige Aufgabe
+* `task_title` — Titel-Schnappschuss (bleibt aussagekräftig, auch wenn der
+  Titel später geändert oder die Aufgabe hart gelöscht würde)
+* `action` — eine der obigen Aktionen
+* `old_value` / `new_value` — kontextabhängig (Datum `YYYY-MM-DD` bzw. `""`,
+  Projektname; bei created/completed/reopened/deleted leer)
+* `at` — Zeitpunkt der Änderung
+
+### Anforderungen
+
+* Einträge sind append-only
+* abrufbar gefiltert nach Aufgabe und nach Kalendertag/-bereich
+* die Frontend-Ansicht „Aktivität" zeigt das Protokoll nach Tag gruppiert
 
 ---
 
@@ -376,7 +455,24 @@ Das System muss Aufgaben als erledigt markieren können.
 * Aufgabe verschwindet aus Standardliste
 * bei wiederkehrender Aufgabe wird nächster Termin erzeugt
 * Webhook `task.completed` wird ausgelöst
-* bei wiederkehrender Aufgabe zusätzlich `task.created` oder `task.rescheduled`, je nach Datenmodell
+* bei wiederkehrender Aufgabe zusätzlich `task.created` und `task.recurrence_generated`
+  (Modell B, siehe 4.6)
+
+### LA-F-003a Aufgabe wieder öffnen
+
+**Status:** umgesetzt (über das ursprüngliche Lastenheft hinausgehend).
+
+Eine abgeschlossene Aufgabe kann wieder geöffnet werden.
+
+**Muss-Kriterien:**
+
+* Status wechselt zurück auf `offen`, der Erledigungszeitpunkt wird entfernt
+* idempotent: bei bereits offener Aufgabe passiert nichts
+* über UI und API (`POST /api/tasks/{id}/reopen`) möglich
+* erzeugt einen `reopened`-Eintrag im Aktivitätsprotokoll und ein `task.updated`-Event
+
+> Hinweis: Das Wiederöffnen erzeugt **keine** neue Instanz einer wiederkehrenden
+> Aufgabe (diese entsteht nur beim Abschließen).
 
 ---
 
@@ -427,6 +523,23 @@ UND
 
 Deadlines beeinflussen die Sichtbarkeit nicht, sondern nur Anzeige, Hervorhebung und Sortierung.
 
+### Implementierte Ansichten
+
+Das Frontend ist eine Single-Page-App mit clientseitigem Routing. Folgende
+Ansichten sind umgesetzt:
+
+| Ansicht     | Route                | Inhalt                                                       |
+| ----------- | -------------------- | ------------------------------------------------------------ |
+| Heute       | `/today` (Default)   | offene, aktuell sichtbare Aufgaben; zusätzlich heute erledigte (ausgegraut) |
+| Demnächst   | `/upcoming`          | künftige Aufgaben, nach Kalenderwoche gruppiert/hervorgehoben |
+| Inbox       | `/inbox`             | Aufgaben des Standardprojekts                                |
+| Projekt     | `/projects/<slug>`   | Aufgaben eines Projekts                                      |
+| Aktivität   | `/activity`          | Aktivitätsprotokoll (siehe 4.9), nach Tag gruppiert          |
+
+Die gruppierten Ansichten rufen die API mit `scope=all` ab und wenden die
+Sichtbarkeitslogik clientseitig an. Aufgabendetails sind direkt verlinkbar
+(`/tasks/<id>`).
+
 ---
 
 ## 5.6 Sortierung
@@ -437,16 +550,19 @@ Das System muss Aufgaben sortieren können.
 
 **Muss-Kriterien:**
 
-Sortierung nach:
+Sortierung nach (API-Parameter `sort`):
 
-* Priorität
-* Deadline
-* Erscheinungsdatum
-* Projekt
-* Erstellzeitpunkt
-* manuelle Reihenfolge
+* Priorität (`priority`)
+* Deadline (`deadline`)
+* Erscheinungsdatum (`visible_from`)
+* Erstellzeitpunkt (`created_at`)
+* Standard (leer) — empfohlene Standardsortierung (siehe unten)
+* Projekt — **nicht als eigener Sort-Modus umgesetzt** (Projekte sind in der UI
+  ohnehin eigene Ansichten)
+* manuelle Reihenfolge — **nicht umgesetzt** für Aufgaben (nur Projekte besitzen
+  ein `sort_order`)
 
-Empfohlene Standardsortierung:
+Empfohlene Standardsortierung (umgesetzt als Default `SortDefault`):
 
 1. überfällige Deadlines zuerst
 2. hohe Priorität zuerst
@@ -463,22 +579,23 @@ Das System muss einfache Filter unterstützen.
 
 **Muss-Kriterien:**
 
-Filter nach:
+Filter nach (API-Query-Parameter auf `GET /api/tasks`):
 
-* Projekt
-* Priorität
-* Status
-* Erscheinungsdatum
-* Deadline
-* wiederkehrend / nicht wiederkehrend
+* Projekt (`project_id`) — umgesetzt
+* Status (`status` = open/completed/deleted) — umgesetzt
+* Sichtbarkeit (`scope=all` schaltet die Erscheinungsdatum-Logik ab) — umgesetzt
+* Erscheinungsdatum als Tag/Bereich/KW (`date` · `from`/`to` · `week=YYYY-Www`) — umgesetzt
+* Erledigungsdatum als Tag/Bereich/KW (`completed_date` · `completed_from`/`completed_to` · `completed_week`) — umgesetzt
+* Priorität — **derzeit nicht über die HTTP-API filterbar** (das Storage-Filter
+  unterstützt es, der Handler liest den Parameter aber noch nicht aus)
+* wiederkehrend / nicht wiederkehrend — **nicht umgesetzt**
 
 Beispiele:
 
 * alle offenen Aufgaben
 * alle Aufgaben im Projekt „Homelab“
-* alle P1-Aufgaben
-* alle Aufgaben mit Deadline diese Woche
-* alle wiederkehrenden Aufgaben
+* alle Aufgaben mit Erscheinungsdatum in einer bestimmten Kalenderwoche
+* alle in einem Zeitraum erledigten Aufgaben
 
 Komplexe Todoist-Filter-Syntax ist für den MVP nicht erforderlich.
 
@@ -511,23 +628,13 @@ Das System muss eine HTTP-basierte API bereitstellen.
 
 API-Endpunkte für:
 
-* Aufgaben erstellen
-* Aufgaben lesen
-* Aufgaben aktualisieren
-* Aufgaben abschließen
-* Aufgaben löschen
-* Projekte erstellen
-* Projekte lesen
-* Projekte aktualisieren
-* Projekte löschen oder archivieren
-* Prioritäten lesen
-* Wiederholungsregeln lesen
+* Aufgaben erstellen, lesen, aktualisieren, abschließen, wieder öffnen, löschen
+* Kommentare einer Aufgabe lesen / erstellen
+* Aktivitätsprotokoll lesen (global und je Aufgabe)
+* Projekte erstellen, lesen, aktualisieren, löschen/archivieren
 * natürlichsprachige Eingabe parsen
-* Webhook-Abonnements verwalten
-* Kommentare einer Aufgabe lesen
-* Kommentar zu einer Aufgabe erstellen
 
-### Beispielhafte API-Endpunkte
+### Tatsächlich umgesetzte API-Endpunkte
 
 ```http
 GET    /api/tasks
@@ -535,9 +642,13 @@ POST   /api/tasks
 GET    /api/tasks/{id}
 PATCH  /api/tasks/{id}
 POST   /api/tasks/{id}/complete
+POST   /api/tasks/{id}/reopen
 DELETE /api/tasks/{id}
 GET    /api/tasks/{id}/comments
 POST   /api/tasks/{id}/comments
+GET    /api/tasks/{id}/audit
+
+GET    /api/audit
 
 GET    /api/projects
 POST   /api/projects
@@ -546,10 +657,22 @@ PATCH  /api/projects/{id}
 DELETE /api/projects/{id}
 
 POST   /api/parse
-GET    /api/webhooks
-POST   /api/webhooks
-DELETE /api/webhooks/{id}
 ```
+
+**Abweichungen gegenüber dem ursprünglichen Entwurf:**
+
+* `POST /api/tasks/{id}/reopen`, `GET /api/tasks/{id}/audit` und `GET /api/audit`
+  sind neu hinzugekommen.
+* Eigene Endpunkte zum Lesen von „Prioritäten" und „Wiederholungsregeln" gibt es
+  nicht — beide sind feste Wertebereiche (P1–P4 bzw. der RRULE-Subset aus 4.6)
+  und werden nicht über die API ausgeliefert.
+* **Webhook-Verwaltungsendpunkte (`/api/webhooks`) existieren nicht.** Webhooks
+  sind reduziert über eine einzige konfigurierte Ziel-URL umgesetzt (siehe 5.11).
+
+Hinweise zu Listenparametern: `GET /api/tasks` akzeptiert die Filter-/Sortier-
+Parameter aus 5.6/5.7. `GET /api/projects` liefert standardmäßig nur aktive
+Projekte; `include_archived=true` schließt archivierte ein (das Frontend nutzt
+dies, damit historische Projektlabels weiter auflösen).
 
 ---
 
@@ -557,7 +680,12 @@ DELETE /api/webhooks/{id}
 
 Auch wenn kein Sign-on vorgesehen ist, sollte die API nicht ungeschützt sein, sobald sie außerhalb eines lokalen Netzwerks erreichbar ist.
 
-### Minimalanforderung
+**Status:** **noch nicht umgesetzt.** Die Anwendung enthält derzeit keine
+Authentifizierung; sämtliche API- und UI-Endpunkte sind offen. Der Betrieb setzt
+daher voraus, dass die App nur lokal, im geschützten Netz oder hinter einem
+externen Schutzmechanismus (Reverse-Proxy mit Auth, VPN o. Ä.) erreichbar ist.
+
+### Minimalanforderung (geplant)
 
 * statischer API-Key
 * Übergabe per Header
@@ -584,9 +712,18 @@ Authorization: Bearer <api-key>
 
 Das System muss Webhooks unterstützen.
 
+**Status:** **reduziert umgesetzt.** Aktuell existiert ein einzelner
+Webhook-Empfänger: Ist die Umgebungsvariable `WEBHOOK_URL` gesetzt, wird **jedes**
+Event des internen Event-Bus als JSON-POST an diese URL zugestellt. Es gibt
+**keine** Verwaltungs-API, keine Auswahl einzelner Events pro Webhook, kein
+Secret, keine Signatur, keinen Retry und keine Zustelllogs. Die Zustellung läuft
+asynchron auf dem Event-Bus und blockiert UI-Aktionen nicht (Timeout 10 s). Die
+ausführlichen Muss-Kriterien unten beschreiben den **Zielzustand** und sind
+noch offen.
+
 **Muss-Kriterien:**
 
-Webhook-Ereignisse bei:
+Webhook-Ereignisse bei (im Code als Event-Typen vorhanden und ausgelöst):
 
 * Aufgabe erstellt
 * Aufgabe aktualisiert
@@ -637,16 +774,18 @@ comment.created
 
 ### Technische Muss-Kriterien
 
-* Ziel-URL konfigurierbar
-* Events pro Webhook auswählbar
-* Secret pro Webhook
-* Signatur im Header
-* Retry bei Fehlern
-* Timeout-Konfiguration
-* Webhook-Logs mindestens für die letzten Zustellversuche
-* Deaktivierung fehlerhafter Webhooks nach wiederholtem Fehlschlag
+| Kriterium                                            | Status                              |
+| ---------------------------------------------------- | ----------------------------------- |
+| Ziel-URL konfigurierbar                              | umgesetzt (eine URL via `WEBHOOK_URL`) |
+| Events pro Webhook auswählbar                        | geplant (heute: alle Events)        |
+| Secret pro Webhook                                   | geplant                             |
+| Signatur im Header                                   | geplant                             |
+| Retry bei Fehlern                                    | geplant (heute: einmaliger Versuch) |
+| Timeout-Konfiguration                                | teilweise (fester Timeout 10 s)     |
+| Webhook-Logs (letzte Zustellversuche)                | geplant (heute: nur Server-Log)     |
+| Deaktivierung fehlerhafter Webhooks                  | geplant                             |
 
-Empfohlener Signaturheader:
+Empfohlener Signaturheader (für die spätere Umsetzung):
 
 ```http
 X-Webhook-Signature: sha256=<signature>
@@ -686,11 +825,15 @@ Das System wird ausschließlich als Webanwendung bereitgestellt.
 
 **Muss-Kriterien:**
 
-* responsives Web-UI
+* responsives Web-UI (Desktop + Mobile, einklappbare Sidebar)
 * nutzbar auf Desktop-Browsern
 * nutzbar auf mobilen Browsern
 * keine native App erforderlich
 * keine Desktop-App erforderlich
+* **Dark Mode** (umgesetzt): folgt automatisch der Systemeinstellung via
+  `prefers-color-scheme`; keine manuelle Umschaltung
+* **Kein Build-Schritt** im Frontend: `index.html`, `style.css`, `app.js` werden
+  per `go:embed` direkt in das Binary eingebettet
 
 ---
 
@@ -704,16 +847,20 @@ Das System wird ausschließlich als Webanwendung bereitgestellt.
 * natürlichsprachige Eingabe prominent verfügbar
 * Tastaturbedienung für zentrale Aktionen
 
-Empfohlene Shortcuts:
+Shortcuts:
 
-| Shortcut | Funktion         |
-| -------- | ---------------- |
-| `n`      | neue Aufgabe     |
-| `Enter`  | speichern        |
-| `e`      | bearbeiten       |
-| `d`      | erledigen        |
-| `p`      | Priorität ändern |
-| `/`      | Suche/Filter     |
+| Shortcut | Funktion         | Status            |
+| -------- | ---------------- | ----------------- |
+| `n`      | neue Aufgabe (Quick-Add fokussieren) | umgesetzt |
+| `Enter`  | speichern (Quick-Add, Dialoge), `Strg/Cmd+Enter` für Kommentare | umgesetzt |
+| `Escape` | Dialog/Sidebar schließen | umgesetzt |
+| `e`      | bearbeiten       | nicht umgesetzt   |
+| `d`      | erledigen        | nicht umgesetzt   |
+| `p`      | Priorität ändern | nicht umgesetzt   |
+| `/`      | Suche/Filter     | nicht umgesetzt   |
+
+Die natürlichsprachige Eingabe ist prominent als Quick-Add verfügbar; im
+Quick-Add navigieren Pfeiltasten durch Vorschläge.
 
 ---
 
@@ -765,6 +912,10 @@ Empfehlung:
 }
 ```
 
+Die API-Antwort (`taskDTO`) reichert dieses Modell zusätzlich an: `project_name`
+(aufgelöster Projektname), `recurrence_label` (deutsche Klartext-Beschreibung der
+Wiederholung), `comment_count` sowie die eingebetteten `comments`.
+
 ### Comment
 
 ```json
@@ -782,15 +933,36 @@ Empfehlung:
 {
   "id": "project_garden",
   "name": "Garten",
+  "slug": "garten",
   "description": "Aufgaben rund um Kleingarten und Hütte",
   "sort_order": 20,
   "archived": false,
+  "color": "#246fe0",
   "created_at": "2026-05-20T20:00:00Z",
   "updated_at": "2026-05-20T20:00:00Z"
 }
 ```
 
-### Webhook
+### AuditEntry
+
+```json
+{
+  "id": "audit_123",
+  "task_id": "task_123",
+  "task_title": "Rasen mähen",
+  "action": "deadline_changed",
+  "old_value": "2026-05-25",
+  "new_value": "2026-05-30",
+  "at": "2026-05-20T21:30:00Z"
+}
+```
+
+### Webhook (geplant)
+
+Das folgende Modell beschreibt den Zielzustand der Webhook-Verwaltung
+(Abschnitt 5.11) und ist **noch nicht umgesetzt**. Heute existiert nur eine
+einzelne, per `WEBHOOK_URL` konfigurierte Ziel-URL ohne persistiertes
+Webhook-Objekt.
 
 ```json
 {
@@ -818,9 +990,11 @@ Der MVP enthält ausschließlich:
 * erstellen
 * bearbeiten
 * erledigen
+* wieder öffnen
 * löschen/archivieren
 * anzeigen
 * kommentieren
+* Aktivitätsprotokoll je Aufgabe
 
 ### Projekte
 
@@ -845,16 +1019,18 @@ Der MVP enthält ausschließlich:
 
 ### Automatisierung
 
-* API
-* Webhooks
-* API-Key
+* API (umgesetzt)
+* Webhooks (reduziert: eine Ziel-URL, siehe 5.11)
+* API-Key (geplant, noch nicht umgesetzt — siehe 5.10)
 
 ### Web-UI
 
-* eine Listenansicht
-* Aufgabenformular
-* Projektverwaltung
-* Filter-/Sortierleiste
+* Ansichten Heute / Demnächst / Inbox / Projekt / Aktivität
+* Quick-Add mit natürlichsprachiger Datumseingabe
+* Aufgabenformular inkl. Kommentaren
+* Projektverwaltung (inkl. Farbe)
+* Filter-/Sortierung über API-Parameter
+* Dark Mode (systemgesteuert)
 
 ---
 
@@ -871,8 +1047,8 @@ Das System gilt als fachlich abgenommen, wenn folgende Szenarien funktionieren:
 7. Eine Aufgabe kann eine Deadline erhalten.
 8. Eine überfällige Deadline wird in der Liste hervorgehoben.
 9. Eine Aufgabe kann als erledigt markiert werden.
-10. Eine wiederkehrende Aufgabe erzeugt beim Abschließen den nächsten Termin.
-11. Natürlichsprachliche Eingaben wie `morgen`, `jeden Montag`, `alle 2 Wochen` werden korrekt interpretiert.
+10. Eine wiederkehrende Aufgabe erzeugt beim Abschließen den nächsten Termin (Modell B).
+11. Natürlichsprachliche Datumseingaben wie `morgen`, `Freitag`, `in 3 Tagen`, `KW32` werden korrekt interpretiert. *(Wiederholungs-Phrasen wie `jeden Montag` werden derzeit **nicht** per natürlicher Sprache erkannt — Wiederholungen werden über Auswahlfeld/RRULE gesetzt; siehe 4.7.)*
 12. Aufgaben können nach Projekt gefiltert werden.
 13. Aufgaben können nach Priorität sortiert werden.
 14. Aufgaben können nach Deadline sortiert werden.
@@ -885,6 +1061,9 @@ Das System gilt als fachlich abgenommen, wenn folgende Szenarien funktionieren:
 21. Eine Aufgabe kann über die Weboberfläche kommentiert werden; Kommentare werden mit Markdown gerendert und neueste zuerst angezeigt.
 22. Kommentare können über die API gelesen und erstellt werden.
 23. In der Listenansicht erscheint bei kommentierten Aufgaben eine Sprechblase mit der Kommentaranzahl.
+24. Eine abgeschlossene Aufgabe kann über UI und API wieder geöffnet werden.
+25. Zustandsänderungen einer Aufgabe (Erstellen, Abschließen, Wieder­öffnen, Löschen, Datums- und Projektänderungen) werden im Aktivitätsprotokoll festgehalten und sind nach Aufgabe und Zeitraum abrufbar.
+26. Die Oberfläche folgt automatisch dem hellen/dunklen Systemfarbschema.
 
 ---
 
