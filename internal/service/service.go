@@ -131,6 +131,7 @@ func (s *Service) UpdateTask(ctx context.Context, id string, p TaskPatch) (*doma
 	oldVisibleFrom := t.VisibleFrom
 	oldDeadline := t.Deadline
 	oldProjectID := t.ProjectID
+	oldPriority := t.Priority
 
 	if p.Title != nil {
 		title := strings.TrimSpace(*p.Title)
@@ -179,6 +180,7 @@ func (s *Service) UpdateTask(ctx context.Context, id string, p TaskPatch) (*doma
 	rescheduled := t.VisibleFrom != oldVisibleFrom
 	deadlineChanged := t.Deadline != oldDeadline
 	projectChanged := t.ProjectID != oldProjectID
+	priorityChanged := t.Priority != oldPriority
 
 	if rescheduled {
 		s.auditDateChange(ctx, t, domain.AuditVisibleFromSet, domain.AuditVisibleFromCleared, domain.AuditVisibleFromChanged, oldVisibleFrom, t.VisibleFrom, now)
@@ -188,6 +190,9 @@ func (s *Service) UpdateTask(ctx context.Context, id string, p TaskPatch) (*doma
 	}
 	if projectChanged {
 		s.writeAudit(ctx, t, domain.AuditProjectChanged, s.projectNameOrID(ctx, oldProjectID), s.projectNameOrID(ctx, t.ProjectID), now)
+	}
+	if priorityChanged {
+		s.writeAudit(ctx, t, domain.AuditPriorityChanged, priorityLabel(oldPriority), priorityLabel(t.Priority), now)
 	}
 
 	s.bus.Publish(ctx, events.TaskUpdated, t)
@@ -509,6 +514,11 @@ func (s *Service) projectNameOrID(ctx context.Context, id string) string {
 		return id
 	}
 	return p.Name
+}
+
+// priorityLabel renders a priority as "P1".."P4" for audit display.
+func priorityLabel(p domain.Priority) string {
+	return fmt.Sprintf("P%d", int(p))
 }
 
 // ListAudit returns audit entries matching the given filter.

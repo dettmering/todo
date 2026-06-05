@@ -577,6 +577,7 @@ const ACTIVITY_LABEL = {
   deadline_cleared:      "Deadline entfernt",
   deadline_changed:      "Deadline geändert",
   project_changed:       "Projekt geändert",
+  priority_changed:      "Priorität geändert",
 };
 
 const ACTIVITY_ICON = {
@@ -587,6 +588,7 @@ const ACTIVITY_ICON = {
   date:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/></svg>',
   deadline:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 4h12l-2 4 2 4H5"/></svg>',
   project:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>',
+  priority:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>',
 };
 
 function activityIconFor(action) {
@@ -596,6 +598,7 @@ function activityIconFor(action) {
   if (action.startsWith("visible_from")) return { svg: ACTIVITY_ICON.date, cls: "date" };
   if (action.startsWith("deadline"))     return { svg: ACTIVITY_ICON.deadline, cls: "deadline" };
   if (action === "project_changed")      return { svg: ACTIVITY_ICON.project, cls: "project" };
+  if (action === "priority_changed")     return { svg: ACTIVITY_ICON.priority, cls: "priority" };
   return { svg: ACTIVITY_ICON.date, cls: "" };
 }
 
