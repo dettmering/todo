@@ -91,6 +91,12 @@ Alle Fehler liefern `{"error": "<text>"}` als Body. Status-Codes:
 | `GET` | `/api/projects/{id}` | Projekt lesen |
 | `PATCH` | `/api/projects/{id}` | Projekt aktualisieren (auch entarchivieren) |
 | `DELETE` | `/api/projects/{id}` | Archivieren (Tasks bleiben erhalten) |
+| `GET` | `/api/absences` | Abwesenheiten listen (View- oder Range-Modus) |
+| `POST` | `/api/absences` | Abwesenheit anlegen |
+| `GET` | `/api/absences/{id}` | Abwesenheit lesen |
+| `PATCH` | `/api/absences/{id}` | Abwesenheit teilaktualisieren |
+| `DELETE` | `/api/absences/{id}` | Abwesenheit löschen (hart) |
+| `GET` | `/api/next-workday` | Nächsten Werktag berechnen |
 | `POST` | `/api/parse` | NL-Datums-/Wiederholungs-Eingabe parsen |
 
 ---
@@ -314,6 +320,131 @@ Projekt zugeordnet, damit historische Beschriftungen erhalten bleiben.
 
 ---
 
+### Abwesenheiten
+
+Eine **Abwesenheit** ist ein zusammenhängender Zeitraum, in dem der Nutzer weg
+ist (Urlaub, Dienstreise, krank, Feiertag, …). `start_date` und `end_date` sind
+**inklusive** Kalendertage. Abwesenheiten fließen in die „Nächster Werktag"-
+Berechnung ein.
+
+`type` ist eines von:
+
+| Typ | Bedeutung | Blockiert Arbeit? |
+| --- | --- | --- |
+| `vacation` | Urlaub | ✓ |
+| `holiday` | Feiertag | ✓ |
+| `sick` | Krank | ✓ |
+| `other` | Sonstiges (Default, wenn leer) | ✓ |
+| `business_trip` | Dienstreise | ✗ — zählt als normaler Arbeitstag |
+
+`business_trip` ist der Sonderfall: Es ist eine Abwesenheit (taucht in Listen
+und Range-Abfragen auf), gilt aber bei `GET /api/next-workday` als regulärer
+Werktag und blockiert die Planung nicht.
+
+#### `GET /api/absences`
+
+Zwei Modi, abhängig von den Query-Parametern:
+
+| Modus | Parameter | Wirkung |
+| --- | --- | --- |
+| **View** (Default) | `today` (optional, `YYYY-MM-DD`) | Aktuelle und kommende Abwesenheiten plus vergangene aus dem **laufenden Kalenderjahr**. `today` überschreibt das vom Server angenommene „heute". |
+| **Range** | `from` und/oder `to` (`YYYY-MM-DD`) | Alle Abwesenheiten, die das inklusive Fenster `[from, to]` **überlappen** — auch laufende, die vor `from` begonnen haben und nach `to` enden. |
+
+Sobald `from` **oder** `to` gesetzt ist, gilt der Range-Modus. Antwort:
+`200 OK`, JSON-Array aus Abwesenheits-Objekten.
+
+```bash
+# View: was steht an + dieses Jahr schon gewesen
+curl 'http://localhost:8080/api/absences?today=2026-06-08'
+
+# Range: alle Abwesenheiten im Juni 2026 (auch über die Grenzen laufende)
+curl 'http://localhost:8080/api/absences?from=2026-06-01&to=2026-06-30'
+```
+
+**„Bin ich heute abwesend?"** — `from` und `to` auf denselben Tag setzen:
+
+```bash
+curl 'http://localhost:8080/api/absences?from=2026-06-08&to=2026-06-08'
+```
+
+Leeres Array ⇒ nicht abwesend. Mindestens ein Eintrag ⇒ abwesend; über den
+`type` (siehe Tabelle) erkennt der Client, ob es sich um eine echte (Arbeit
+blockierende) Abwesenheit oder nur eine `business_trip` handelt.
+
+#### `POST /api/absences`
+
+Body:
+
+| Feld | Typ | Pflicht | Default | Bemerkung |
+| --- | --- | --- | --- | --- |
+| `type` | string | | `"other"` | einer der Werte oben; unbekannt ⇒ 400 |
+| `label` | string | | `""` | freier Name, z. B. `"Kreta"` |
+| `start_date` | string | ✓ | — | ISO-Datum `YYYY-MM-DD` |
+| `end_date` | string | ✓ | — | ISO-Datum; muss `≥ start_date` sein, sonst 400 |
+
+Anders als bei Tasks erwarten `start_date`/`end_date` hier **reines ISO-Datum**
+— der NL-Parser greift bei Abwesenheiten nicht. Antwort: `201 Created`, das
+vollständige Abwesenheits-Objekt.
+
+```bash
+curl -X POST http://localhost:8080/api/absences \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "type": "vacation",
+    "label": "Kreta",
+    "start_date": "2026-07-10",
+    "end_date": "2026-07-24"
+  }'
+```
+
+#### `GET /api/absences/{id}`
+
+Antwort: `200 OK` und das Abwesenheits-Objekt; `404` wenn nicht vorhanden.
+
+#### `PATCH /api/absences/{id}`
+
+Partial-Update; weggelassene Felder bleiben unverändert. Akzeptiert `type`,
+`label`, `start_date`, `end_date`. Selbe Validierungen wie bei `POST` (gültiger
+Typ, `end_date ≥ start_date`).
+
+```bash
+# Urlaub verlängern
+curl -X PATCH http://localhost:8080/api/absences/absence_abc... \
+  -H 'Content-Type: application/json' \
+  -d '{"end_date": "2026-07-28"}'
+```
+
+#### `DELETE /api/absences/{id}`
+
+**Harter Delete** (anders als bei Tasks/Projekten): die Zeile wird entfernt.
+Antwort: `204 No Content`.
+
+#### Abwesenheits-Objekt
+
+```json
+{
+  "id": "absence_7a1b2c3d4e5f6071",
+  "type": "vacation",
+  "label": "Kreta",
+  "start_date": "2026-07-10",
+  "end_date": "2026-07-24",
+  "created_at": "2026-06-08T10:15:00Z",
+  "updated_at": "2026-06-08T10:15:00Z"
+}
+```
+
+#### `GET /api/next-workday`
+
+Liefert den ersten Tag **strikt nach heute**, der weder Wochenende noch von
+einer Arbeit blockierenden Abwesenheit abgedeckt ist (`business_trip` blockiert
+nicht). Kein Body. Antwort:
+
+```json
+{"date": "2026-06-09"}
+```
+
+---
+
 ### `POST /api/parse`
 
 Spielt die Eingabezeile aus dem Quick-Add gegen den deutschen NL-Parser und
@@ -413,6 +544,9 @@ goroutines aufgerufen und blockieren keine HTTP-Anfragen.
 | `project.created` | `POST /api/projects` |
 | `project.updated` | `PATCH /api/projects/{id}` |
 | `project.deleted` | `DELETE /api/projects/{id}` (Archivierung) |
+| `absence.created` | `POST /api/absences` |
+| `absence.updated` | `PATCH /api/absences/{id}` |
+| `absence.deleted` | `DELETE /api/absences/{id}` |
 
 ## Noch nicht implementiert (bewusst aus dem MVP-Kern ausgenommen)
 

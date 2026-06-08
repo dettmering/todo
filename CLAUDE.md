@@ -2,6 +2,21 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Working agreements
+
+- **Document API changes in `README.md`.** Whenever you add, remove, or change
+  an HTTP endpoint, its query parameters, request/response shape, or events,
+  update the matching section in `README.md` in the same change (endpoint
+  overview table, the per-endpoint section, the object example, and the events
+  table where relevant). The README is the canonical API reference — keep it in
+  sync, don't let it drift.
+- **Write backend unit tests where sensible.** Business logic in
+  `internal/domain` and `internal/service` should come with table-driven tests
+  (`go test ./...`), following the existing `*_test.go` files (e.g.
+  `internal/domain/absence_test.go`, `internal/service/absence_test.go`). Pure
+  domain rules — date/visibility/overlap logic, validation, recurrence — are the
+  priority. Don't add tests for trivial DTO plumbing or generated code.
+
 ## Commands
 
 ```bash
@@ -12,8 +27,11 @@ go run ./cmd/server -addr :8080 -db ./todo.db
 # Compile the whole module
 go build ./...
 
-# Static linting / vet (tests do not exist yet)
+# Static linting / vet
 go vet ./...
+
+# Run the test suite
+go test ./...
 
 # Container build + run
 docker build -t todo:dev .
