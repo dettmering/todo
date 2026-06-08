@@ -78,7 +78,7 @@ func TestCreateAbsenceValidation(t *testing.T) {
 
 	// unknown type
 	if _, err := svc.CreateAbsence(ctx, AbsenceInput{
-		Type: "holiday", Start: date(t, "2026-06-15"), End: date(t, "2026-06-19"),
+		Type: "sabbatical", Start: date(t, "2026-06-15"), End: date(t, "2026-06-19"),
 	}); !errors.Is(err, ErrValidation) {
 		t.Errorf("bad type: got %v, want ErrValidation", err)
 	}

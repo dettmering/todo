@@ -15,13 +15,13 @@ func mustDate(t *testing.T, s string) LocalDate {
 }
 
 func TestAbsenceTypeValid(t *testing.T) {
-	valid := []AbsenceType{AbsenceVacation, AbsenceBusinessTrip, AbsenceSick, AbsenceOther}
+	valid := []AbsenceType{AbsenceVacation, AbsenceHoliday, AbsenceBusinessTrip, AbsenceSick, AbsenceOther}
 	for _, v := range valid {
 		if !v.Valid() {
 			t.Errorf("%q should be valid", v)
 		}
 	}
-	for _, v := range []AbsenceType{"", "holiday", "Urlaub"} {
+	for _, v := range []AbsenceType{"", "sabbatical", "Urlaub"} {
 		if v.Valid() {
 			t.Errorf("%q should be invalid", v)
 		}

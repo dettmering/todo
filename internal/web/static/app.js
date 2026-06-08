@@ -595,6 +595,7 @@ function setActivityViewVisible(visible) {
 
 const ABSENCE_TYPE_LABEL = {
   vacation:      "Urlaub",
+  holiday:       "Feiertag",
   business_trip: "Dienstreise",
   sick:          "Krankheit",
   other:         "Sonstiges",
@@ -624,28 +625,46 @@ function renderAbsences() {
     list.innerHTML = `<p class="absence-empty">Noch keine Abwesenheiten hinterlegt.</p>`;
     return;
   }
-  for (const a of state.absences) {
-    const row = document.createElement("div");
-    row.className = "absence-row";
-    const range = a.start_date === a.end_date
-      ? formatDate(a.start_date)
-      : `${formatDate(a.start_date)} – ${formatDate(a.end_date)}`;
-    row.innerHTML = `
-      <span class="absence-type type-${escapeHTML(a.type)}">${escapeHTML(ABSENCE_TYPE_LABEL[a.type] || a.type)}</span>
-      <span class="absence-label">${escapeHTML(a.label || "")}</span>
-      <span class="absence-range">${escapeHTML(range)}</span>
-      <button type="button" class="icon-btn absence-edit" title="Bearbeiten">${ICON.edit}</button>
-      <button type="button" class="icon-btn absence-delete" title="Löschen">${ICON.trash}</button>
-    `;
-    row.querySelector(".absence-edit").addEventListener("click", () => openAbsenceDialog(a));
-    row.querySelector(".absence-delete").addEventListener("click", async () => {
-      if (!confirm("Abwesenheit wirklich löschen?")) return;
-      await api.deleteAbsence(a.id);
-      state.absences = await api.listAbsences();
-      renderAbsences();
-    });
-    list.appendChild(row);
-  }
+  const today = todayISO();
+  // Upcoming/current (end today or later) sorted soonest-first; past below,
+  // most-recent-first — mirroring the grouped layout of the "Demnächst" view.
+  const upcoming = state.absences.filter(a => a.end_date >= today).sort((a, b) => a.start_date.localeCompare(b.start_date));
+  const past = state.absences.filter(a => a.end_date < today).sort((a, b) => b.start_date.localeCompare(a.start_date));
+
+  if (upcoming.length) appendAbsenceGroup(list, "Bevorstehend & aktuell", upcoming, "", today);
+  if (past.length) appendAbsenceGroup(list, "Vergangen", past, "completed-header", today);
+}
+
+function appendAbsenceGroup(list, label, items, headerClass, today) {
+  const header = document.createElement("div");
+  header.className = "group-header" + (headerClass ? " " + headerClass : "");
+  header.innerHTML = `<span>${escapeHTML(label)}</span><span class="group-count">${items.length}</span>`;
+  list.appendChild(header);
+  for (const a of items) list.appendChild(createAbsenceRow(a, today));
+}
+
+function createAbsenceRow(a, today) {
+  const row = document.createElement("div");
+  const active = a.start_date <= today && a.end_date >= today;
+  row.className = "absence-row" + (active ? " active" : "");
+  const range = a.start_date === a.end_date
+    ? formatDate(a.start_date)
+    : `${formatDate(a.start_date)} – ${formatDate(a.end_date)}`;
+  row.innerHTML = `
+    <span class="absence-type type-${escapeHTML(a.type)}">${escapeHTML(ABSENCE_TYPE_LABEL[a.type] || a.type)}</span>
+    <span class="absence-label">${escapeHTML(a.label || "")}</span>
+    <span class="absence-range">${escapeHTML(range)}</span>
+    <button type="button" class="icon-btn absence-edit" title="Bearbeiten">${ICON.edit}</button>
+    <button type="button" class="icon-btn absence-delete" title="Löschen">${ICON.trash}</button>
+  `;
+  row.querySelector(".absence-edit").addEventListener("click", () => openAbsenceDialog(a));
+  row.querySelector(".absence-delete").addEventListener("click", async () => {
+    if (!confirm("Abwesenheit wirklich löschen?")) return;
+    await api.deleteAbsence(a.id);
+    state.absences = await api.listAbsences();
+    renderAbsences();
+  });
+  return row;
 }
 
 // ---------- Absence dialog (create + edit) ----------

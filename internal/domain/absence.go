@@ -8,6 +8,7 @@ type AbsenceType string
 
 const (
 	AbsenceVacation     AbsenceType = "vacation"
+	AbsenceHoliday      AbsenceType = "holiday"
 	AbsenceBusinessTrip AbsenceType = "business_trip"
 	AbsenceSick         AbsenceType = "sick"
 	AbsenceOther        AbsenceType = "other"
@@ -15,7 +16,7 @@ const (
 
 func (t AbsenceType) Valid() bool {
 	switch t {
-	case AbsenceVacation, AbsenceBusinessTrip, AbsenceSick, AbsenceOther:
+	case AbsenceVacation, AbsenceHoliday, AbsenceBusinessTrip, AbsenceSick, AbsenceOther:
 		return true
 	}
 	return false

@@ -1267,6 +1267,11 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   border-bottom: 1px solid var(--border);
 }
 .absence-row:hover { background: var(--hover); }
+.absence-row.active {
+  background: #e7effc;
+  border-radius: 6px;
+}
+.absence-row.active:hover { background: #e7effc; }
 .absence-type {
   font-size: 12px;
   font-weight: 600;
@@ -1277,6 +1282,7 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   color: var(--text-secondary);
 }
 .absence-type.type-vacation      { background: #e6f4ea; color: #1c7a3f; }
+.absence-type.type-holiday       { background: #f3eafc; color: #7b3fb8; }
 .absence-type.type-business_trip { background: #e7effc; color: #1f5fc0; }
 .absence-type.type-sick          { background: #fde7e5; color: #c0392b; }
 .absence-type.type-other         { background: var(--surface); color: var(--text-secondary); }
