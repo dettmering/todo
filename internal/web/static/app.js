@@ -1091,9 +1091,11 @@ function renderTasks(tasks, completedToday = []) {
       const header = document.createElement("li");
       header.className = "group-header" + (group.past ? " past" : "") + (group.current ? " current" : "");
       const absBadges = (group.absences || []).map(a => {
-        const label = ABSENCE_TYPE_LABEL[a.type] || a.type;
-        const title = a.label ? `${label} (${a.label})` : label;
-        return `<span class="group-absence type-${escapeHTML(a.type)}" title="${escapeHTML(title)}">${escapeHTML(label)}</span>`;
+        const typeLabel = ABSENCE_TYPE_LABEL[a.type] || a.type;
+        // Business trips show their destination inline, e.g. "Dienstreise → Hamburg".
+        const text = (a.type === "business_trip" && a.label) ? `${typeLabel} → ${a.label}` : typeLabel;
+        const title = a.label ? `${typeLabel} (${a.label})` : typeLabel;
+        return `<span class="group-absence type-${escapeHTML(a.type)}" title="${escapeHTML(title)}">${escapeHTML(text)}</span>`;
       }).join("");
       header.innerHTML = `
         <span>${escapeHTML(group.label)}</span>
