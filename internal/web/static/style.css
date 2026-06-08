@@ -382,6 +382,26 @@ body {
   font-variant-numeric: tabular-nums;
   margin-left: auto;
 }
+.group-header .group-absences {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.group-header .group-absence {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+  background: var(--surface);
+  color: var(--text-secondary);
+}
+.group-header .group-absence.type-vacation      { background: #e6f4ea; color: #1c7a3f; }
+.group-header .group-absence.type-holiday       { background: #f3eafc; color: #7b3fb8; }
+.group-header .group-absence.type-business_trip { background: #e7effc; color: #1f5fc0; }
+.group-header .group-absence.type-sick          { background: #fde7e5; color: #c0392b; }
+.group-header .group-absence.type-other         { background: var(--surface); color: var(--text-secondary); }
 
 .task {
   display: flex;

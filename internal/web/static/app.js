@@ -539,6 +539,7 @@ async function refresh() {
   setActivityViewVisible(false);
 
   const isToday = state.view.kind === "today";
+  const isUpcoming = state.view.kind === "upcoming";
   const fetches = [
     api.listTasks(buildTaskQuery()),
     api.listTasks({ status: "open", scope: "all" }),
@@ -547,12 +548,17 @@ async function refresh() {
     // For the Heute view we additionally show tasks completed today, grayed out.
     fetches.push(api.listTasks({ status: "completed", scope: "all" }));
   }
+  if (isUpcoming) {
+    // The upcoming view annotates week headers with absences overlapping them.
+    fetches.push(api.listAbsences());
+  }
   const results = await Promise.all(fetches);
   const tasks = results[0];
   const allOpen = results[1];
   const completedToday = isToday
     ? (results[2] || []).filter(t => t.completed_at && t.completed_at.slice(0, 10) === todayISO())
     : [];
+  if (isUpcoming) state.absences = results[2] || [];
 
   recomputeSidebarCounts(allOpen);
   renderSidebar();
@@ -1007,7 +1013,9 @@ function groupTasksByWeek(tasks) {
     const sundayStr = `${sunday.getUTCFullYear()}-${String(sunday.getUTCMonth()+1).padStart(2,"0")}-${String(sunday.getUTCDate()).padStart(2,"0")}`;
     const past = sundayStr < todayStr;
     const current = !past && mondayStr <= todayStr;
-    groups.push({ key: g.key, label, range, past, current, tasks: g.tasks });
+    // Absences (any type) overlapping this calendar week, for the header hint.
+    const absences = (state.absences || []).filter(a => a.start_date <= sundayStr && a.end_date >= mondayStr);
+    groups.push({ key: g.key, label, range, past, current, tasks: g.tasks, absences });
   }
   return groups;
 }
@@ -1082,9 +1090,15 @@ function renderTasks(tasks, completedToday = []) {
     for (const group of groupTasksByWeek(tasks)) {
       const header = document.createElement("li");
       header.className = "group-header" + (group.past ? " past" : "") + (group.current ? " current" : "");
+      const absBadges = (group.absences || []).map(a => {
+        const label = ABSENCE_TYPE_LABEL[a.type] || a.type;
+        const title = a.label ? `${label} (${a.label})` : label;
+        return `<span class="group-absence type-${escapeHTML(a.type)}" title="${escapeHTML(title)}">${escapeHTML(label)}</span>`;
+      }).join("");
       header.innerHTML = `
         <span>${escapeHTML(group.label)}</span>
         ${group.range ? `<span class="group-range">${escapeHTML(group.range)}</span>` : ""}
+        ${absBadges ? `<span class="group-absences">${absBadges}</span>` : ""}
         <span class="group-count">${group.tasks.length}</span>
       `;
       list.appendChild(header);
