@@ -95,6 +95,15 @@ var migrations = []migrationStep{
 		created_at TEXT NOT NULL
 	);`},
 	{12, `CREATE INDEX IF NOT EXISTS idx_comments_task ON comments(task_id);`},
+	{13, `CREATE TABLE IF NOT EXISTS absences (
+		id          TEXT PRIMARY KEY,
+		type        TEXT NOT NULL,
+		label       TEXT NOT NULL DEFAULT '',
+		start_date  TEXT NOT NULL,
+		end_date    TEXT NOT NULL,
+		created_at  TEXT NOT NULL,
+		updated_at  TEXT NOT NULL
+	);`},
 }
 
 func (s *Store) migrate() error {
@@ -203,9 +212,11 @@ var (
 	_ storage.ProjectRepo = (*ProjectRepo)(nil)
 	_ storage.AuditRepo   = (*AuditRepo)(nil)
 	_ storage.CommentRepo = (*CommentRepo)(nil)
+	_ storage.AbsenceRepo = (*AbsenceRepo)(nil)
 )
 
 func (s *Store) Tasks() *TaskRepo       { return &TaskRepo{db: s.db} }
 func (s *Store) Projects() *ProjectRepo { return &ProjectRepo{db: s.db} }
 func (s *Store) Audit() *AuditRepo      { return &AuditRepo{db: s.db} }
 func (s *Store) Comments() *CommentRepo { return &CommentRepo{db: s.db} }
+func (s *Store) Absences() *AbsenceRepo { return &AbsenceRepo{db: s.db} }

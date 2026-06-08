@@ -1242,3 +1242,54 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   dialog:not(.task-modal) form { padding: 16px; }
   .color-swatches { grid-template-columns: repeat(7, 1fr); }
 }
+
+/* ---------- Abwesenheiten ---------- */
+.absences-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+.absence-list {
+  display: flex;
+  flex-direction: column;
+}
+.absence-empty {
+  color: var(--text-muted);
+  font-size: 14px;
+  padding: 16px 0;
+}
+.absence-row {
+  display: grid;
+  grid-template-columns: 120px 1fr auto 32px 32px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--border);
+}
+.absence-row:hover { background: var(--hover); }
+.absence-type {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  text-align: center;
+  background: var(--surface);
+  color: var(--text-secondary);
+}
+.absence-type.type-vacation      { background: #e6f4ea; color: #1c7a3f; }
+.absence-type.type-business_trip { background: #e7effc; color: #1f5fc0; }
+.absence-type.type-sick          { background: #fde7e5; color: #c0392b; }
+.absence-type.type-other         { background: var(--surface); color: var(--text-secondary); }
+.absence-label {
+  font-size: 14px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.absence-range {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

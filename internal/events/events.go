@@ -23,6 +23,9 @@ const (
 	ProjectUpdated      EventType = "project.updated"
 	ProjectDeleted      EventType = "project.deleted"
 	CommentCreated      EventType = "comment.created"
+	AbsenceCreated      EventType = "absence.created"
+	AbsenceUpdated      EventType = "absence.updated"
+	AbsenceDeleted      EventType = "absence.deleted"
 )
 
 type Event struct {

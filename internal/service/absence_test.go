@@ -1,0 +1,120 @@
+package service
+
+import (
+	"context"
+	"errors"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/till/todo/internal/domain"
+	"github.com/till/todo/internal/events"
+	"github.com/till/todo/internal/storage/sqlite"
+)
+
+func newTestService(t *testing.T) *Service {
+	t.Helper()
+	store, err := sqlite.Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	t.Cleanup(func() { store.Close() })
+	return New(store.Tasks(), store.Projects(), store.Audit(), store.Comments(), store.Absences(), events.NewBus())
+}
+
+func date(t *testing.T, s string) domain.LocalDate {
+	t.Helper()
+	d, err := domain.ParseDate(s)
+	if err != nil {
+		t.Fatalf("ParseDate(%q): %v", s, err)
+	}
+	return d
+}
+
+func TestAbsenceCRUD(t *testing.T) {
+	ctx := context.Background()
+	svc := newTestService(t)
+
+	a, err := svc.CreateAbsence(ctx, AbsenceInput{
+		Type: "vacation", Label: "Kreta",
+		Start: date(t, "2026-06-15"), End: date(t, "2026-06-19"),
+	})
+	if err != nil {
+		t.Fatalf("CreateAbsence: %v", err)
+	}
+	if a.ID == "" || a.Type != domain.AbsenceVacation {
+		t.Fatalf("unexpected absence: %+v", a)
+	}
+
+	list, err := svc.ListAbsences(ctx)
+	if err != nil || len(list) != 1 {
+		t.Fatalf("ListAbsences = %v, %v; want 1 entry", list, err)
+	}
+
+	label := "Kreta 2026"
+	upd, err := svc.UpdateAbsence(ctx, a.ID, AbsencePatch{Label: &label})
+	if err != nil || upd.Label != label {
+		t.Fatalf("UpdateAbsence = %+v, %v", upd, err)
+	}
+
+	if err := svc.DeleteAbsence(ctx, a.ID); err != nil {
+		t.Fatalf("DeleteAbsence: %v", err)
+	}
+	if _, err := svc.GetAbsence(ctx, a.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("GetAbsence after delete = %v, want ErrNotFound", err)
+	}
+}
+
+func TestCreateAbsenceValidation(t *testing.T) {
+	ctx := context.Background()
+	svc := newTestService(t)
+
+	// end before start
+	if _, err := svc.CreateAbsence(ctx, AbsenceInput{
+		Type: "vacation", Start: date(t, "2026-06-19"), End: date(t, "2026-06-15"),
+	}); !errors.Is(err, ErrValidation) {
+		t.Errorf("end<start: got %v, want ErrValidation", err)
+	}
+
+	// unknown type
+	if _, err := svc.CreateAbsence(ctx, AbsenceInput{
+		Type: "holiday", Start: date(t, "2026-06-15"), End: date(t, "2026-06-19"),
+	}); !errors.Is(err, ErrValidation) {
+		t.Errorf("bad type: got %v, want ErrValidation", err)
+	}
+
+	// empty type defaults to "other"
+	a, err := svc.CreateAbsence(ctx, AbsenceInput{
+		Type: "", Start: date(t, "2026-06-15"), End: date(t, "2026-06-19"),
+	})
+	if err != nil {
+		t.Fatalf("empty type should default, got %v", err)
+	}
+	if a.Type != domain.AbsenceOther {
+		t.Errorf("empty type = %q, want %q", a.Type, domain.AbsenceOther)
+	}
+}
+
+func TestServiceNextWorkday(t *testing.T) {
+	ctx := context.Background()
+	svc := newTestService(t)
+	// Pin "today" to Friday 2026-06-12.
+	svc.SetClock(func() time.Time { return time.Date(2026, time.June, 12, 9, 0, 0, 0, time.UTC) })
+
+	// Without absences: Friday -> Monday.
+	d, err := svc.NextWorkday(ctx)
+	if err != nil || d.String() != "2026-06-15" {
+		t.Fatalf("NextWorkday (no absence) = %s, %v; want 2026-06-15", d.String(), err)
+	}
+
+	// Vacation covering the next work week pushes to the following Monday.
+	if _, err := svc.CreateAbsence(ctx, AbsenceInput{
+		Type: "vacation", Start: date(t, "2026-06-15"), End: date(t, "2026-06-19"),
+	}); err != nil {
+		t.Fatalf("CreateAbsence: %v", err)
+	}
+	d, err = svc.NextWorkday(ctx)
+	if err != nil || d.String() != "2026-06-22" {
+		t.Fatalf("NextWorkday (vacation) = %s, %v; want 2026-06-22", d.String(), err)
+	}
+}

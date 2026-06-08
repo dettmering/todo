@@ -142,3 +142,25 @@ func toProjectDTO(p *domain.Project) projectDTO {
 		UpdatedAt: p.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 }
+
+type absenceDTO struct {
+	ID        string `json:"id"`
+	Type      string `json:"type"`
+	Label     string `json:"label"`
+	StartDate string `json:"start_date"`
+	EndDate   string `json:"end_date"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
+}
+
+func toAbsenceDTO(a *domain.Absence) absenceDTO {
+	return absenceDTO{
+		ID:        a.ID,
+		Type:      string(a.Type),
+		Label:     a.Label,
+		StartDate: a.Start.String(),
+		EndDate:   a.End.String(),
+		CreatedAt: a.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt: a.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+	}
+}

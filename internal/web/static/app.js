@@ -64,6 +64,17 @@ const api = {
   async addComment(taskId, body) {
     return fetch(`/api/tasks/${taskId}/comments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body }) }).then(jsonOrError);
   },
+  async listAbsences() { return fetch("/api/absences").then(jsonOrError); },
+  async createAbsence(body) {
+    return fetch("/api/absences", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(jsonOrError);
+  },
+  async patchAbsence(id, body) {
+    return fetch(`/api/absences/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(jsonOrError);
+  },
+  async deleteAbsence(id) {
+    return fetch(`/api/absences/${id}`, { method: "DELETE" }).then(jsonOrError);
+  },
+  async nextWorkday() { return fetch("/api/next-workday").then(jsonOrError); },
 };
 
 // Recurrence presets — value is the canonical RRULE string posted to the API.
@@ -153,7 +164,8 @@ function projectById(id) { return state.projects.find(p => p.id === id); }
 
 const state = {
   projects: [],
-  view: { kind: "today" }, // or { kind: "project", id }, { kind: "upcoming" }, { kind: "activity" }
+  absences: [], // loaded on demand when the absences view is open
+  view: { kind: "today" }, // or { kind: "project", id }, { kind: "upcoming" }, { kind: "activity" }, { kind: "absences" }
   openCounts: {}, // project_id -> number of open tasks
   activity: { from: null, to: null }, // ISO date range for the activity view
 };
@@ -174,6 +186,7 @@ function parsePath(pathname) {
   if (trimmed === "/upcoming") return { view: { kind: "upcoming" } };
   if (trimmed === "/inbox") return { view: { kind: "inbox" } };
   if (trimmed === "/activity") return { view: { kind: "activity" } };
+  if (trimmed === "/absences") return { view: { kind: "absences" } };
   const proj = trimmed.match(/^\/projects\/([^\/]+)$/);
   if (proj) return { view: { kind: "project", slug: decodeURIComponent(proj[1]) } };
   const task = trimmed.match(/^\/tasks\/([^\/]+)$/);
@@ -187,6 +200,7 @@ function viewToPath(view) {
     case "upcoming": return "/upcoming";
     case "inbox":    return "/inbox";
     case "activity": return "/activity";
+    case "absences": return "/absences";
     case "project": {
       const p = projectById(view.id);
       const slug = p && p.slug ? p.slug : view.id;
@@ -465,6 +479,7 @@ function viewTitle() {
     case "upcoming": return "Demnächst";
     case "inbox": return "Inbox";
     case "activity": return "Aktivität";
+    case "absences": return "Abwesenheiten";
     case "project": {
       const p = state.projects.find(p => p.id === state.view.id);
       return p ? p.name : "Projekt";
@@ -497,6 +512,19 @@ function defaultProjectForView() {
 async function refresh() {
   document.getElementById("view-title").textContent = viewTitle();
   document.getElementById("view-subtitle").textContent = new Date().toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "long" });
+
+  setAbsencesViewVisible(false);
+
+  if (state.view.kind === "absences") {
+    setActivityViewVisible(false);
+    const allOpen = await api.listTasks({ status: "open", scope: "all" });
+    recomputeSidebarCounts(allOpen);
+    renderSidebar();
+    state.absences = await api.listAbsences();
+    setAbsencesViewVisible(true);
+    renderAbsences();
+    return;
+  }
 
   if (state.view.kind === "activity") {
     setActivityViewVisible(true);
@@ -561,6 +589,130 @@ function setActivityViewVisible(visible) {
     if (qa) qa.classList.remove("hidden");
     if (list) list.classList.remove("hidden");
   }
+}
+
+// ---------- Absences view ----------
+
+const ABSENCE_TYPE_LABEL = {
+  vacation:      "Urlaub",
+  business_trip: "Dienstreise",
+  sick:          "Krankheit",
+  other:         "Sonstiges",
+};
+
+function setAbsencesViewVisible(visible) {
+  const av = document.getElementById("absences-view");
+  if (!av) return;
+  const qa = document.querySelector(".quick-add");
+  const list = document.getElementById("task-list");
+  const empty = document.getElementById("empty-state");
+  if (visible) {
+    av.classList.remove("hidden");
+    if (qa) qa.classList.add("hidden");
+    if (list) list.classList.add("hidden");
+    if (empty) empty.classList.add("hidden");
+  } else {
+    av.classList.add("hidden");
+  }
+}
+
+function renderAbsences() {
+  const list = document.getElementById("absence-list");
+  if (!list) return;
+  list.innerHTML = "";
+  if (!state.absences.length) {
+    list.innerHTML = `<p class="absence-empty">Noch keine Abwesenheiten hinterlegt.</p>`;
+    return;
+  }
+  for (const a of state.absences) {
+    const row = document.createElement("div");
+    row.className = "absence-row";
+    const range = a.start_date === a.end_date
+      ? formatDate(a.start_date)
+      : `${formatDate(a.start_date)} – ${formatDate(a.end_date)}`;
+    row.innerHTML = `
+      <span class="absence-type type-${escapeHTML(a.type)}">${escapeHTML(ABSENCE_TYPE_LABEL[a.type] || a.type)}</span>
+      <span class="absence-label">${escapeHTML(a.label || "")}</span>
+      <span class="absence-range">${escapeHTML(range)}</span>
+      <button type="button" class="icon-btn absence-edit" title="Bearbeiten">${ICON.edit}</button>
+      <button type="button" class="icon-btn absence-delete" title="Löschen">${ICON.trash}</button>
+    `;
+    row.querySelector(".absence-edit").addEventListener("click", () => openAbsenceDialog(a));
+    row.querySelector(".absence-delete").addEventListener("click", async () => {
+      if (!confirm("Abwesenheit wirklich löschen?")) return;
+      await api.deleteAbsence(a.id);
+      state.absences = await api.listAbsences();
+      renderAbsences();
+    });
+    list.appendChild(row);
+  }
+}
+
+// ---------- Absence dialog (create + edit) ----------
+
+let absenceDialogState = { mode: "create", id: null };
+
+function openAbsenceDialog(a) {
+  absenceDialogState = { mode: a ? "edit" : "create", id: a ? a.id : null };
+  document.getElementById("ad-title").textContent = a ? "Abwesenheit bearbeiten" : "Neue Abwesenheit";
+  document.getElementById("ad-type").value = a ? a.type : "vacation";
+  document.getElementById("ad-label").value = a ? (a.label || "") : "";
+  document.getElementById("ad-start").value = a ? a.start_date : todayISO();
+  document.getElementById("ad-end").value = a ? a.end_date : todayISO();
+  document.getElementById("ad-error").classList.add("hidden");
+  document.getElementById("ad-delete").classList.toggle("hidden", !a);
+  document.getElementById("absence-dialog").showModal();
+  setTimeout(() => document.getElementById("ad-type").focus(), 0);
+}
+
+function showAbsenceDialogError(msg) {
+  const el = document.getElementById("ad-error");
+  el.textContent = msg;
+  el.classList.remove("hidden");
+}
+
+function wireAbsenceDialog() {
+  const dlg = document.getElementById("absence-dialog");
+  if (!dlg) return;
+  document.getElementById("add-absence-btn").addEventListener("click", () => openAbsenceDialog(null));
+  document.getElementById("ad-cancel").addEventListener("click", () => dlg.close("cancel"));
+
+  document.getElementById("ad-save").addEventListener("click", async (e) => {
+    e.preventDefault();
+    const type = document.getElementById("ad-type").value;
+    const label = document.getElementById("ad-label").value.trim();
+    const start = document.getElementById("ad-start").value;
+    const end = document.getElementById("ad-end").value;
+    if (!start || !end) { showAbsenceDialogError("Start- und Enddatum sind erforderlich."); return; }
+    if (end < start) { showAbsenceDialogError("Das Enddatum darf nicht vor dem Startdatum liegen."); return; }
+    const body = { type, label, start_date: start, end_date: end };
+    try {
+      if (absenceDialogState.mode === "edit") {
+        await api.patchAbsence(absenceDialogState.id, body);
+      } else {
+        await api.createAbsence(body);
+      }
+      dlg.close();
+      state.absences = await api.listAbsences();
+      renderAbsences();
+    } catch (err) {
+      showAbsenceDialogError(err.message);
+    }
+  });
+
+  document.getElementById("ad-delete").addEventListener("click", async (e) => {
+    e.preventDefault();
+    if (!absenceDialogState.id) return;
+    if (!confirm("Abwesenheit wirklich löschen?")) return;
+    try {
+      await api.deleteAbsence(absenceDialogState.id);
+      dlg.close();
+      state.absences = await api.listAbsences();
+      renderAbsences();
+    } catch (err) {
+      showAbsenceDialogError(err.message);
+    }
+  });
 }
 
 // ---------- Activity view ----------
@@ -1518,9 +1670,18 @@ function wireTaskDialog() {
     descInput.style.height = Math.max(80, descInput.scrollHeight) + "px";
   });
 
-  // Quick-reschedule buttons in the sidebar set visible_from to a preset date.
+  // Quick-reschedule buttons set visible_from to a preset date. "workday" is
+  // special: the next-workday date (skipping weekends + absences, but not
+  // business trips) is computed server-side, so it needs an async round-trip.
   document.querySelectorAll(".td-quick").forEach(btn => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
+      if (btn.dataset.quick === "workday") {
+        try {
+          const res = await api.nextWorkday();
+          if (res && res.date) document.getElementById("td-visible-from").value = res.date;
+        } catch (_) { /* ignore — leave the field unchanged */ }
+        return;
+      }
       const iso = quickRescheduleISO(btn.dataset.quick);
       if (!iso) return;
       document.getElementById("td-visible-from").value = iso;
@@ -1761,6 +1922,7 @@ async function boot() {
   wireQuickAdd();
   wireTaskDialog();
   wireProjectDialog();
+  wireAbsenceDialog();
   wireActivityControls();
   wireShortcuts();
   window.addEventListener("popstate", () => { handlePopState(); });

@@ -40,5 +40,12 @@ func (h *Handler) routes() {
 	h.mux.HandleFunc("PATCH /api/projects/{id}", h.handlePatchProject)
 	h.mux.HandleFunc("DELETE /api/projects/{id}", h.handleDeleteProject)
 
+	h.mux.HandleFunc("GET /api/absences", h.handleListAbsences)
+	h.mux.HandleFunc("POST /api/absences", h.handleCreateAbsence)
+	h.mux.HandleFunc("GET /api/absences/{id}", h.handleGetAbsence)
+	h.mux.HandleFunc("PATCH /api/absences/{id}", h.handlePatchAbsence)
+	h.mux.HandleFunc("DELETE /api/absences/{id}", h.handleDeleteAbsence)
+	h.mux.HandleFunc("GET /api/next-workday", h.handleNextWorkday)
+
 	h.mux.HandleFunc("POST /api/parse", h.handleParse)
 }

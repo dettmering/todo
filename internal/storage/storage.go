@@ -58,6 +58,14 @@ type ProjectRepo interface {
 	Delete(ctx context.Context, id string) error
 }
 
+type AbsenceRepo interface {
+	Create(ctx context.Context, a *domain.Absence) error
+	Get(ctx context.Context, id string) (*domain.Absence, error)
+	Update(ctx context.Context, a *domain.Absence) error
+	List(ctx context.Context) ([]*domain.Absence, error)
+	Delete(ctx context.Context, id string) error
+}
+
 // AuditFilter narrows the audit log query. Zero values mean "no constraint".
 // FromUTC is inclusive, ToUTC is exclusive — the caller is expected to expand
 // a calendar-day range into the right UTC half-open interval.

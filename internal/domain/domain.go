@@ -60,6 +60,18 @@ func (d LocalDate) Before(other LocalDate) bool {
 // AfterOrEqual reports whether d is on or after other.
 func (d LocalDate) AfterOrEqual(other LocalDate) bool { return !d.Before(other) }
 
+// AddDays returns the date n calendar days after d (n may be negative).
+func (d LocalDate) AddDays(n int) LocalDate {
+	t := time.Date(d.Year, d.Month, d.Day, 0, 0, 0, 0, time.UTC).AddDate(0, 0, n)
+	return DateOf(t)
+}
+
+// IsWeekend reports whether d falls on a Saturday or Sunday.
+func (d LocalDate) IsWeekend() bool {
+	wd := time.Date(d.Year, d.Month, d.Day, 0, 0, 0, 0, time.UTC).Weekday()
+	return wd == time.Saturday || wd == time.Sunday
+}
+
 func ParseDate(s string) (LocalDate, error) {
 	if s == "" {
 		return LocalDate{}, nil

@@ -29,16 +29,18 @@ type Service struct {
 	projects storage.ProjectRepo
 	audit    storage.AuditRepo
 	comments storage.CommentRepo
+	absences storage.AbsenceRepo
 	bus      *events.Bus
 	clock    func() time.Time
 }
 
-func New(tasks storage.TaskRepo, projects storage.ProjectRepo, audit storage.AuditRepo, comments storage.CommentRepo, bus *events.Bus) *Service {
+func New(tasks storage.TaskRepo, projects storage.ProjectRepo, audit storage.AuditRepo, comments storage.CommentRepo, absences storage.AbsenceRepo, bus *events.Bus) *Service {
 	return &Service{
 		tasks:    tasks,
 		projects: projects,
 		audit:    audit,
 		comments: comments,
+		absences: absences,
 		bus:      bus,
 		clock:    func() time.Time { return time.Now().UTC() },
 	}

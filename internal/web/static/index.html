@@ -40,6 +40,12 @@
           </span>
           <span class="nav-label">Aktivität</span>
         </a>
+        <a class="nav-item" data-view="absences" href="/absences">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
+          </span>
+          <span class="nav-label">Abwesenheiten</span>
+        </a>
       </nav>
       <div class="sidebar-section">
         <div class="sidebar-section-header">
@@ -97,6 +103,13 @@
         <ul class="activity-list" id="activity-list"></ul>
         <div class="empty hidden" id="activity-empty">Keine Aktivität in diesem Zeitraum.</div>
       </section>
+
+      <section class="absences hidden" id="absences-view">
+        <div class="absences-toolbar">
+          <button type="button" class="td-btn td-btn-primary" id="add-absence-btn">Neue Abwesenheit</button>
+        </div>
+        <div class="absence-list" id="absence-list"></div>
+      </section>
     </main>
   </div>
   <div class="sidebar-backdrop" id="sidebar-backdrop" hidden></div>
@@ -118,6 +131,31 @@
         <button value="cancel" type="button" id="pd-cancel">Abbrechen</button>
         <button value="default" type="button" id="pd-delete" class="danger hidden">Löschen</button>
         <button value="default" id="pd-save">Speichern</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <dialog id="absence-dialog">
+    <form method="dialog">
+      <h2 id="ad-title">Neue Abwesenheit</h2>
+      <label>Typ
+        <select id="ad-type">
+          <option value="vacation">Urlaub</option>
+          <option value="business_trip">Dienstreise</option>
+          <option value="sick">Krankheit</option>
+          <option value="other">Sonstiges</option>
+        </select>
+      </label>
+      <label>Bezeichnung (optional) <input type="text" id="ad-label" placeholder="z.B. Kreta" /></label>
+      <div class="row">
+        <label>Von <input type="date" id="ad-start" required /></label>
+        <label>Bis <input type="date" id="ad-end" required /></label>
+      </div>
+      <p class="dialog-error hidden" id="ad-error"></p>
+      <menu>
+        <button value="cancel" type="button" id="ad-cancel">Abbrechen</button>
+        <button value="default" type="button" id="ad-delete" class="danger hidden">Löschen</button>
+        <button value="default" id="ad-save">Speichern</button>
       </menu>
     </form>
   </dialog>
@@ -174,6 +212,10 @@
             <button type="button" class="td-quick" data-quick="today" title="Heute">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/></svg>
               <span>Heute</span>
+            </button>
+            <button type="button" class="td-quick" data-quick="workday" title="Nächster Werktag (überspringt Wochenenden und Abwesenheiten)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-3V5a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM9 5h6v2H9z"/></svg>
+              <span>Nächster Werktag</span>
             </button>
             <button type="button" class="td-quick" data-quick="tomorrow" title="Morgen">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><polyline points="13 6 19 12 13 18"/></svg>
