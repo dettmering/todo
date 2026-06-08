@@ -23,7 +23,31 @@ type absencePatchReq struct {
 }
 
 func (h *Handler) handleListAbsences(w http.ResponseWriter, r *http.Request) {
-	as, err := h.svc.ListAbsences(r.Context())
+	q := r.URL.Query()
+	fromRaw, toRaw := q.Get("from"), q.Get("to")
+
+	var (
+		as  []*domain.Absence
+		err error
+	)
+	if fromRaw != "" || toRaw != "" {
+		// Range mode: return absences overlapping [from, to], including running ones.
+		from, ferr := domain.ParseDate(fromRaw)
+		if ferr != nil {
+			writeJSON(w, http.StatusBadRequest, errorResp{Error: "invalid from: " + ferr.Error()})
+			return
+		}
+		to, terr := domain.ParseDate(toRaw)
+		if terr != nil {
+			writeJSON(w, http.StatusBadRequest, errorResp{Error: "invalid to: " + terr.Error()})
+			return
+		}
+		as, err = h.svc.ListAbsencesInRange(r.Context(), from, to)
+	} else {
+		// View mode: upcoming/current plus past from the current year.
+		today, _ := domain.ParseDate(q.Get("today"))
+		as, err = h.svc.ListAbsencesForView(r.Context(), today)
+	}
 	if err != nil {
 		writeError(w, err)
 		return

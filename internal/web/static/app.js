@@ -64,7 +64,7 @@ const api = {
   async addComment(taskId, body) {
     return fetch(`/api/tasks/${taskId}/comments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body }) }).then(jsonOrError);
   },
-  async listAbsences() { return fetch("/api/absences").then(jsonOrError); },
+  async listAbsences() { return fetch("/api/absences?today=" + todayISO()).then(jsonOrError); },
   async createAbsence(body) {
     return fetch("/api/absences", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(jsonOrError);
   },
@@ -637,33 +637,41 @@ function renderAbsences() {
   const upcoming = state.absences.filter(a => a.end_date >= today).sort((a, b) => a.start_date.localeCompare(b.start_date));
   const past = state.absences.filter(a => a.end_date < today).sort((a, b) => b.start_date.localeCompare(a.start_date));
 
-  if (upcoming.length) appendAbsenceGroup(list, "Bevorstehend & aktuell", upcoming, "", today);
-  if (past.length) appendAbsenceGroup(list, "Vergangen", past, "completed-header", today);
+  // Past absences are read-only (no edit button); the API already limits them
+  // to the current year.
+  if (upcoming.length) appendAbsenceGroup(list, "Bevorstehend & aktuell", upcoming, "", today, true);
+  if (past.length) appendAbsenceGroup(list, "Vergangen", past, "completed-header", today, false);
 }
 
-function appendAbsenceGroup(list, label, items, headerClass, today) {
+function appendAbsenceGroup(list, label, items, headerClass, today, editable) {
   const header = document.createElement("div");
   header.className = "group-header" + (headerClass ? " " + headerClass : "");
   header.innerHTML = `<span>${escapeHTML(label)}</span><span class="group-count">${items.length}</span>`;
   list.appendChild(header);
-  for (const a of items) list.appendChild(createAbsenceRow(a, today));
+  for (const a of items) list.appendChild(createAbsenceRow(a, today, editable));
 }
 
-function createAbsenceRow(a, today) {
+function createAbsenceRow(a, today, editable) {
   const row = document.createElement("div");
   const active = a.start_date <= today && a.end_date >= today;
   row.className = "absence-row" + (active ? " active" : "");
   const range = a.start_date === a.end_date
     ? formatDate(a.start_date)
     : `${formatDate(a.start_date)} – ${formatDate(a.end_date)}`;
+  // Keep the grid column for edit even when read-only, so delete stays aligned.
+  const editCell = editable
+    ? `<button type="button" class="icon-btn absence-edit" title="Bearbeiten">${ICON.edit}</button>`
+    : `<span class="absence-edit-placeholder"></span>`;
   row.innerHTML = `
     <span class="absence-type type-${escapeHTML(a.type)}">${escapeHTML(ABSENCE_TYPE_LABEL[a.type] || a.type)}</span>
     <span class="absence-label">${escapeHTML(a.label || "")}</span>
     <span class="absence-range">${escapeHTML(range)}</span>
-    <button type="button" class="icon-btn absence-edit" title="Bearbeiten">${ICON.edit}</button>
+    ${editCell}
     <button type="button" class="icon-btn absence-delete" title="Löschen">${ICON.trash}</button>
   `;
-  row.querySelector(".absence-edit").addEventListener("click", () => openAbsenceDialog(a));
+  if (editable) {
+    row.querySelector(".absence-edit").addEventListener("click", () => openAbsenceDialog(a));
+  }
   row.querySelector(".absence-delete").addEventListener("click", async () => {
     if (!confirm("Abwesenheit wirklich löschen?")) return;
     await api.deleteAbsence(a.id);

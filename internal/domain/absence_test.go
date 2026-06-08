@@ -99,6 +99,71 @@ func TestNextWorkday(t *testing.T) {
 	}
 }
 
+func TestAbsencesForView(t *testing.T) {
+	today := mustDate(t, "2026-06-12")
+	mk := func(start, end string) *Absence {
+		return &Absence{Start: mustDate(t, start), End: mustDate(t, end)}
+	}
+	lastYear := mk("2025-12-20", "2025-12-31")        // ended last year -> dropped
+	earlyThisYear := mk("2026-01-05", "2026-01-09")   // past, this year -> kept
+	pastThisYear := mk("2026-05-01", "2026-05-05")    // past, this year -> kept
+	current := mk("2026-06-10", "2026-06-15")         // current -> kept
+	upcoming := mk("2026-07-01", "2026-07-10")        // upcoming -> kept
+	nextYear := mk("2027-01-02", "2027-01-09")        // upcoming next year -> kept
+	spanning := mk("2025-12-28", "2026-01-02")        // ends this year -> kept
+
+	in := []*Absence{lastYear, earlyThisYear, pastThisYear, current, upcoming, nextYear, spanning}
+	got := AbsencesForView(in, today)
+	want := []*Absence{earlyThisYear, pastThisYear, current, upcoming, nextYear, spanning}
+
+	if len(got) != len(want) {
+		t.Fatalf("got %d absences, want %d", len(got), len(want))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("index %d: got %+v, want %+v", i, got[i], want[i])
+		}
+	}
+}
+
+func TestAbsencesInRange(t *testing.T) {
+	mk := func(start, end string) *Absence {
+		return &Absence{Start: mustDate(t, start), End: mustDate(t, end)}
+	}
+	// Window = calendar week Mon 2026-06-15 .. Sun 2026-06-21.
+	from, to := mustDate(t, "2026-06-15"), mustDate(t, "2026-06-21")
+
+	before := mk("2026-06-08", "2026-06-12")   // ends before window -> out
+	endsInside := mk("2026-06-12", "2026-06-16") // running into window -> in
+	inside := mk("2026-06-17", "2026-06-18")    // fully inside -> in
+	running := mk("2026-06-10", "2026-06-30")   // spans the whole window -> in
+	startsInside := mk("2026-06-21", "2026-06-25") // touches last day -> in
+	after := mk("2026-06-22", "2026-06-24")     // starts after window -> out
+
+	in := []*Absence{before, endsInside, inside, running, startsInside, after}
+	got := AbsencesInRange(in, from, to)
+	want := []*Absence{endsInside, inside, running, startsInside}
+	if len(got) != len(want) {
+		t.Fatalf("got %d, want %d (%v)", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("index %d: got %+v, want %+v", i, got[i], want[i])
+		}
+	}
+
+	// Open lower bound: everything ending on/after `to`'s start side; here no from.
+	gotOpenFrom := AbsencesInRange(in, LocalDate{}, to)
+	if len(gotOpenFrom) != 5 { // all except `after`
+		t.Errorf("open-from: got %d, want 5", len(gotOpenFrom))
+	}
+	// Open upper bound: everything not ending before `from`.
+	gotOpenTo := AbsencesInRange(in, from, LocalDate{})
+	if len(gotOpenTo) != 5 { // all except `before`
+		t.Errorf("open-to: got %d, want 5", len(gotOpenTo))
+	}
+}
+
 // guard against the helper drifting from real calendar weekdays
 func TestKnownWeekdays(t *testing.T) {
 	if wd := time.Date(2026, time.June, 12, 0, 0, 0, 0, time.UTC).Weekday(); wd != time.Friday {

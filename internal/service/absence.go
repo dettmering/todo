@@ -104,6 +104,30 @@ func (s *Service) ListAbsences(ctx context.Context) ([]*domain.Absence, error) {
 	return s.absences.List(ctx)
 }
 
+// ListAbsencesForView returns the absences for the absences view: upcoming and
+// current ones plus past ones from the current year (see domain.AbsencesForView).
+// A zero `today` falls back to the service clock.
+func (s *Service) ListAbsencesForView(ctx context.Context, today domain.LocalDate) ([]*domain.Absence, error) {
+	if today.IsZero() {
+		today = domain.DateOf(s.clock())
+	}
+	all, err := s.absences.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return domain.AbsencesForView(all, today), nil
+}
+
+// ListAbsencesInRange returns the absences overlapping the inclusive window
+// [from, to] (see domain.AbsencesInRange). Zero bounds are open-ended.
+func (s *Service) ListAbsencesInRange(ctx context.Context, from, to domain.LocalDate) ([]*domain.Absence, error) {
+	all, err := s.absences.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return domain.AbsencesInRange(all, from, to), nil
+}
+
 func (s *Service) GetAbsence(ctx context.Context, id string) (*domain.Absence, error) {
 	a, err := s.absences.Get(ctx, id)
 	return a, mapErr(err)

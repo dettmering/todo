@@ -43,6 +43,38 @@ func (a Absence) Covers(d LocalDate) bool {
 // trips count as regular workdays and therefore do not block.
 func (a Absence) BlocksWork() bool { return a.Type != AbsenceBusinessTrip }
 
+// AbsencesForView returns the absences to display in the absences view: all
+// upcoming and current ones, plus past ones that ended in the current calendar
+// year. Past absences that already ended in an earlier year are dropped. Input
+// order is preserved.
+func AbsencesForView(absences []*Absence, today LocalDate) []*Absence {
+	out := make([]*Absence, 0, len(absences))
+	for _, a := range absences {
+		if a.End.Year >= today.Year {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
+// AbsencesInRange returns the absences that overlap the inclusive window
+// [from, to] — i.e. any absence touching the window, including ones that are
+// currently running (started before `from` and not yet ended). A zero `from`
+// means no lower bound, a zero `to` means no upper bound. Input order is kept.
+func AbsencesInRange(absences []*Absence, from, to LocalDate) []*Absence {
+	out := make([]*Absence, 0, len(absences))
+	for _, a := range absences {
+		if !from.IsZero() && a.End.Before(from) {
+			continue // ended before the window starts
+		}
+		if !to.IsZero() && to.Before(a.Start) {
+			continue // starts after the window ends
+		}
+		out = append(out, a)
+	}
+	return out
+}
+
 // NextWorkday returns the first day strictly after `from` that is neither a
 // weekend nor covered by a blocking absence (business trips are not blocking).
 // The 366-iteration cap guards against an unexpected infinite loop.
