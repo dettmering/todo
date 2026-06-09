@@ -246,6 +246,17 @@ body {
 .field { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
 .date-hint { font-size: 11px; color: var(--text-muted); margin-left: 4px; min-width: 6em; }
 .date-hint.bad { color: var(--overdue); }
+
+/* Warning when a task date lands inside an absence (quick-add + task dialog). */
+.qa-absence-hint {
+  margin: 6px 2px 0;
+  font-size: 12px;
+  color: var(--p1);
+}
+.absence-warn {
+  font-size: 11px;
+  color: var(--p1);
+}
 .date-item.recur-label { color: var(--text-muted); }
 .date-item.recur-label svg { width: 14px; height: 14px; }
 

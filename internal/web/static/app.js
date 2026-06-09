@@ -307,7 +307,9 @@ function wireNLDateInput(inputId) {
     try {
       const res = await api.parse(text);
       if (res.visible_from) {
-        hint.textContent = "→ " + formatDate(res.visible_from);
+        const warn = absenceWarningText(res.visible_from);
+        hint.innerHTML = "→ " + escapeHTML(formatDate(res.visible_from)) +
+          (warn ? ` <span class="absence-warn">${escapeHTML(warn)}</span>` : "");
         hint.classList.remove("bad");
       } else {
         hint.textContent = "?";
@@ -606,6 +608,25 @@ const ABSENCE_TYPE_LABEL = {
   sick:          "Krankheit",
   other:         "Sonstiges",
 };
+
+// Absences (any type) from state that cover a given ISO date, i.e.
+// start_date <= iso <= end_date. Same string-compare overlap as the week
+// grouping in groupTasksByWeek. Empty/null iso -> no matches.
+function absencesCoveringDate(iso) {
+  if (!iso) return [];
+  return (state.absences || []).filter(a => a.start_date <= iso && iso <= a.end_date);
+}
+
+// Warning text for a task date landing inside an absence, or "" if it doesn't.
+// Picks the first overlapping absence, e.g. "⚠ fällt in Urlaub (Kreta, bis 19.6.)".
+function absenceWarningText(iso) {
+  const hits = absencesCoveringDate(iso);
+  if (!hits.length) return "";
+  const a = hits[0];
+  const type = ABSENCE_TYPE_LABEL[a.type] || a.type;
+  const label = a.label ? ` (${a.label}, bis ${smartDateLabel(a.end_date)})` : ` (bis ${smartDateLabel(a.end_date)})`;
+  return `⚠ fällt in ${type}${label}`;
+}
 
 function setAbsencesViewVisible(visible) {
   const av = document.getElementById("absences-view");
@@ -1236,7 +1257,18 @@ async function processQuickAddInput() {
   }
 
   renderQuickAddOverlay();
+  renderQuickAddAbsenceHint();
   updateProjectMenu();
+}
+
+// Show a non-blocking warning under the quick-add when the resolved @date lands
+// inside an absence. Cleared when there is no date or no overlap.
+function renderQuickAddAbsenceHint() {
+  const hint = document.getElementById("qa-absence-hint");
+  if (!hint) return;
+  const text = qaInline.date ? absenceWarningText(qaInline.date.iso) : "";
+  hint.textContent = text;
+  hint.classList.toggle("hidden", !text);
 }
 
 function renderQuickAddOverlay() {
@@ -1411,6 +1443,7 @@ function wireQuickAdd() {
     qaInline.date = qaInline.dateUnresolved = qaInline.project = qaInline.priority = null;
     closeProjectMenu();
     renderQuickAddOverlay();
+    renderQuickAddAbsenceHint();
     refresh();
   });
 }
@@ -1557,6 +1590,7 @@ function openTaskDialogInternal(t) {
   document.getElementById("td-project").value = t.project_id;
   document.getElementById("td-priority").value = String(t.priority);
   document.getElementById("td-visible-from").value = t.visible_from || "";
+  renderVisibleFromAbsenceWarning();
   document.getElementById("td-deadline").value = isoToDE(t.deadline);
   clearDateHint("td-deadline");
   setRecurrenceControls("td-recurrence", "td-recur-custom-wrap", "td-recur-custom", t.recurrence_rule || "");
@@ -1617,6 +1651,16 @@ function quickRescheduleISO(kind) {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
+}
+
+// Reflect whether the dialog's visible_from (an ISO date input) lands inside an
+// absence, into the warning span next to the field.
+function renderVisibleFromAbsenceWarning() {
+  const el = document.getElementById("td-visible-from-absence");
+  if (!el) return;
+  const text = absenceWarningText(document.getElementById("td-visible-from").value || "");
+  el.textContent = text;
+  el.classList.toggle("hidden", !text);
 }
 
 function wireTaskDialog() {
@@ -1684,6 +1728,10 @@ function wireTaskDialog() {
   document.getElementById("td-project").addEventListener("change", (e) => {
     renderTaskDialogBreadcrumb(e.target.value);
   });
+
+  // Warn when the chosen visible_from falls inside an absence.
+  document.getElementById("td-visible-from").addEventListener("change", renderVisibleFromAbsenceWarning);
+  document.getElementById("td-visible-from").addEventListener("input", renderVisibleFromAbsenceWarning);
   document.querySelectorAll("#td-priority-buttons .td-prio").forEach(btn => {
     btn.addEventListener("click", () => {
       const p = parseInt(btn.dataset.priority, 10);
@@ -1723,11 +1771,13 @@ function wireTaskDialog() {
           const res = await api.nextWorkday();
           if (res && res.date) document.getElementById("td-visible-from").value = res.date;
         } catch (_) { /* ignore — leave the field unchanged */ }
+        renderVisibleFromAbsenceWarning();
         return;
       }
       const iso = quickRescheduleISO(btn.dataset.quick);
       if (!iso) return;
       document.getElementById("td-visible-from").value = iso;
+      renderVisibleFromAbsenceWarning();
     });
   });
 
@@ -1970,6 +2020,9 @@ async function boot() {
   wireShortcuts();
   window.addEventListener("popstate", () => { handlePopState(); });
   state.projects = await api.listProjects();
+  // Load absences up front so the "falls on an absence" warning works in every
+  // view (quick-add + task dialog), not just the absences/upcoming views.
+  try { state.absences = await api.listAbsences(); } catch (_) { /* best-effort */ }
 
   const parsed = parsePath(location.pathname);
   if (parsed.openTaskId) {
