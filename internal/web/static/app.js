@@ -1640,13 +1640,26 @@ function quickRescheduleISO(kind) {
     const dow = d.getDay(); // 0=Sun..6=Sat
     const add = ((6 - dow) + 7) % 7 || 7;
     d.setDate(d.getDate() + add);
-  } else if (kind === "monday") {
-    const dow = d.getDay();
-    const add = ((1 - dow) + 7) % 7 || 7;
-    d.setDate(d.getDate() + add);
   } else {
     return "";
   }
+  return toISODate(d);
+}
+
+// Returns the ISO date of the next upcoming occurrence of a weekday, where
+// targetDow follows Date.getDay() (0=Sun..6=Sat). "Upcoming" is strict: if
+// today already is that weekday, we jump a full week ahead (mirroring the
+// behaviour expected for the Mo–Fr quick buttons).
+function nextWeekdayISO(targetDow) {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  const add = ((targetDow - d.getDay()) + 7) % 7 || 7;
+  d.setDate(d.getDate() + add);
+  return toISODate(d);
+}
+
+// Formats a Date as YYYY-MM-DD in local time.
+function toISODate(d) {
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
@@ -1776,6 +1789,15 @@ function wireTaskDialog() {
       }
       const iso = quickRescheduleISO(btn.dataset.quick);
       if (!iso) return;
+      document.getElementById("td-visible-from").value = iso;
+      renderVisibleFromAbsenceWarning();
+    });
+  });
+
+  // Weekday buttons (Mo–Fr) jump to the next upcoming occurrence of that day.
+  document.querySelectorAll(".td-weekday").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const iso = nextWeekdayISO(parseInt(btn.dataset.weekday, 10));
       document.getElementById("td-visible-from").value = iso;
       renderVisibleFromAbsenceWarning();
     });

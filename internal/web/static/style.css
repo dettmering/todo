@@ -970,6 +970,29 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
 .td-prio.p3.selected { border-color: var(--p3); background: rgba(36,111,224,0.08); }
 .td-prio.p4.selected { border-color: var(--p4); background: rgba(179,179,179,0.12); }
 
+.td-weekday-buttons {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+.td-weekday {
+  flex: 1;
+  padding: 6px 0;
+  border: 1px solid var(--border);
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-family: inherit;
+  text-align: center;
+}
+.td-weekday:hover {
+  background: var(--hover);
+  color: var(--text);
+  border-color: var(--accent);
+}
+
 .td-quick-buttons {
   display: flex;
   flex-direction: column;
