@@ -987,14 +987,15 @@ function isoWeek(isoDate) {
 }
 
 function compareTasks(a, b) {
-  // Priority asc, then deadline (none last), then visible_from, then created_at.
+  // "Demnächst" sorts by date first so the next days are easy to read:
+  // visible_from asc (none last), then priority, then deadline, then created_at.
+  const av = a.visible_from || "9999-99-99";
+  const bv = b.visible_from || "9999-99-99";
+  if (av !== bv) return av < bv ? -1 : 1;
   if (a.priority !== b.priority) return a.priority - b.priority;
   const ad = a.deadline || "9999-99-99";
   const bd = b.deadline || "9999-99-99";
   if (ad !== bd) return ad < bd ? -1 : 1;
-  const av = a.visible_from || "9999-99-99";
-  const bv = b.visible_from || "9999-99-99";
-  if (av !== bv) return av < bv ? -1 : 1;
   return a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0;
 }
 
