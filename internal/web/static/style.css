@@ -203,9 +203,10 @@ body {
 /* ---------- Main pane ---------- */
 .main {
   overflow-y: auto;
-  padding: 32px 60px 96px;
-  max-width: 800px;
-  margin: 0 auto;
+  /* Fill the whole grid column so scrolling works everywhere, including the
+     empty areas left/right; the content column (max 680px) stays centered via
+     horizontal padding with a 60px minimum gutter. */
+  padding: 32px max(60px, (100% - 680px) / 2) 96px;
   width: 100%;
 }
 .main-header { margin: 0 0 24px; }
