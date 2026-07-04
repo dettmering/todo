@@ -28,7 +28,7 @@ jobs:
 
       - name: Build and push
         run: |
-          IMAGE="dettmering/${{ github.repository }}"
+          IMAGE="dettmering/todo"
           REF="${{ github.ref }}"
 
           if echo "$REF" | grep -q "^refs/tags/"; then
