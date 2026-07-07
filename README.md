@@ -92,6 +92,7 @@ Alle Fehler liefern `{"error": "<text>"}` als Body. Status-Codes:
 | `PATCH` | `/api/projects/{id}` | Projekt aktualisieren (auch entarchivieren) |
 | `DELETE` | `/api/projects/{id}` | Archivieren (Tasks bleiben erhalten) |
 | `GET` | `/api/absences` | Abwesenheiten listen (View- oder Range-Modus) |
+| `GET` | `/api/absences.ics` | Abwesenheiten als abonnierbarer iCal-Feed (Token nötig) |
 | `POST` | `/api/absences` | Abwesenheit anlegen |
 | `GET` | `/api/absences/{id}` | Abwesenheit lesen |
 | `PATCH` | `/api/absences/{id}` | Abwesenheit teilaktualisieren |
@@ -370,6 +371,38 @@ curl 'http://localhost:8080/api/absences?from=2026-06-08&to=2026-06-08'
 Leeres Array ⇒ nicht abwesend. Mindestens ein Eintrag ⇒ abwesend; über den
 `type` (siehe Tabelle) erkennt der Client, ob es sich um eine echte (Arbeit
 blockierende) Abwesenheit oder nur eine `business_trip` handelt.
+
+#### `GET /api/absences.ics`
+
+Liefert **alle** Abwesenheiten als iCalendar-Feed (`text/calendar`, RFC 5545)
+zum Abonnieren in Google Calendar, iOS, Thunderbird usw. Jede Abwesenheit wird
+ein ganztägiges `VEVENT`. Der Feed pollt keine Auth-Session — er wird über den
+Query-Parameter `token` geschützt:
+
+- Der Token muss exakt der Umgebungsvariable `ICAL_TOKEN` des Servers
+  entsprechen (Vergleich in konstanter Zeit).
+- **Ist `ICAL_TOKEN` nicht gesetzt, ist der Feed deaktiviert** und der Endpoint
+  antwortet mit `404` — er kann also nie ungeschützt ausgeliefert werden.
+- Falscher oder fehlender Token ⇒ `401`.
+
+```bash
+curl 'http://localhost:8080/api/absences.ics?token=DEINGEHEIMNIS'
+```
+
+Hinweise zur Erzeugung:
+
+- Ganztägige Events nutzen `VALUE=DATE`; `DTEND` ist dabei **exklusiv**. Da
+  `end_date` inklusiv ist, wird `DTEND = end_date + 1 Tag` gesetzt, damit der
+  letzte Abwesenheitstag im Kalender belegt bleibt.
+- `SUMMARY` ist deutsch nach Typ (`Urlaub`, `Feiertag`, `Dienstreise`, `Krank`,
+  sonst `Abwesend`), optional mit `: <label>`.
+- `UID` ist stabil (`<id>@todo`), sodass erneutes Abrufen Events aktualisiert
+  statt zu duplizieren. `TRANSP:TRANSPARENT` markiert den Nutzer nicht als
+  „belegt".
+
+Hinter einem Reverse-Proxy mit Auth (z. B. Traefik BasicAuth) muss genau der
+Pfad `/api/absences.ics` von der Auth ausgenommen werden, damit Kalender-Clients
+ihn ohne interaktiven Login erreichen; der `token` ist dann der einzige Schutz.
 
 #### `POST /api/absences`
 

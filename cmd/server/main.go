@@ -47,10 +47,15 @@ func main() {
 
 	svc := service.New(store.Tasks(), store.Projects(), store.Audit(), store.Comments(), store.Absences(), bus)
 
+	icalToken := os.Getenv("ICAL_TOKEN")
+	if icalToken != "" {
+		slog.Info("ical absences feed enabled", "path", "/api/absences.ics")
+	}
+
 	webFS := web.Static()
 	root := http.NewServeMux()
 	root.Handle("/static/", http.StripPrefix("/static/", http.FileServerFS(webFS)))
-	root.Handle("/api/", httpapi.New(svc))
+	root.Handle("/api/", httpapi.New(svc, icalToken))
 	root.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		// SPA catch-all: every path without a file extension serves index.html so
 		// the client-side router can handle /today, /projects/<slug>, /tasks/<id>,
