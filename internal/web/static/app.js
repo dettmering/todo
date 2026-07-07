@@ -1476,17 +1476,30 @@ function updateTaskDialogPriorityButtons(priority) {
   });
 }
 
-function renderDescPreview(md) {
-  const text = (md || "").replace(/\s+/g, " ").trim();
+// Render user-supplied Markdown to *sanitized* HTML. marked converts Markdown to
+// HTML but does NOT strip embedded raw HTML — the `sanitize` option was removed
+// in marked v8+, so `<img src=x onerror=…>` in a description/comment would pass
+// straight through. Every rendered value MUST therefore go through DOMPurify
+// before it reaches innerHTML. Fail-safe: on any error (incl. DOMPurify not
+// loaded) we return escaped plain text rather than unsanitized HTML.
+function renderMarkdown(md, { inline = false } = {}) {
+  const text = (md || "").trim();
   if (!text) return "";
   try {
-    return window.marked.parseInline(text, { gfm: true });
+    const raw = inline
+      ? window.marked.parseInline(text, { gfm: true })
+      : window.marked.parse(text, { breaks: true, gfm: true });
+    return window.DOMPurify.sanitize(raw);
   } catch (e) {
     return escapeHTML(text);
   }
 }
 
-// Render the description as HTML via marked, or show a placeholder if empty.
+function renderDescPreview(md) {
+  return renderMarkdown((md || "").replace(/\s+/g, " "), { inline: true });
+}
+
+// Render the description as sanitized HTML, or show a placeholder if empty.
 function renderTaskDescription(md) {
   const el = document.getElementById("td-description-rendered");
   if (!el) return;
@@ -1497,12 +1510,7 @@ function renderTaskDescription(md) {
     return;
   }
   el.classList.remove("empty");
-  // marked is loaded as a global (UMD). Safe defaults: no raw HTML passthrough.
-  try {
-    el.innerHTML = window.marked.parse(text, { breaks: true, gfm: true });
-  } catch (e) {
-    el.textContent = text;
-  }
+  el.innerHTML = renderMarkdown(text);
 }
 
 // Show the textarea editor for the description (hides the rendered preview).
@@ -1544,14 +1552,9 @@ function formatCommentTime(iso) {
   });
 }
 
-// Render a comment's Markdown body to HTML (same safe defaults as descriptions).
+// Render a comment's Markdown body to sanitized HTML (see renderMarkdown).
 function renderCommentBody(md) {
-  const text = (md || "").trim();
-  try {
-    return window.marked.parse(text, { breaks: true, gfm: true });
-  } catch (e) {
-    return escapeHTML(text);
-  }
+  return renderMarkdown(md);
 }
 
 // Render the comment list (server returns newest first).
