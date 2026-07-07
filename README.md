@@ -399,6 +399,11 @@ Hinweise zur Erzeugung:
 - `UID` ist stabil (`<id>@todo`), sodass erneutes Abrufen Events aktualisiert
   statt zu duplizieren. `TRANSP:TRANSPARENT` markiert den Nutzer nicht als
   „belegt".
+- Für Outlook werden zusätzlich `X-MICROSOFT-CDO-ALLDAYEVENT:TRUE` und
+  `X-MICROSOFT-CDO-BUSYSTATUS:FREE` je Event gesetzt (sonst rendert Outlook
+  `VALUE=DATE`-Events unzuverlässig und lässt einzelne aus), dazu `SEQUENCE`,
+  `CREATED`/`LAST-MODIFIED` sowie `X-PUBLISHED-TTL:PT12H` als Refresh-Hinweis.
+  Andere Clients (Google, Apple) ignorieren die `X-`-Felder.
 
 Hinter einem Reverse-Proxy mit Auth (z. B. Traefik BasicAuth) muss genau der
 Pfad `/api/absences.ics` von der Auth ausgenommen werden, damit Kalender-Clients

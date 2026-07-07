@@ -99,6 +99,36 @@ func TestBuildAbsencesICS_Summary(t *testing.T) {
 	}
 }
 
+func TestBuildAbsencesICS_OutlookFields(t *testing.T) {
+	a := absence("absence_1", "vacation", "Kreta", date(2026, 7, 10), date(2026, 7, 24))
+	a.CreatedAt = time.Date(2026, 6, 1, 8, 30, 0, 0, time.UTC)
+	a.UpdatedAt = time.Date(2026, 6, 2, 9, 0, 0, 0, time.UTC)
+	out := buildAbsencesICS([]*domain.Absence{a}, stamp)
+
+	for _, want := range []string{
+		"X-PUBLISHED-TTL:PT12H\r\n", // calendar-level refresh hint
+		"SEQUENCE:0\r\n",
+		"CREATED:20260601T083000Z\r\n",
+		"LAST-MODIFIED:20260602T090000Z\r\n",
+		"X-MICROSOFT-CDO-ALLDAYEVENT:TRUE\r\n",
+		"X-MICROSOFT-CDO-BUSYSTATUS:FREE\r\n",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing Outlook-compat field %q in:\n%s", want, out)
+		}
+	}
+}
+
+func TestBuildAbsencesICS_OmitsZeroTimestamps(t *testing.T) {
+	// Absence with zero CreatedAt/UpdatedAt must not emit empty CREATED lines.
+	a := absence("absence_1", "vacation", "Kreta", date(2026, 7, 10), date(2026, 7, 24))
+	out := buildAbsencesICS([]*domain.Absence{a}, stamp)
+
+	if strings.Contains(out, "CREATED:\r\n") || strings.Contains(out, "LAST-MODIFIED:\r\n") {
+		t.Errorf("emitted empty timestamp line for zero-valued time:\n%s", out)
+	}
+}
+
 func TestBuildAbsencesICS_EscapesSpecialChars(t *testing.T) {
 	a := absence("absence_1", "other", `A; B, C\D`, date(2026, 1, 1), date(2026, 1, 2))
 	out := buildAbsencesICS([]*domain.Absence{a}, stamp)

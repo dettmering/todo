@@ -65,18 +65,32 @@ func buildAbsencesICS(absences []*domain.Absence, now time.Time) string {
 	writeICSLine(&b, "CALSCALE:GREGORIAN")
 	writeICSLine(&b, "METHOD:PUBLISH")
 	writeICSLine(&b, "X-WR-CALNAME:Abwesenheiten")
-	stamp := now.UTC().Format("20060102T150405Z")
+	// Refresh hint honoured by Outlook for subscribed calendars.
+	writeICSLine(&b, "X-PUBLISHED-TTL:PT12H")
+	stamp := icalDateTime(now)
 	for _, a := range absences {
 		writeICSLine(&b, "BEGIN:VEVENT")
 		// Stable UID so re-fetching updates the event instead of duplicating it.
 		writeICSLine(&b, "UID:"+a.ID+"@todo")
 		writeICSLine(&b, "DTSTAMP:"+stamp)
+		writeICSLine(&b, "SEQUENCE:0")
+		if !a.CreatedAt.IsZero() {
+			writeICSLine(&b, "CREATED:"+icalDateTime(a.CreatedAt))
+		}
+		if !a.UpdatedAt.IsZero() {
+			writeICSLine(&b, "LAST-MODIFIED:"+icalDateTime(a.UpdatedAt))
+		}
 		writeICSLine(&b, "DTSTART;VALUE=DATE:"+icalDate(a.Start))
 		writeICSLine(&b, "DTEND;VALUE=DATE:"+icalDate(a.End.AddDays(1)))
 		writeICSLine(&b, "SUMMARY:"+escapeICSText(absenceSummary(a)))
 		writeICSLine(&b, "CATEGORIES:"+escapeICSText(strings.ToUpper(string(a.Type))))
 		// Absences shouldn't mark the user busy for meeting-scheduling purposes.
+		// The X-MICROSOFT-CDO-* pair is the Outlook-specific equivalent: without
+		// the ALLDAYEVENT flag Outlook renders VALUE=DATE events unreliably and
+		// drops some; BUSYSTATUS:FREE mirrors TRANSP:TRANSPARENT.
 		writeICSLine(&b, "TRANSP:TRANSPARENT")
+		writeICSLine(&b, "X-MICROSOFT-CDO-ALLDAYEVENT:TRUE")
+		writeICSLine(&b, "X-MICROSOFT-CDO-BUSYSTATUS:FREE")
 		writeICSLine(&b, "END:VEVENT")
 	}
 	writeICSLine(&b, "END:VCALENDAR")
@@ -99,6 +113,11 @@ func absenceSummary(a *domain.Absence) string {
 // icalDate formats a LocalDate as an RFC 5545 DATE value (YYYYMMDD).
 func icalDate(d domain.LocalDate) string {
 	return time.Date(d.Year, d.Month, d.Day, 0, 0, 0, 0, time.UTC).Format("20060102")
+}
+
+// icalDateTime formats a timestamp as an RFC 5545 UTC DATE-TIME (…Z).
+func icalDateTime(t time.Time) string {
+	return t.UTC().Format("20060102T150405Z")
 }
 
 // escapeICSText escapes a value for an iCalendar TEXT field (RFC 5545 §3.3.11):
