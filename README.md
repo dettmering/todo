@@ -565,6 +565,58 @@ einsetzen kannst.
 
 ---
 
+## MCP-Server
+
+Neben der REST-API stellt der Server einen [Model-Context-Protocol](https://modelcontextprotocol.io)-Endpunkt
+bereit, über den LLM-Clients (Claude Code, Claude Desktop) die Todo-App als
+Werkzeuge nutzen können. Der MCP-Server ist **in dasselbe Binary eingebettet**
+und ruft dieselbe Service-Schicht wie die REST-API auf — gleiche Validierung,
+ID-Vergabe, Timestamps und Events.
+
+- **Transport:** Streamable HTTP (offizielles Go-SDK
+  `github.com/modelcontextprotocol/go-sdk`).
+- **Pfad:** `/mcp`
+- **Aktivierung:** nur wenn die Umgebungsvariable `MCP_TOKEN` gesetzt ist
+  (leer ⇒ Route deaktiviert, 404 — analog zu `ICAL_TOKEN`).
+- **Auth:** jeder Request muss `Authorization: Bearer <MCP_TOKEN>` mitschicken,
+  sonst `401`. Hinter Traefik läuft `/mcp` über einen eigenen Router ohne
+  BasicAuth (MCP-Clients können kein interaktives Login), der Bearer-Token ist
+  der einzige Schutz.
+
+Client-Anbindung (Claude Code):
+
+```bash
+claude mcp add --transport http todo https://todo.till.fi/mcp \
+  --header "Authorization: Bearer <MCP_TOKEN>"
+```
+
+### Tools
+
+Datumsfelder akzeptieren wie die REST-API ISO-Datum oder deutsche NL-Phrasen
+(siehe [Datumseingabe](#datumseingabe)). Tools geben ihr Ergebnis als
+strukturiertes JSON (snake_case, wie die REST-Objekte) zurück.
+
+| Tool | Beschreibung | Service |
+| --- | --- | --- |
+| `list_tasks` | Tasks auflisten (Filter: `project_id`, `status`, `scope`, `sort`) | `ListTasks` |
+| `get_task` | Einzelnen Task per `id` holen | `GetTask` |
+| `create_task` | Task anlegen (nur `title` Pflicht; Default Inbox/P4) | `CreateTask` |
+| `update_task` | Felder eines Tasks ändern (nur gesetzte Felder) | `UpdateTask` |
+| `complete_task` | Task abschließen (spawnt ggf. nächste Instanz) | `CompleteTask` |
+| `reopen_task` | Abgeschlossenen Task wieder öffnen | `ReopenTask` |
+| `delete_task` | Task soft-löschen (`status = deleted`) | `DeleteTask` |
+| `list_projects` | Projekte auflisten (`include_archived`) | `ListProjects` |
+| `create_project` | Projekt anlegen (nur `name` Pflicht) | `CreateProject` |
+| `list_absences` | Abwesenheiten auflisten | `ListAbsences` |
+| `create_absence` | Abwesenheit `start_date`..`end_date` anlegen | `CreateAbsence` |
+| `next_workday` | Nächsten Werktag ermitteln | `NextWorkday` |
+| `parse_task` | Deutsche NL-Phrase in Datum/RRULE parsen (ohne anzulegen) | `nldate.Parse` |
+
+Fehler aus der Service-Schicht (z. B. Validierung, „not found") werden als
+MCP-Tool-Fehler mit der Fehlermeldung zurückgegeben, nicht als Transportfehler.
+
+---
+
 ## Events (intern)
 
 Der `events.Bus` veröffentlicht folgende Event-Typen. Subscribers werden in

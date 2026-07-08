@@ -16,6 +16,7 @@ import (
 
 	"github.com/till/todo/internal/events"
 	"github.com/till/todo/internal/httpapi"
+	"github.com/till/todo/internal/mcp"
 	"github.com/till/todo/internal/service"
 	"github.com/till/todo/internal/storage/sqlite"
 	"github.com/till/todo/internal/web"
@@ -56,6 +57,16 @@ func main() {
 	root := http.NewServeMux()
 	root.Handle("/static/", http.StripPrefix("/static/", http.FileServerFS(webFS)))
 	root.Handle("/api/", httpapi.New(svc, icalToken))
+
+	// MCP server over Streamable HTTP, guarded by a bearer token. Empty token
+	// disables the route entirely (like ICAL_TOKEN). Behind Traefik it gets a
+	// dedicated router that bypasses BasicAuth; the token is the access control.
+	if mcpToken := os.Getenv("MCP_TOKEN"); mcpToken != "" {
+		mcpHandler := mcp.New(svc, mcpToken)
+		root.Handle("/mcp", mcpHandler)
+		root.Handle("/mcp/", mcpHandler)
+		slog.Info("mcp server enabled", "path", "/mcp")
+	}
 	root.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		// SPA catch-all: every path without a file extension serves index.html so
 		// the client-side router can handle /today, /projects/<slug>, /tasks/<id>,
