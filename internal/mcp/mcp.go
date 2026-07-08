@@ -40,12 +40,22 @@ func New(svc *service.Service, token string) http.Handler {
 	return bearerAuth(token, streamable)
 }
 
-// bearerAuth rejects any request without a matching "Authorization: Bearer"
-// header using a constant-time comparison.
+// bearerAuth rejects any request whose token doesn't match, using a
+// constant-time comparison. The token may arrive two ways:
+//
+//   - "Authorization: Bearer <token>" header — used by Claude Code / Desktop,
+//     which let you configure custom headers.
+//   - "?token=<token>" query parameter — used by claude.ai custom connectors,
+//     whose UI only offers OAuth. A valid token in the URL means the server
+//     never challenges, so no OAuth flow is triggered. This mirrors the iCal
+//     feed (GET /api/absences.ics?token=...).
 func bearerAuth(token string, next http.Handler) http.Handler {
 	want := []byte(token)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		got := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+		if got == "" {
+			got = r.URL.Query().Get("token")
+		}
 		if subtle.ConstantTimeCompare([]byte(got), want) != 1 {
 			w.Header().Set("WWW-Authenticate", "Bearer")
 			http.Error(w, "unauthorized", http.StatusUnauthorized)

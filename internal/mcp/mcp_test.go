@@ -179,13 +179,29 @@ func TestBearerAuth(t *testing.T) {
 		t.Errorf("wrong token: status = %d, want 401", rec.Code)
 	}
 
-	// Correct token → passes through.
+	// Correct token via header → passes through.
 	reached = false
 	rec = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodGet, "/mcp", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	h.ServeHTTP(rec, req)
 	if !reached {
-		t.Error("handler not reached with correct token")
+		t.Error("handler not reached with correct header token")
+	}
+
+	// Correct token via ?token= query (claude.ai path) → passes through.
+	reached = false
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/mcp?token="+token, nil))
+	if !reached {
+		t.Error("handler not reached with correct query token")
+	}
+
+	// Wrong query token → 401.
+	reached = false
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/mcp?token=nope", nil))
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("wrong query token: status = %d, want 401", rec.Code)
 	}
 }

@@ -578,16 +578,25 @@ ID-Vergabe, Timestamps und Events.
 - **Pfad:** `/mcp`
 - **Aktivierung:** nur wenn die Umgebungsvariable `MCP_TOKEN` gesetzt ist
   (leer ⇒ Route deaktiviert, 404 — analog zu `ICAL_TOKEN`).
-- **Auth:** jeder Request muss `Authorization: Bearer <MCP_TOKEN>` mitschicken,
-  sonst `401`. Hinter Traefik läuft `/mcp` über einen eigenen Router ohne
-  BasicAuth (MCP-Clients können kein interaktives Login), der Bearer-Token ist
-  der einzige Schutz.
+- **Auth:** der Token wird auf zwei Wegen akzeptiert (jeweils `401` bei
+  Fehlschlag) — als `Authorization: Bearer <MCP_TOKEN>`-Header **oder** als
+  `?token=<MCP_TOKEN>`-Query-Parameter (wie der iCal-Feed). Hinter Traefik läuft
+  `/mcp` über einen eigenen Router ohne BasicAuth (MCP-Clients können kein
+  interaktives Login), der Token ist der einzige Schutz.
 
-Client-Anbindung (Claude Code):
+Client-Anbindung **Claude Code / Desktop** (Header):
 
 ```bash
 claude mcp add --transport http todo https://todo.till.fi/mcp \
   --header "Authorization: Bearer <MCP_TOKEN>"
+```
+
+Client-Anbindung **claude.ai** (Custom Connector): dessen UI bietet nur OAuth an.
+Den Token stattdessen in die URL hängen und das OAuth-Feld leer lassen — bei
+gültigem Token challengt der Server nie, also wird kein OAuth-Flow ausgelöst:
+
+```
+https://todo.till.fi/mcp?token=<MCP_TOKEN>
 ```
 
 ### Tools
