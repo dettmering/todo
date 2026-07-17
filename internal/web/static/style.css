@@ -27,6 +27,10 @@
   --date-sep: #d0d0d0;
   --shadow-dialog: rgba(0,0,0,0.18);
   --shadow-menu: rgba(0,0,0,0.12);
+  --absence-vacation-bg: #e6f4ea;      --absence-vacation-fg: #1c7a3f;
+  --absence-holiday-bg: #f3eafc;       --absence-holiday-fg: #7b3fb8;
+  --absence-business_trip-bg: #e7effc; --absence-business_trip-fg: #1f5fc0;
+  --absence-sick-bg: #fde7e5;          --absence-sick-fg: #c0392b;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -58,6 +62,10 @@
     --date-sep: #4a4a4a;
     --shadow-dialog: rgba(0,0,0,0.5);
     --shadow-menu: rgba(0,0,0,0.4);
+    --absence-vacation-bg: #16321f;      --absence-vacation-fg: #6ecb8c;
+    --absence-holiday-bg: #2c2038;       --absence-holiday-fg: #c79aeb;
+    --absence-business_trip-bg: #1a2942; --absence-business_trip-fg: #7cabf5;
+    --absence-sick-bg: #3d2120;          --absence-sick-fg: #eb8279;
   }
 }
 
@@ -409,10 +417,10 @@ body {
   background: var(--surface);
   color: var(--text-secondary);
 }
-.group-header .group-absence.type-vacation      { background: #e6f4ea; color: #1c7a3f; }
-.group-header .group-absence.type-holiday       { background: #f3eafc; color: #7b3fb8; }
-.group-header .group-absence.type-business_trip { background: #e7effc; color: #1f5fc0; }
-.group-header .group-absence.type-sick          { background: #fde7e5; color: #c0392b; }
+.group-header .group-absence.type-vacation      { background: var(--absence-vacation-bg); color: var(--absence-vacation-fg); }
+.group-header .group-absence.type-holiday       { background: var(--absence-holiday-bg); color: var(--absence-holiday-fg); }
+.group-header .group-absence.type-business_trip { background: var(--absence-business_trip-bg); color: var(--absence-business_trip-fg); }
+.group-header .group-absence.type-sick          { background: var(--absence-sick-bg); color: var(--absence-sick-fg); }
 .group-header .group-absence.type-other         { background: var(--surface); color: var(--text-secondary); }
 
 .task {
@@ -1323,10 +1331,10 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
 }
 .absence-row:hover { background: var(--hover); }
 .absence-row.active {
-  background: #e7effc;
+  background: var(--accent-soft);
   border-radius: 6px;
 }
-.absence-row.active:hover { background: #e7effc; }
+.absence-row.active:hover { background: var(--accent-soft); }
 .absence-type {
   font-size: 12px;
   font-weight: 600;
@@ -1336,10 +1344,10 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   background: var(--surface);
   color: var(--text-secondary);
 }
-.absence-type.type-vacation      { background: #e6f4ea; color: #1c7a3f; }
-.absence-type.type-holiday       { background: #f3eafc; color: #7b3fb8; }
-.absence-type.type-business_trip { background: #e7effc; color: #1f5fc0; }
-.absence-type.type-sick          { background: #fde7e5; color: #c0392b; }
+.absence-type.type-vacation      { background: var(--absence-vacation-bg); color: var(--absence-vacation-fg); }
+.absence-type.type-holiday       { background: var(--absence-holiday-bg); color: var(--absence-holiday-fg); }
+.absence-type.type-business_trip { background: var(--absence-business_trip-bg); color: var(--absence-business_trip-fg); }
+.absence-type.type-sick          { background: var(--absence-sick-bg); color: var(--absence-sick-fg); }
 .absence-type.type-other         { background: var(--surface); color: var(--text-secondary); }
 .absence-label {
   font-size: 14px;
