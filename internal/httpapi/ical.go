@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"crypto/subtle"
 	"io"
 	"net/http"
 	"strings"
@@ -28,16 +27,10 @@ var absenceSummaryPrefix = map[domain.AbsenceType]string{
 //
 // This route is meant to be exempted from the reverse-proxy BasicAuth (calendar
 // clients can't do interactive login), so the `token` query parameter is the
-// *only* thing guarding it. When ICAL_TOKEN is unset the feed is disabled and
-// returns 404 so it can never be reached unprotected.
+// *only* thing guarding it — see requireToken. When ICAL_TOKEN is unset the feed
+// is disabled and returns 404 so it can never be reached unprotected.
 func (h *Handler) handleAbsencesICS(w http.ResponseWriter, r *http.Request) {
-	if h.icalToken == "" {
-		http.NotFound(w, r)
-		return
-	}
-	token := r.URL.Query().Get("token")
-	if subtle.ConstantTimeCompare([]byte(token), []byte(h.icalToken)) != 1 {
-		http.Error(w, "invalid or missing token", http.StatusUnauthorized)
+	if !requireToken(w, r, h.icalToken) {
 		return
 	}
 	as, err := h.svc.ListAbsences(r.Context())

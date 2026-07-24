@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"crypto/subtle"
 	"fmt"
 	"html"
 	"io"
@@ -18,17 +17,11 @@ import (
 // the date range and a coarse "abwesend" / "unterwegs" status leave the server.
 //
 // Like the iCal feed this route is meant to be exempted from the reverse-proxy
-// BasicAuth, so the `token` query parameter is the *only* guard. When
-// SHARE_TOKEN is unset the page is disabled and returns 404, so it can never be
-// reached unprotected.
+// BasicAuth, so the `token` query parameter is the *only* guard — see
+// requireToken. When SHARE_TOKEN is unset the page is disabled and returns 404,
+// so it can never be reached unprotected.
 func (h *Handler) handleAbsencesShare(w http.ResponseWriter, r *http.Request) {
-	if h.shareToken == "" {
-		http.NotFound(w, r)
-		return
-	}
-	token := r.URL.Query().Get("token")
-	if subtle.ConstantTimeCompare([]byte(token), []byte(h.shareToken)) != 1 {
-		http.Error(w, "invalid or missing token", http.StatusUnauthorized)
+	if !requireToken(w, r, h.shareToken) {
 		return
 	}
 	all, err := h.svc.ListAbsences(r.Context())
