@@ -106,9 +106,10 @@ func buildAbsencesSharePage(absences []*domain.Absence, status domain.Availabili
 *{box-sizing:border-box}
 body{margin:0;padding:2rem 1rem;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
 main{max-width:32rem;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.5rem 1.75rem}
-h1{margin:0 0 .25rem;font-size:1.4rem}
-.sub{margin:0 0 1.5rem;color:var(--muted);font-size:.9rem}
-.status{display:flex;align-items:center;gap:.6rem;font-size:1.15rem;font-weight:600;padding:.9rem 1.1rem;border-radius:10px;margin:0 0 1.25rem}
+.head{padding-bottom:1rem;border-bottom:1px solid var(--line);margin-bottom:1.25rem}
+h1{margin:0;font-size:1.4rem}
+.sub{margin:0 0 1.25rem;color:var(--muted);font-size:.9rem}
+.status{display:flex;align-items:center;gap:.6rem;font-size:1.15rem;font-weight:600;padding:.9rem 1.1rem;border-radius:10px;margin:0 0 1rem}
 .status::before{content:"";width:.7rem;height:.7rem;border-radius:50%;background:currentColor;flex:none}
 .status.available{color:var(--ok);background:var(--okbg)}
 .status.away{color:var(--away);background:var(--awaybg)}
@@ -126,7 +127,7 @@ footer{max-width:32rem;margin:1rem auto 0;color:var(--muted);font-size:.8rem;tex
 </head>
 <body>
 <main>
-<h1>Availability</h1>
+<div class="head"><h1>Availability</h1></div>
 <div class="status ` + statusCls + `">` + html.EscapeString(phrase) + `</div>
 <p class="sub">Scheduled absences. “Business Trip” = travelling for work, usually reachable.</p>
 ` + rows.String() + `
