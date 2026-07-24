@@ -149,7 +149,7 @@ func footerHTML(lastUpdated time.Time) string {
 	if lastUpdated.IsZero() {
 		return ""
 	}
-	return "\n<footer>Last updated: " + html.EscapeString(formatDateTime(lastUpdated)) + "</footer>"
+	return "\n<footer>Last updated: " + html.EscapeString(formatTimestampDate(lastUpdated)) + "</footer>"
 }
 
 var englishMonths = [...]string{
@@ -157,10 +157,10 @@ var englishMonths = [...]string{
 	"July", "August", "September", "October", "November", "December",
 }
 
-// formatDateTime renders a timestamp in its own location as "2 March 2026, 15:04".
-func formatDateTime(t time.Time) string {
-	return fmt.Sprintf("%d %s %d, %02d:%02d",
-		t.Day(), englishMonths[t.Month()], t.Year(), t.Hour(), t.Minute())
+// formatTimestampDate renders a timestamp's calendar date in its own location as
+// "2 March 2026" (no time-of-day).
+func formatTimestampDate(t time.Time) string {
+	return fmt.Sprintf("%d %s %d", t.Day(), englishMonths[t.Month()], t.Year())
 }
 
 // formatRange renders an inclusive date range for humans. A single day collapses

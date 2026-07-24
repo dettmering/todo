@@ -51,8 +51,11 @@ func TestBuildAbsencesSharePage_Empty(t *testing.T) {
 	if !strings.Contains(out, "No scheduled absences") {
 		t.Errorf("expected empty-state message in:\n%s", out)
 	}
-	if !strings.Contains(out, "Last updated: 7 July 2026, 12:00") {
-		t.Errorf("expected footer date+time in:\n%s", out)
+	if !strings.Contains(out, "Last updated: 7 July 2026") {
+		t.Errorf("expected footer date in:\n%s", out)
+	}
+	if strings.Contains(out, "12:00") {
+		t.Errorf("footer should not include a time-of-day in:\n%s", out)
 	}
 }
 
