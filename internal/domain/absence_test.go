@@ -155,6 +155,26 @@ func TestCurrentAvailability(t *testing.T) {
 	}
 }
 
+func TestLatestUpdate(t *testing.T) {
+	t.Run("empty", func(t *testing.T) {
+		if _, ok := LatestUpdate(nil); ok {
+			t.Errorf("expected ok=false for no absences")
+		}
+	})
+	t.Run("picks max UpdatedAt", func(t *testing.T) {
+		older := &Absence{UpdatedAt: time.Date(2026, 6, 1, 9, 0, 0, 0, time.UTC)}
+		newer := &Absence{UpdatedAt: time.Date(2026, 6, 3, 14, 30, 0, 0, time.UTC)}
+		mid := &Absence{UpdatedAt: time.Date(2026, 6, 2, 8, 0, 0, 0, time.UTC)}
+		got, ok := LatestUpdate([]*Absence{older, newer, mid})
+		if !ok {
+			t.Fatalf("expected ok=true")
+		}
+		if !got.Equal(newer.UpdatedAt) {
+			t.Errorf("LatestUpdate = %v, want %v", got, newer.UpdatedAt)
+		}
+	})
+}
+
 func TestUpcomingAbsences(t *testing.T) {
 	today := mustDate(t, "2026-06-12")
 	mk := func(start, end string) *Absence {

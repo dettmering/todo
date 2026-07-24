@@ -36,13 +36,19 @@ func (h *Handler) handleAbsencesShare(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	now := time.Now()
-	today := domain.DateOf(now)
+	today := domain.DateOf(time.Now())
 	upcoming := domain.UpcomingAbsences(all, today)
 	status := domain.CurrentAvailability(all, today)
+	// "Last updated" reflects the actual last change to the absence data, not the
+	// request time. Rendered in the server's local zone (TZ, e.g. Europe/Berlin);
+	// stored timestamps are UTC.
+	lastUpdated, hasUpdate := domain.LatestUpdate(all)
+	if hasUpdate {
+		lastUpdated = lastUpdated.Local()
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	_, _ = io.WriteString(w, buildAbsencesSharePage(upcoming, status, h.shareName, now))
+	_, _ = io.WriteString(w, buildAbsencesSharePage(upcoming, status, h.shareName, lastUpdated))
 }
 
 // availabilityPhrase builds the prominent current-status sentence, e.g.
@@ -65,13 +71,14 @@ func availabilityPhrase(status domain.AvailabilityStatus, name string) (text, cl
 // buildAbsencesSharePage renders the anonymized absences as a self-contained
 // HTML document (inline CSS, no external requests, light/dark aware). `status`
 // drives the prominent current-availability banner, `name` personalizes it, and
-// `now` supplies the footer date (all parameters so tests stay deterministic).
+// `lastUpdated` (already in the target zone) fills the "Last updated" footer —
+// a zero value omits it (all parameters so tests stay deterministic).
 //
 // Anonymization happens here: only the date range and a two-state status are
 // emitted. Business trips (which don't block work — see Absence.BlocksWork)
 // render as "Business Trip"; everything else as "Away". Labels and exact types
 // are never written to the output.
-func buildAbsencesSharePage(absences []*domain.Absence, status domain.AvailabilityStatus, name string, now time.Time) string {
+func buildAbsencesSharePage(absences []*domain.Absence, status domain.AvailabilityStatus, name string, lastUpdated time.Time) string {
 	phrase, statusCls := availabilityPhrase(status, name)
 
 	var rows strings.Builder
@@ -130,11 +137,19 @@ footer{max-width:32rem;margin:1rem auto 0;color:var(--muted);font-size:.8rem;tex
 <div class="status ` + statusCls + `">` + html.EscapeString(phrase) + `</div>
 <p class="sub">Scheduled absences. “Business Trip” = travelling for work, usually reachable.</p>
 ` + rows.String() + `
-</main>
-<footer>Last updated: ` + html.EscapeString(formatDate(domain.DateOf(now))) + `</footer>
+</main>` + footerHTML(lastUpdated) + `
 </body>
 </html>
 `
+}
+
+// footerHTML renders the "Last updated" footer, or nothing when no timestamp is
+// available (zero time — e.g. no absences recorded yet).
+func footerHTML(lastUpdated time.Time) string {
+	if lastUpdated.IsZero() {
+		return ""
+	}
+	return "\n<footer>Last updated: " + html.EscapeString(formatDateTime(lastUpdated)) + "</footer>"
 }
 
 var englishMonths = [...]string{
@@ -142,9 +157,10 @@ var englishMonths = [...]string{
 	"July", "August", "September", "October", "November", "December",
 }
 
-// formatDate renders a LocalDate as "2 March 2026".
-func formatDate(d domain.LocalDate) string {
-	return fmt.Sprintf("%d %s %d", d.Day, englishMonths[d.Month], d.Year)
+// formatDateTime renders a timestamp in its own location as "2 March 2026, 15:04".
+func formatDateTime(t time.Time) string {
+	return fmt.Sprintf("%d %s %d, %02d:%02d",
+		t.Day(), englishMonths[t.Month()], t.Year(), t.Hour(), t.Minute())
 }
 
 // formatRange renders an inclusive date range for humans. A single day collapses

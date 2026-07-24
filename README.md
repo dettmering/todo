@@ -430,6 +430,9 @@ Requests), sodass die sensiblen Felder gar nicht erst im Browser landen:
   `label` werden nie ausgeliefert.**
 - Nur **gegenwärtige und kommende** Zeiträume (`end_date >= heute`),
   chronologisch sortiert. Vergangene Abwesenheiten erscheinen nicht.
+- Die Fußzeile „Last updated" zeigt den **tatsächlichen Zeitpunkt der letzten
+  Abwesenheits-Änderung** (jüngstes `updated_at` aller Abwesenheiten, in der
+  Server-Zeitzone `TZ`), nicht die Abrufzeit. Ohne Abwesenheiten entfällt sie.
 - Schutz identisch zum iCal-Feed: `token`-Query-Parameter muss der
   Umgebungsvariable `SHARE_TOKEN` entsprechen (Vergleich in konstanter Zeit).
   **Ist `SHARE_TOKEN` nicht gesetzt, ist die Seite deaktiviert** (`404`);

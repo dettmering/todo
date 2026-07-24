@@ -91,6 +91,20 @@ func CurrentAvailability(absences []*Absence, today LocalDate) AvailabilityStatu
 	return StatusAvailable
 }
 
+// LatestUpdate returns the most recent UpdatedAt across the given absences, i.e.
+// when the absence data was last touched. The bool is false when there are no
+// absences (or none carry a timestamp), so callers can omit a "last updated"
+// note rather than show a zero date.
+func LatestUpdate(absences []*Absence) (time.Time, bool) {
+	var latest time.Time
+	for _, a := range absences {
+		if a.UpdatedAt.After(latest) {
+			latest = a.UpdatedAt
+		}
+	}
+	return latest, !latest.IsZero()
+}
+
 // UpcomingAbsences returns the absences that are still current or in the future
 // (End >= today), sorted by Start ascending. Past absences are dropped — they
 // carry no signal for an availability view. Ties on Start keep input order.
