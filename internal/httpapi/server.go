@@ -13,13 +13,21 @@ type Handler struct {
 	// icalToken guards GET /api/absences.ics. Empty disables the feed entirely
 	// (the route then 404s), so it can never be served without a token.
 	icalToken string
+	// shareToken guards GET /api/absences.html (anonymized public overview).
+	// Empty disables the page (404), so it can never be served without a token.
+	shareToken string
+	// shareName personalizes the share page's status line ("<name> is currently
+	// available"). Empty falls back to "Currently available".
+	shareName string
 }
 
 // New returns an http.Handler that serves the REST API described in
 // Lastenheft 5.9. The web UI is served separately by the caller. icalToken
-// enables the public iCal absences feed when non-empty (see handleAbsencesICS).
-func New(svc *service.Service, icalToken string) http.Handler {
-	h := &Handler{svc: svc, mux: http.NewServeMux(), icalToken: icalToken}
+// enables the public iCal absences feed when non-empty (see handleAbsencesICS);
+// shareToken enables the anonymized public absences page (see handleAbsencesShare);
+// shareName personalizes that page's status line.
+func New(svc *service.Service, icalToken, shareToken, shareName string) http.Handler {
+	h := &Handler{svc: svc, mux: http.NewServeMux(), icalToken: icalToken, shareToken: shareToken, shareName: shareName}
 	h.routes()
 	return h.mux
 }
@@ -46,6 +54,7 @@ func (h *Handler) routes() {
 
 	h.mux.HandleFunc("GET /api/absences", h.handleListAbsences)
 	h.mux.HandleFunc("GET /api/absences.ics", h.handleAbsencesICS)
+	h.mux.HandleFunc("GET /api/absences.html", h.handleAbsencesShare)
 	h.mux.HandleFunc("POST /api/absences", h.handleCreateAbsence)
 	h.mux.HandleFunc("GET /api/absences/{id}", h.handleGetAbsence)
 	h.mux.HandleFunc("PATCH /api/absences/{id}", h.handlePatchAbsence)

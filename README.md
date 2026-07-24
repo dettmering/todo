@@ -93,6 +93,7 @@ Alle Fehler liefern `{"error": "<text>"}` als Body. Status-Codes:
 | `DELETE` | `/api/projects/{id}` | Archivieren (Tasks bleiben erhalten) |
 | `GET` | `/api/absences` | Abwesenheiten listen (View- oder Range-Modus) |
 | `GET` | `/api/absences.ics` | Abwesenheiten als abonnierbarer iCal-Feed (Token nötig) |
+| `GET` | `/api/absences.html` | Anonymisierte Abwesenheits-Übersicht als Webseite (Token nötig) |
 | `POST` | `/api/absences` | Abwesenheit anlegen |
 | `GET` | `/api/absences/{id}` | Abwesenheit lesen |
 | `PATCH` | `/api/absences/{id}` | Abwesenheit teilaktualisieren |
@@ -405,9 +406,43 @@ Hinweise zur Erzeugung:
   `CREATED`/`LAST-MODIFIED` sowie `X-PUBLISHED-TTL:PT12H` als Refresh-Hinweis.
   Andere Clients (Google, Apple) ignorieren die `X-`-Felder.
 
-Hinter einem Reverse-Proxy mit Auth (z. B. Traefik BasicAuth) muss genau der
-Pfad `/api/absences.ics` von der Auth ausgenommen werden, damit Kalender-Clients
-ihn ohne interaktiven Login erreichen; der `token` ist dann der einzige Schutz.
+Hinter einem Reverse-Proxy mit Auth (z. B. Traefik BasicAuth) müssen die Pfade
+`/api/absences.ics` **und** `/api/absences.html` von der Auth ausgenommen
+werden, damit Kalender-Clients bzw. Kollegen sie ohne interaktiven Login
+erreichen; der jeweilige `token` ist dann der einzige Schutz.
+
+#### `GET /api/absences.html`
+
+Liefert eine **anonymisierte** HTML-Übersicht der Abwesenheiten — ein Link zum
+Teilen mit Kollegen, damit sie ein aktuelles Bild der Verfügbarkeit haben. Die
+Seite wird serverseitig gerendert (self-contained HTML, keine externen
+Requests), sodass die sensiblen Felder gar nicht erst im Browser landen:
+
+- Die Seite ist durchgängig **englisch**. Ganz oben steht die **aktuelle
+  Verfügbarkeit** als Satz — z. B. „Till is currently available / away / on a
+  business trip", abgeleitet aus den Abwesenheiten, die **heute** greifen (eine
+  arbeitsblockierende Abwesenheit ⇒ *away*, nur eine Dienstreise ⇒ *on a
+  business trip*, sonst *available*). Der Name wird über `SHARE_NAME` gesetzt;
+  ohne diese Variable heißt es „Currently available".
+- Darunter die Liste: gezeigt wird nur der **Datumsbereich** plus ein grober
+  Status — **„Away"** für alles außer Dienstreisen, **„Business Trip"** für
+  `business_trip` (blockiert keine Arbeit, i. d. R. erreichbar). **Grund und
+  `label` werden nie ausgeliefert.**
+- Nur **gegenwärtige und kommende** Zeiträume (`end_date >= heute`),
+  chronologisch sortiert. Vergangene Abwesenheiten erscheinen nicht.
+- Schutz identisch zum iCal-Feed: `token`-Query-Parameter muss der
+  Umgebungsvariable `SHARE_TOKEN` entsprechen (Vergleich in konstanter Zeit).
+  **Ist `SHARE_TOKEN` nicht gesetzt, ist die Seite deaktiviert** (`404`);
+  falscher oder fehlender Token ⇒ `401`.
+
+```bash
+SHARE_TOKEN=DEINGEHEIMNIS SHARE_NAME=Till go run ./cmd/server
+curl 'http://localhost:8080/api/absences.html?token=DEINGEHEIMNIS'
+```
+
+`SHARE_TOKEN` ist bewusst getrennt von `ICAL_TOKEN`: Der geteilte Weblink schaltet
+so nicht den vollständigen iCal-Feed (mit Labels und Typen) frei und ist separat
+widerrufbar.
 
 #### `POST /api/absences`
 

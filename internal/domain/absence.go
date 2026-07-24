@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"sort"
+	"time"
+)
 
 // AbsenceType classifies an absence. Business trips are special: they don't
 // block work, so the "next workday" scheduling treats them as normal days.
@@ -54,6 +57,54 @@ func AbsencesForView(absences []*Absence, today LocalDate) []*Absence {
 			out = append(out, a)
 		}
 	}
+	return out
+}
+
+// AvailabilityStatus is the coarse present-day state shown on the public share
+// page ("currently available / away / on a business trip").
+type AvailabilityStatus int
+
+const (
+	StatusAvailable AvailabilityStatus = iota
+	StatusAway
+	StatusBusinessTrip
+)
+
+// CurrentAvailability reports the coarse availability on `today`: Away if any
+// work-blocking absence covers today, BusinessTrip if only a (non-blocking)
+// business trip does, otherwise Available. A blocking absence always wins over
+// a concurrent business trip.
+func CurrentAvailability(absences []*Absence, today LocalDate) AvailabilityStatus {
+	onTrip := false
+	for _, a := range absences {
+		if !a.Covers(today) {
+			continue
+		}
+		if a.BlocksWork() {
+			return StatusAway
+		}
+		onTrip = true
+	}
+	if onTrip {
+		return StatusBusinessTrip
+	}
+	return StatusAvailable
+}
+
+// UpcomingAbsences returns the absences that are still current or in the future
+// (End >= today), sorted by Start ascending. Past absences are dropped — they
+// carry no signal for an availability view. Ties on Start keep input order.
+// Used by the anonymized public share page.
+func UpcomingAbsences(absences []*Absence, today LocalDate) []*Absence {
+	out := make([]*Absence, 0, len(absences))
+	for _, a := range absences {
+		if !a.End.Before(today) {
+			out = append(out, a)
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		return out[i].Start.Before(out[j].Start)
+	})
 	return out
 }
 

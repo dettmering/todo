@@ -53,10 +53,16 @@ func main() {
 		slog.Info("ical absences feed enabled", "path", "/api/absences.ics")
 	}
 
+	shareToken := os.Getenv("SHARE_TOKEN")
+	shareName := os.Getenv("SHARE_NAME")
+	if shareToken != "" {
+		slog.Info("absence share page enabled", "path", "/api/absences.html")
+	}
+
 	webFS := web.Static()
 	root := http.NewServeMux()
 	root.Handle("/static/", http.StripPrefix("/static/", http.FileServerFS(webFS)))
-	root.Handle("/api/", httpapi.New(svc, icalToken))
+	root.Handle("/api/", httpapi.New(svc, icalToken, shareToken, shareName))
 
 	// MCP server over Streamable HTTP, guarded by a bearer token. Empty token
 	// disables the route entirely (like ICAL_TOKEN). Behind Traefik it gets a

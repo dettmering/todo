@@ -126,6 +126,62 @@ func TestAbsencesForView(t *testing.T) {
 	}
 }
 
+func TestCurrentAvailability(t *testing.T) {
+	today := mustDate(t, "2026-06-12")
+	mk := func(typ AbsenceType, start, end string) *Absence {
+		return &Absence{Type: typ, Start: mustDate(t, start), End: mustDate(t, end)}
+	}
+	cases := []struct {
+		name string
+		in   []*Absence
+		want AvailabilityStatus
+	}{
+		{"no absences", nil, StatusAvailable},
+		{"absence not covering today", []*Absence{mk(AbsenceVacation, "2026-07-01", "2026-07-05")}, StatusAvailable},
+		{"vacation covers today", []*Absence{mk(AbsenceVacation, "2026-06-10", "2026-06-15")}, StatusAway},
+		{"sick covers today", []*Absence{mk(AbsenceSick, "2026-06-12", "2026-06-12")}, StatusAway},
+		{"business trip covers today", []*Absence{mk(AbsenceBusinessTrip, "2026-06-11", "2026-06-13")}, StatusBusinessTrip},
+		{"blocking wins over trip", []*Absence{
+			mk(AbsenceBusinessTrip, "2026-06-11", "2026-06-13"),
+			mk(AbsenceVacation, "2026-06-12", "2026-06-12"),
+		}, StatusAway},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := CurrentAvailability(c.in, today); got != c.want {
+				t.Errorf("CurrentAvailability = %v, want %v", got, c.want)
+			}
+		})
+	}
+}
+
+func TestUpcomingAbsences(t *testing.T) {
+	today := mustDate(t, "2026-06-12")
+	mk := func(start, end string) *Absence {
+		return &Absence{Start: mustDate(t, start), End: mustDate(t, end)}
+	}
+	past := mk("2026-05-01", "2026-05-05")     // ended before today -> dropped
+	endedYesterday := mk("2026-06-01", "2026-06-11") // ended before today -> dropped
+	endsToday := mk("2026-06-05", "2026-06-12")  // End == today -> kept (boundary)
+	current := mk("2026-06-10", "2026-06-20")    // running -> kept
+	soon := mk("2026-06-15", "2026-06-18")       // upcoming -> kept
+	later := mk("2026-08-01", "2026-08-10")      // upcoming -> kept
+
+	// Deliberately unsorted input to exercise the Start-ascending sort.
+	in := []*Absence{later, current, past, soon, endsToday, endedYesterday}
+	got := UpcomingAbsences(in, today)
+	want := []*Absence{endsToday, current, soon, later}
+
+	if len(got) != len(want) {
+		t.Fatalf("got %d absences, want %d", len(got), len(want))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("index %d: got %+v, want %+v", i, got[i], want[i])
+		}
+	}
+}
+
 func TestAbsencesInRange(t *testing.T) {
 	mk := func(start, end string) *Absence {
 		return &Absence{Start: mustDate(t, start), End: mustDate(t, end)}
