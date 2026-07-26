@@ -354,6 +354,19 @@ function formatDate(iso) {
   return `${String(d).padStart(2, "0")}.${String(m).padStart(2, "0")}.${y}`;
 }
 
+const WEEKDAY_SHORT = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+
+// Compact absence date: "Mo 13.07." — the year is only appended (2-digit) when
+// it differs from the current one, e.g. "Mo 04.01.27". Fixed weekday table
+// instead of toLocaleDateString so the abbreviation is stable across engines.
+function formatAbsenceDate(iso) {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-").map(Number);
+  const wd = WEEKDAY_SHORT[new Date(y, m - 1, d).getDay()];
+  const base = `${wd} ${String(d).padStart(2, "0")}.${String(m).padStart(2, "0")}.`;
+  return y === new Date().getFullYear() ? base : `${base}${String(y).slice(-2)}`;
+}
+
 // Relative date label: "Heute", "Morgen", weekday (within next 6 days),
 // then "DD.MM." (current year) or "DD.MM.YYYY" further out.
 function smartDateLabel(iso) {
@@ -677,8 +690,8 @@ function createAbsenceRow(a, today, editable) {
   const active = a.start_date <= today && a.end_date >= today;
   row.className = "absence-row" + (active ? " active" : "");
   const range = a.start_date === a.end_date
-    ? formatDate(a.start_date)
-    : `${formatDate(a.start_date)} – ${formatDate(a.end_date)}`;
+    ? formatAbsenceDate(a.start_date)
+    : `${formatAbsenceDate(a.start_date)} – ${formatAbsenceDate(a.end_date)}`;
   // Keep the grid column for edit even when read-only, so delete stays aligned.
   const editCell = editable
     ? `<button type="button" class="icon-btn absence-edit" title="Bearbeiten">${ICON.edit}</button>`
