@@ -24,16 +24,30 @@ internal/domain/        Task, Project, LocalDate, Priority, Sichtbarkeitsregel
 internal/storage/       Repository-Interfaces (TaskRepo, ProjectRepo)
 internal/storage/sqlite SQLite-Implementierung + Migrations + Inbox-Seed
 internal/service/       Geschäftslogik, Validierung, ID-Vergabe, Event-Emit
-internal/events/        In-Process Pub/Sub (künftiger Webhook-Subscriber-Slot)
+internal/events/        In-Process Pub/Sub
+internal/webhook/       Event-Subscriber, der jedes Event an WEBHOOK_URL postet
 internal/recurrence/    RRULE-Subset (FREQ/INTERVAL/BYDAY/BYMONTHDAY/BYMONTH)
 internal/nldate/        Deutscher Natural-Language-Datums-Parser
 internal/httpapi/       REST-Handler nach Lastenheft 5.9
+internal/mcp/           MCP-Server (Streamable HTTP) auf derselben Service-Schicht
 internal/web/           Eingebettete HTML/CSS/JS-Assets
 ```
 
 Erweiterungspunkte:
-- **Webhooks:** `bus.Subscribe(handler)` in `cmd/server/main.go`. Events sind in `internal/events/events.go` definiert.
-- **API-Auth:** Middleware vor `httpapi.New(svc)` einhängen, Bearer-Token prüfen.
+- **Weitere Event-Subscriber:** `bus.Subscribe(handler)` in `cmd/server/main.go`. Events sind in `internal/events/events.go` definiert.
+- **API-Auth:** Middleware vor `httpapi.New(svc, …)` einhängen, Bearer-Token prüfen.
+
+### Umgebungsvariablen
+
+| Variable | Wirkung |
+| --- | --- |
+| `ICAL_TOKEN` | Aktiviert `GET /api/absences.ics` (leer ⇒ Route `404`) |
+| `SHARE_TOKEN` | Aktiviert `GET /api/absences.html` (leer ⇒ Route `404`) |
+| `SHARE_NAME` | Name in der Statuszeile der Share-Seite |
+| `MCP_TOKEN` | Aktiviert den MCP-Endpunkt `/mcp` (leer ⇒ Route `404`) |
+| `WEBHOOK_URL` | Aktiviert den Webhook-Versand (siehe [Webhooks](#webhooks)) |
+
+Flags: `-addr` (Default `:8080`), `-db` (Default `./todo.db`).
 
 ## REST-API
 
@@ -49,7 +63,8 @@ darf zusätzlich eine deutsche natürlichsprachige Phrase stehen (`morgen`,
 
 ### Konventionen
 
-- IDs sind opaque Strings mit Präfix: `task_<16 hex>`, `project_<16 hex>`.
+- IDs sind opaque Strings mit Präfix: `task_<16 hex>`, `project_<16 hex>`,
+  `absence_<16 hex>`, `comment_<16 hex>`, `audit_<16 hex>`.
   Die Inbox hat die reservierte ID `inbox` und kann nicht gelöscht werden.
 - Zeitstempel (`created_at`, `updated_at`, `completed_at`) sind RFC3339-UTC.
 - `LocalDate`-Felder sind timezone-naiv (`YYYY-MM-DD`); leerer String =
@@ -86,6 +101,10 @@ Alle Fehler liefern `{"error": "<text>"}` als Body. Status-Codes:
 | `POST` | `/api/tasks/{id}/complete` | Task abschließen (spawnt ggf. Folge-Instanz) |
 | `POST` | `/api/tasks/{id}/reopen` | Abschluss zurücknehmen |
 | `DELETE` | `/api/tasks/{id}` | Soft-Delete |
+| `GET` | `/api/tasks/{id}/comments` | Kommentare eines Tasks listen |
+| `POST` | `/api/tasks/{id}/comments` | Kommentar an einen Task anhängen |
+| `GET` | `/api/tasks/{id}/audit` | Audit-Log eines Tasks |
+| `GET` | `/api/audit` | Audit-Log über alle Tasks (gefiltert) |
 | `GET` | `/api/projects` | Projekte listen |
 | `POST` | `/api/projects` | Projekt anlegen |
 | `GET` | `/api/projects/{id}` | Projekt lesen |
@@ -122,6 +141,7 @@ Query-Parameter (alle optional):
 | `completed_from` | `YYYY-MM-DD` | Untere Grenze für `completed_at` (inklusiv, UTC-Tag) |
 | `completed_to` | `YYYY-MM-DD` | Obere Grenze für `completed_at` (inklusiv, UTC-Tag) |
 | `completed_week` | `YYYY-Www` | ISO-Kalenderwoche auf `completed_at` |
+| `today` | `YYYY-MM-DD` | Überschreibt das vom Server angenommene „heute" für den Sichtbarkeits-Filter (`visible_from ≤ heute`). Ohne Wirkung bei `scope=all` |
 | `sort` | `priority`, `deadline`, `visible_from`, `created_at` | Sortierung; ohne Angabe gilt die Default-Sortierung aus 5.6 |
 
 `date`, `from`, `to` und `week` filtern über die Spalte **`visible_from`**
@@ -263,7 +283,16 @@ Soft-Delete: `status = "deleted"`. Antwort: `204 No Content`.
   "recurrence_label": "jährlich am 27.05.",
   "created_at": "2026-05-22T18:21:04Z",
   "updated_at": "2026-05-22T18:21:04Z",
-  "completed_at": null
+  "completed_at": null,
+  "comment_count": 1,
+  "comments": [
+    {
+      "id": "comment_2b91c07de4a35f68",
+      "task_id": "task_8f3e2c1d4a5b6789",
+      "body": "Belege für 2025 sind vollständig.",
+      "created_at": "2026-05-24T07:11:39Z"
+    }
+  ]
 }
 ```
 
@@ -271,6 +300,116 @@ Soft-Delete: `status = "deleted"`. Antwort: `204 No Content`.
   der `recurrence_rule`) und nur lesbar.
 - `visible_from` und `deadline` sind weggelassen, wenn nicht gesetzt
   (`omitempty`).
+- `comments` ist **immer** vorhanden (leeres Array, wenn es keine gibt) und
+  auch in der Listenantwort von `GET /api/tasks` eingebettet — neueste
+  zuerst. `comment_count` entfällt bei `0` (`omitempty`). Beide Felder sind
+  nur lesbar; geschrieben wird über
+  [`POST /api/tasks/{id}/comments`](#post-apitasksidcomments).
+
+---
+
+#### `GET /api/tasks/{id}/comments`
+
+Kommentare des Tasks, **neueste zuerst**. Antwort: `200 OK`, JSON-Array aus
+Kommentar-Objekten (leeres Array, wenn keine existieren).
+
+#### `POST /api/tasks/{id}/comments`
+
+Hängt eine Markdown-Notiz an den Task. Das ist auch der Weg, um Kommentare
+programmatisch über die API zu setzen.
+
+| Feld | Typ | Pflicht | Bemerkung |
+| --- | --- | --- | --- |
+| `body` | string | ✓ | Markdown-Quelltext; wird getrimmt, leer ⇒ 400. Wird unverändert gespeichert und erst im Frontend gerendert |
+
+Antwort: `201 Created`, das Kommentar-Objekt. `404`, wenn der Task nicht
+existiert. Kommentare sind **append-only** — es gibt weder `PATCH` noch
+`DELETE`. Sie lassen sich an Tasks in **jedem** Status anhängen, also auch an
+bereits abgeschlossene.
+
+```bash
+curl -X POST http://localhost:8080/api/tasks/task_8f3e2c1d4a5b6789/comments \
+  -H 'Content-Type: application/json' \
+  -d '{"body": "Belege für 2025 sind **vollständig**."}'
+```
+
+#### Kommentar-Objekt
+
+```json
+{
+  "id": "comment_2b91c07de4a35f68",
+  "task_id": "task_8f3e2c1d4a5b6789",
+  "body": "Belege für 2025 sind **vollständig**.",
+  "created_at": "2026-05-24T07:11:39Z"
+}
+```
+
+---
+
+### Audit-Log
+
+Das Audit-Log protokolliert Task-Änderungen. Einträge werden von der
+Service-Schicht geschrieben — bei `create`, `complete`, `reopen`, `delete`,
+beim Recurrence-Spawn sowie bei `PATCH`-Änderungen an `visible_from`,
+`deadline`, `project_id` und `priority`. Titel- und Beschreibungsänderungen
+werden **nicht** protokolliert. Das Log ist append-only und wird nie
+aufgeräumt.
+
+#### `GET /api/audit`
+
+Query-Parameter (alle optional):
+
+| Parameter | Werte | Wirkung |
+| --- | --- | --- |
+| `task_id` | `task_…` | Nur Einträge zu diesem Task |
+| `date` | `YYYY-MM-DD` | Nur Einträge dieses Kalendertags (Shortcut für `from=…&to=…`) |
+| `from` | `YYYY-MM-DD` | Untere Grenze (inklusiv) |
+| `to` | `YYYY-MM-DD` | Obere Grenze (inklusiv) |
+| `week` | `YYYY-Www` | ISO-Kalenderwoche |
+
+Die Datumsfilter werden als **UTC-Tage** interpretiert (gleiche Zeitzonen-Falle
+wie bei `completed_*`). `week` darf nicht mit `date`/`from`/`to` kombiniert
+werden (400). Antwort: `200 OK`, JSON-Array, **neueste zuerst**.
+
+```bash
+# Was ist diese Woche passiert?
+curl 'http://localhost:8080/api/audit?week=2026-W21'
+
+# Historie eines einzelnen Tasks
+curl 'http://localhost:8080/api/audit?task_id=task_8f3e2c1d4a5b6789'
+```
+
+#### `GET /api/tasks/{id}/audit`
+
+Kurzform für `/api/audit?task_id={id}`, identische Antwort. Ein unbekannter
+Task liefert ein leeres Array, keinen `404` — das Log ist unabhängig vom
+Task-Datensatz.
+
+#### Audit-Objekt
+
+```json
+{
+  "id": "audit_71c4de9a03b8f625",
+  "task_id": "task_8f3e2c1d4a5b6789",
+  "task_title": "Steuererklärung machen",
+  "action": "deadline_changed",
+  "old_value": "2026-05-27",
+  "new_value": "2026-06-15",
+  "at": "2026-05-24T09:40:12Z"
+}
+```
+
+`task_title` ist ein **Snapshot** zum Zeitpunkt der Änderung — das Log bleibt
+lesbar, auch wenn der Task später umbenannt wird. `old_value`/`new_value` sind
+opake Strings, deren Bedeutung von `action` abhängt:
+
+| `action` | `old_value` / `new_value` |
+| --- | --- |
+| `created`, `completed`, `reopened`, `deleted` | beide leer (entfallen per `omitempty`) |
+| `visible_from_set`, `visible_from_cleared`, `visible_from_changed` | `YYYY-MM-DD` bzw. leer |
+| `deadline_set`, `deadline_cleared`, `deadline_changed` | `YYYY-MM-DD` bzw. leer |
+| `project_changed` | Projekt**name** (Snapshot), nicht die ID |
+| `priority_changed` | `"P1"` … `"P4"` |
 
 ---
 
@@ -682,12 +821,66 @@ goroutines aufgerufen und blockieren keine HTTP-Anfragen.
 | `project.created` | `POST /api/projects` |
 | `project.updated` | `PATCH /api/projects/{id}` |
 | `project.deleted` | `DELETE /api/projects/{id}` (Archivierung) |
+| `comment.created` | `POST /api/tasks/{id}/comments` |
 | `absence.created` | `POST /api/absences` |
 | `absence.updated` | `PATCH /api/absences/{id}` |
 | `absence.deleted` | `DELETE /api/absences/{id}` |
 
+---
+
+## Webhooks
+
+Ist `WEBHOOK_URL` gesetzt, hängt sich beim Start ein Dispatcher
+(`internal/webhook`) an den Eventbus und schickt **jedes** Event als
+`POST` an diese eine URL. Minimale Umsetzung von Lastenheft 5.11: eine URL,
+keine Auth, keine Filterung pro Event-Typ, kein Retry.
+
+```json
+{
+  "event": "task.completed",
+  "timestamp": "2026-05-22T18:30:00Z",
+  "data": { "id": "task_8f3e2c1d4a5b6789", "title": "…", "status": "completed" }
+}
+```
+
+- `Content-Type: application/json`, Timeout **10 s**.
+- Der Versand läuft in der Bus-Goroutine — er blockiert nie die auslösende
+  HTTP-Anfrage. Fehler und `4xx`/`5xx`-Antworten werden nur geloggt
+  (`slog.Warn`), die Auslieferung wird **nicht** wiederholt.
+- `data` enthält bei **Task- und Projekt**-Events eine eigene snake_case-Form
+  nach Lastenheft 5.11 — nicht identisch mit den REST-DTOs: die Regel heißt
+  hier `recurrence` (statt `recurrence_rule`); `project_name`,
+  `recurrence_label`, `comments` und `comment_count` fehlen.
+- Alle übrigen Event-Typen (`comment.*`, `absence.*`) werden **ohne**
+  Umformung serialisiert, d. h. mit den Go-Feldnamen in PascalCase,
+  `LocalDate` als verschachteltes Objekt und Zeitstempeln in
+  Nanosekunden-Auflösung:
+
+  ```json
+  {
+    "event": "absence.created",
+    "timestamp": "2026-08-01T09:12:44Z",
+    "data": {
+      "ID": "absence_fd3a509d29cc66d3",
+      "Type": "vacation",
+      "Label": "Kreta",
+      "Start": { "Year": 2026, "Month": 8, "Day": 3 },
+      "End": { "Year": 2026, "Month": 8, "Day": 7 },
+      "CreatedAt": "2026-08-01T09:12:44.099151559Z",
+      "UpdatedAt": "2026-08-01T09:12:44.099151559Z"
+    }
+  }
+  ```
+
+  Wer darauf hört, sollte das wissen — eine Angleichung an snake_case wäre
+  ein Breaking Change für bestehende Empfänger.
+
+---
+
 ## Noch nicht implementiert (bewusst aus dem MVP-Kern ausgenommen)
 
-- Webhooks (Lastenheft 5.11) — Eventbus liegt bereit, Subscriber fehlt
-- API-Authentifizierung (5.10) — Middleware-Slot frei
+- API-Authentifizierung (5.10) — Middleware-Slot frei; heute schützen nur
+  Token die Sonderrouten (`.ics`, `.html`, `/mcp`), der Rest von `/api/`
+  liegt hinter dem Reverse-Proxy-BasicAuth
+- Webhook-Ausbau: mehrere Ziele, Event-Filter, Signatur, Retry
 - Komplexere Filter & manuelle Sortierung (5.6/5.7)
