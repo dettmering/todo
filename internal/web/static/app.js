@@ -356,14 +356,15 @@ function formatDate(iso) {
 
 const WEEKDAY_SHORT = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 
-// Compact absence date: "Mo 13.07." — the year is only appended (2-digit) when
-// it differs from the current one, e.g. "Mo 04.01.27". Fixed weekday table
-// instead of toLocaleDateString so the abbreviation is stable across engines.
+// Compact absence date: "Mo 13.7." — day and month without leading zeros, the
+// year only appended (2-digit) when it differs from the current one, e.g.
+// "Mo 4.1.27". Fixed weekday table instead of toLocaleDateString so the
+// abbreviation is stable across engines.
 function formatAbsenceDate(iso) {
   if (!iso) return "";
   const [y, m, d] = iso.split("-").map(Number);
   const wd = WEEKDAY_SHORT[new Date(y, m - 1, d).getDay()];
-  const base = `${wd} ${String(d).padStart(2, "0")}.${String(m).padStart(2, "0")}.`;
+  const base = `${wd} ${d}.${m}.`;
   return y === new Date().getFullYear() ? base : `${base}${String(y).slice(-2)}`;
 }
 
