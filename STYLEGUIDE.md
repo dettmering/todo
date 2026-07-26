@@ -1,22 +1,22 @@
 # Styleguide
 
-Dieses Dokument hält fest, wie unser Frontend sich am Todoist-Webclient
-orientiert. Grundlage ist die aus dem Browser gespeicherte Seite
-`adesso – Todoist.html` samt zugehörigen Assets (`adesso – Todoist_files/`).
+Dieses Dokument hält fest, wie unser Frontend sich an einem etablierten
+Task-Manager-Webclient orientiert. Grundlage war eine aus dem Browser
+gespeicherte Seite dieses Referenz-Clients samt zugehörigen Assets.
 Die dortigen CSS-Klassen sind minifiziert (`.xPiLGH0`, `.JczMOAc`, …),
 weshalb dieser Guide nicht die Originalklassen kopiert, sondern die
 **Design-Tokens und Strukturmuster** extrahiert und in unsere eigene,
 lesbare Vanilla-CSS-Implementierung überträgt.
 
 > Referenz-Theme: **„Moonstone"** (helle, leicht warme Variante,
-> Default-Theme in Todoist). Erkennbar im HTML an
+> Default-Theme des Referenz-Clients). Erkennbar im HTML an
 > `<html class="theme_moonstone …">`.
 
 ---
 
 ## 1. Designsystem-Schichten
 
-Todoist verwendet ein dreischichtiges CSS-Variablensystem:
+Der Referenz-Client verwendet ein dreischichtiges CSS-Variablensystem:
 
 | Schicht | Beispiel | Bedeutung |
 | --- | --- | --- |
@@ -35,7 +35,7 @@ Wenn weitere Themes kommen, kann diese Schicht problemlos um
 
 ### 2.1 Flächen und Hintergründe
 
-| Token (Todoist) | Wert | Verwendung | Unser Mapping |
+| Token (Referenz) | Wert | Verwendung | Unser Mapping |
 | --- | --- | --- | --- |
 | `--product-library-background-base-primary` | `#fff` | Hauptinhaltsbereich | `--main-bg` |
 | `--product-library-background-base-secondary` | `#fcfbf8` | Leicht abgesetzte Flächen | (frei) |
@@ -46,7 +46,7 @@ Wenn weitere Themes kommen, kann diese Schicht problemlos um
 
 ### 2.2 Akzentfarbe & Brand
 
-Todoist hat **rot** (`#dc4c3e`) als Akzent. Diese Farbe wird sehr
+Der Referenz-Client hat **rot** (`#dc4c3e`) als Akzent. Diese Farbe wird sehr
 sparsam eingesetzt: Brand-Logo, primärer Button („Add task"),
 Auswahl-Highlights in der Sidebar (kombiniert mit `#fee6e3`),
 Destructive-Aktion (Löschen).
@@ -74,12 +74,12 @@ Destructive-Aktion (Löschen).
 | --- | --- |
 | Idle | `#e6e6e6` |
 | Strong (Inputs, Cards) | `#e5e5e5` (`--border-strong`) |
-| Trennlinie sehr dezent | `#ebebeb` (`--border`) — eigene Wahl, etwas softer als Todoist's `#e5e5e5` |
+| Trennlinie sehr dezent | `#ebebeb` (`--border`) — eigene Wahl, etwas softer als die `#e5e5e5` der Referenz |
 | Border-Hover | `#ccc` |
 
 ### 2.5 Prioritäten
 
-Die Originalwerte aus Todoist sind in den Asset-CSS-Dateien stark
+Die Originalwerte der Referenz sind in den Asset-CSS-Dateien stark
 verschachtelt, aber öffentlich bekannt:
 
 | Stufe | Hex | Bedeutung |
@@ -95,7 +95,7 @@ P4 deutlich von einer normalen Border unterscheidbar bleibt.
 
 ### 2.6 Status-Datumsfarben
 
-Todoist färbt Datumslabel je nach Fälligkeit. Wir spiegeln das mit
+Die Referenz färbt Datumslabel je nach Fälligkeit. Wir spiegeln das mit
 dezenten Akzenten:
 
 | Status | Wert | Aussagekraft |
@@ -113,7 +113,7 @@ dezenten Akzenten:
 | --- | --- |
 | Body-Font-Family | System-Stack: `-apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", system-ui, sans-serif` |
 | Base-Font-Size | `14px` |
-| Line-Height für Body | `21px` (Todoist verwendet am häufigsten `21` und `20`) |
+| Line-Height für Body | `21px` (die Referenz verwendet am häufigsten `21` und `20`) |
 | Body-Color | `#4d4d4d` |
 | Headline (H1) | `26px / 700 / letter-spacing -0.02em` |
 | Sektionsüberschrift | `14px / 700 / letter-spacing -0.005em` |
@@ -152,7 +152,7 @@ unserer Komponentenmenge wäre das Overengineering.
 | Avatare, Color-Swatches, Checkboxen | `50 %` |
 | Skip-Pill „Add task" usw. | `24 px` (kapselförmig) |
 
-Schatten sind in Todoist extrem zurückhaltend. Verwendet werden:
+Schatten sind in der Referenz extrem zurückhaltend. Verwendet werden:
 
 * Dialoge: `0 16px 48px rgba(0,0,0,0.18)` (wir nutzen den gleichen)
 * Hover-Cards: leichte `0 2px 8px rgba(0,0,0,0.08)`
@@ -177,8 +177,8 @@ Schatten sind in Todoist extrem zurückhaltend. Verwendet werden:
 
 * Shell: zweispaltiges Grid `280px 1fr`, volle Höhe (`100vh`),
   Sidebar mit eigenem Scrollbereich, Main-Pane mit eigenem.
-* Main-Pane mittig zentriert mit `max-width: 800px`, das ergibt
-  Todoist-typische Lesebreite.
+* Main-Pane mittig zentriert mit `max-width: 800px`, das ergibt die
+  für solche Clients typische Lesebreite.
 * Padding im Main: `32px 60px 96px` (großzügig nach unten für scrollende
   Listen).
 
@@ -195,14 +195,14 @@ Schatten sind in Todoist extrem zurückhaltend. Verwendet werden:
   (`stroke-width: 1.8`, `stroke-linecap: round`).
 * Das **„Heute"-Icon** ist ein Kalender-SVG, in dessen Innenrahmen wir
   dynamisch die heutige Tageszahl positionieren (klein, fett, mittig
-  über dem horizontalen Strich). Genau dieses Muster nutzt Todoist
+  über dem horizontalen Strich). Genau dieses Muster nutzt die Referenz
   auch.
 
 ### 7.2 Sidebar-Projektliste
 
 * Project-Item-Markup: `[Farbpunkt 10px] [Name, flex:1] [Edit-Stift bei Hover oder Count]`.
-* Hover blendet **Edit** ein und **Count** aus — eine Standard-Pattern
-  bei Todoist (gleicher Platz wird genutzt, kein Layout-Shift).
+* Hover blendet **Edit** ein und **Count** aus — ein Standard-Pattern
+  der Referenz (gleicher Platz wird genutzt, kein Layout-Shift).
 * Farbpunkt nutzt die Projektfarbe (Default `#246fe0` für Inbox, sonst
   `#808080` als neutrales Grau).
 * Klick auf das Item navigiert; Klick auf den Stift öffnet den
@@ -224,7 +224,7 @@ Schatten sind in Todoist extrem zurückhaltend. Verwendet werden:
 * **Recurrence-Indikator:** kleines Repeat-SVG (12 × 12) direkt am
   Titelende — kein Emoji.
 * **Project-Tag:** rechtsbündig, klein gesetzt. In der Projektsicht
-  ausgeblendet (sonst redundant — Todoist-Verhalten).
+  ausgeblendet (sonst redundant — Verhalten wie in der Referenz).
 * **Actions:** Bearbeiten/Löschen erscheinen erst bei Hover
   (`visibility: hidden` → `visible`, damit kein Layout-Shift entsteht).
 * Trennlinie zwischen Tasks: `1px solid #ebebeb` an `border-bottom`.
@@ -239,7 +239,7 @@ KW 21   18.05.–24.05.                                         3
 
 * Inhalte: Label (fett, 14 px), Range (regular, muted), Count
   (rechtsbündig, muted).
-* Bei Todoist sind die Headers in „Demnächst" tagweise („Montag,
+* In der Referenz sind die Headers in „Demnächst" tagweise („Montag,
   20. Mai"); wir gruppieren bewusst nach **Kalenderwoche**, weil das
   für unseren Anwendungsfall die richtige Verdichtung ist.
 
@@ -247,7 +247,7 @@ KW 21   18.05.–24.05.                                         3
 
 * Card-Style, 1 px Border `#e5e5e5`, Radius 10 px.
 * Beim Fokus wechselt die Border auf die Akzentfarbe — gleiches Muster
-  wie bei Todoist (dort animiert es subtiler).
+  wie in der Referenz (dort animiert es subtiler).
 * Optionsleiste unter dem Eingabefeld mit gepunkteter Trennlinie
   (`border-top: 1px dashed`), Selects mit `4px 8px` Padding und
   6 px Radius.
@@ -300,7 +300,7 @@ Inventar in `app.js`:
 | `ICON.hashtag` | (reserviert) Projekt-Indikator |
 | `todayIconSVG()` | Kalender mit eingelegter Tageszahl für die „Heute"-Nav |
 
-Todoist verwendet teils eigene Icon-Set mit minimal anderen
+Die Referenz verwendet teils ein eigenes Icon-Set mit minimal anderen
 Endcap-Radien — die Unterschiede sind in der Wahrnehmung minimal, und
 Lucide ist Open-Source-freundlich.
 
@@ -308,7 +308,7 @@ Lucide ist Open-Source-freundlich.
 
 ## 9. Datumsdarstellung
 
-Todoist setzt extrem stark auf **relative Datumslabel**. Unsere
+Die Referenz setzt extrem stark auf **relative Datumslabel**. Unsere
 Übernahme in `smartDateLabel`:
 
 | Eingabe (Heute = `T`) | Label |
@@ -328,14 +328,14 @@ Die zugehörige Farbklasse kommt aus `dateColorClass` (siehe 2.6).
 
 ## 10. Projektfarben
 
-Todoist bietet eine kuratierte Palette aus etwa 13 Farben (Berry Red,
+Die Referenz bietet eine kuratierte Palette aus etwa 13 Farben (Berry Red,
 Red, Orange, Yellow, Olive Green, …). Wir nähern uns mit denselben
 Familien an, leicht abweichend benannt (Tomate, Orange, Gelb, Olive,
 Grün, Mint, Türkis, Hellblau, Blau, Lila, Magenta, Rosa, Grau).
 
 Frei vergebener Hex bleibt erlaubt (siehe Color-Picker).
 Inbox ist farblich auf `#246fe0` gepinnt — entspricht dem
-Inbox-Indigo aus Todoist.
+Inbox-Indigo der Referenz.
 
 ---
 
@@ -355,7 +355,7 @@ Inbox-Indigo aus Todoist.
 
 Aus dem Lastenheft („Out of Scope" und „Explizit gestrichene Anforderungen"):
 
-* Drag & Drop in der Task-Liste — Todoist nutzt dafür ein eigenes
+* Drag & Drop in der Task-Liste — die Referenz nutzt dafür ein eigenes
   Virtuoso-basiertes Virtual-List-Setup (`data-testid="virtuoso-item-list"`),
   bei unserer Größenordnung unnötig.
 * Theme-Switcher, Dark Mode.
@@ -372,7 +372,7 @@ Icon-Inventar in `app.js` saubere Andockpunkte.
 
 ## 13. Mapping unserer CSS-Variablen
 
-| Unsere Variable | Wert | Entspricht Todoist-Token |
+| Unsere Variable | Wert | Entspricht Referenz-Token |
 | --- | --- | --- |
 | `--sidebar-bg` | `#fcf9f8` | `--theme-card-sidebar-color` (Moonstone) |
 | `--main-bg` | `#ffffff` | `--product-library-background-base-primary` |
@@ -381,10 +381,10 @@ Icon-Inventar in `app.js` saubere Andockpunkte.
 | `--text` | `#202020` | `--product-library-display-primary-idle-tint` |
 | `--text-secondary` | `#4d4d4d` | `--theme-card-content-color` (Moonstone) |
 | `--text-muted` | `#666` | `--product-library-display-secondary-idle-tint` |
-| `--border` | `#ebebeb` | (eigene Wahl, etwas softer als das Todoist-`#e5e5e5`) |
+| `--border` | `#ebebeb` | (eigene Wahl, etwas softer als das `#e5e5e5` der Referenz) |
 | `--border-strong` | `#e5e5e5` | `--product-library-display-quaternary-idle-tint` |
 | `--hover` | `#f2f2f2` | `--theme-card-sidebar-hover-color` (Moonstone) |
-| `--p1 … --p4` | `#d1453b / #eb8909 / #246fe0 / #b3b3b3` | Todoist-Prioritäts-Palette |
+| `--p1 … --p4` | `#d1453b / #eb8909 / #246fe0 / #b3b3b3` | Prioritäts-Palette der Referenz |
 
 ---
 
@@ -392,7 +392,7 @@ Icon-Inventar in `app.js` saubere Andockpunkte.
 
 * **Neue UI-Komponente?** Erst die Tokens aus dieser Datei nutzen, nur
   bei Bedarf eine neue Variable in `:root` ergänzen.
-* **Neue Farbe?** Vorher prüfen, ob Todoist sie im
+* **Neue Farbe?** Vorher prüfen, ob die Referenz sie im
   `--product-library-*`-Namensraum verwendet — wenn ja, denselben Hex
   übernehmen.
 * **Neue Icons?** Lucide-Stil, in `ICON`-Objekt eintragen, `currentColor`

@@ -111,8 +111,8 @@ These choices look unremarkable but are easy to break:
   stroke style, `currentColor`. The "Heute" sidebar icon is generated
   dynamically with the current day number (`todayIconSVG`).
 - **CSS tokens live in `:root` of `style.css`** and intentionally mirror
-  Todoist's Moonstone theme. **`STYLEGUIDE.md` is authoritative** for the
-  mapping between our variables and Todoist's design tokens — read it
+  the Moonstone theme of a well-known task manager. **`STYLEGUIDE.md` is
+  authoritative** for the mapping between our variables and its design tokens — read it
   before adding new colors or components.
 - **Quick-add defaults are derived from the current view**
   (`defaultProjectForView` in `app.js`): in a project view → that project,

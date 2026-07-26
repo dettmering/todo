@@ -1,6 +1,6 @@
 # Vereinfachtes Lastenheft: Webbasierte Todo-Liste mit API und Webhooks
 
-**Ziel:** Minimal nutzbare Aufgabenmanagement-Anwendung nach ausgewählten Todoist-Prinzipien
+**Ziel:** Minimal nutzbare Aufgabenmanagement-Anwendung nach ausgewählten Prinzipien etablierter Task-Manager
 **Scope:** Single-User, webbasiert, Listenansicht, API-first
 **Nicht-Ziel:** Kollaboration, Mobile/Desktop-Apps, SSO, Analytics, Alarme, Kalenderintegration, Board-/Kanban-Ansicht
 
@@ -28,7 +28,7 @@ Die Anwendung soll insbesondere folgende Fähigkeiten bieten:
 * eine API zur Automatisierung bereitstellen
 * Webhooks zur Ereignisweitergabe bereitstellen
 
-Die Anwendung soll nicht Todoist vollständig nachbauen, sondern nur die Funktionen abbilden, die für den konkreten Nutzungsfall relevant sind.
+Die Anwendung soll kein etabliertes Produkt vollständig nachbauen, sondern nur die Funktionen abbilden, die für den konkreten Nutzungsfall relevant sind.
 
 ---
 
@@ -248,7 +248,7 @@ Vorteile:
 
 * einfach
 * wenig Daten
-* gute Todoist-Nähe
+* gute Nähe zu etablierten Task-Managern
 
 Nachteile:
 
@@ -597,7 +597,7 @@ Beispiele:
 * alle Aufgaben mit Erscheinungsdatum in einer bestimmten Kalenderwoche
 * alle in einem Zeitraum erledigten Aufgaben
 
-Komplexe Todoist-Filter-Syntax ist für den MVP nicht erforderlich.
+Eine komplexe Filter-Syntax, wie sie etablierte Task-Manager bieten, ist für den MVP nicht erforderlich.
 
 ---
 
@@ -1067,9 +1067,9 @@ Das System gilt als fachlich abgenommen, wenn folgende Szenarien funktionieren:
 
 ---
 
-## 10. Explizit gestrichene Anforderungen gegenüber Todoist
+## 10. Explizit gestrichene Anforderungen gegenüber etablierten Task-Managern
 
-Folgende Todoist-nahe Funktionen werden bewusst nicht übernommen:
+Folgende in solchen Produkten übliche Funktionen werden bewusst nicht übernommen:
 
 * Kollaboration
 * Teams
@@ -1098,7 +1098,7 @@ Folgende Todoist-nahe Funktionen werden bewusst nicht übernommen:
 > Hinweis: Kommentare wurden bewusst aus dieser Streichliste herausgenommen und
 > in Abschnitt 4.8 / 5.12 aufgenommen. Gemeint sind hier ausschließlich
 > persönliche Notizen an einer Aufgabe (Single-User), nicht die
-> Kollaborations-Kommentare aus Todoist (Mentions, Zuweisungen, Benachrichtigungen).
+> Kollaborations-Kommentare etablierter Task-Manager (Mentions, Zuweisungen, Benachrichtigungen).
 
 ---
 

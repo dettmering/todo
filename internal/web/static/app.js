@@ -354,7 +354,7 @@ function formatDate(iso) {
   return `${String(d).padStart(2, "0")}.${String(m).padStart(2, "0")}.${y}`;
 }
 
-// Todoist-style relative date label: "Heute", "Morgen", weekday (within next 6 days),
+// Relative date label: "Heute", "Morgen", weekday (within next 6 days),
 // then "DD.MM." (current year) or "DD.MM.YYYY" further out.
 function smartDateLabel(iso) {
   if (!iso) return "";
@@ -1158,7 +1158,7 @@ function renderTasks(tasks, completedToday = []) {
 
 // Inline tokens in the quick-add title input: @date, #project, !!priority.
 // The input keeps its plain string value; a same-styled overlay div behind it
-// renders colored marks for matched ranges (Todoist-style).
+// renders colored marks for matched ranges.
 const qaInline = {
   date: null,            // {start, end, iso, text}
   dateUnresolved: null,  // {start, end}  -- @ present but parser returned nothing
@@ -1640,7 +1640,7 @@ function quickRescheduleISO(kind) {
     d.setDate(d.getDate() + 1);
   } else if (kind === "weekend") {
     // Next Saturday (or today if today is Saturday and you want today? — we go
-    // strictly to the upcoming Saturday, mirroring Todoist).
+    // strictly to the upcoming Saturday).
     const dow = d.getDay(); // 0=Sun..6=Sat
     const add = ((6 - dow) + 7) % 7 || 7;
     d.setDate(d.getDate() + add);

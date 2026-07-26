@@ -3,7 +3,7 @@
 Schlanke, persönliche, webbasierte Todo-Anwendung nach den Vorgaben in [LASTENHEFT.md](LASTENHEFT.md).
 
 - **Backend:** Go, stdlib `net/http`, pure-Go SQLite (`modernc.org/sqlite`)
-- **Frontend:** Vanilla HTML/CSS/JS, an Todoist orientiert, in das Binary eingebettet
+- **Frontend:** Vanilla HTML/CSS/JS, an gaengigen Task-Managern orientiert, in das Binary eingebettet
 - **Status:** MVP-Kern (Tasks, Projekte, Listenansicht, REST-API, Wiederholungen, NL-Datums-Parser). Erweiterungspunkte für API-Auth und Webhooks sind angelegt.
 
 ## Starten

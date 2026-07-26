@@ -1,4 +1,4 @@
-/* Todoist "Moonstone" inspired palette */
+/* "Moonstone" inspired palette (see STYLEGUIDE.md) */
 :root {
   --sidebar-bg: #fcf9f8;
   --sidebar-text: #202020;
@@ -658,7 +658,7 @@ dialog menu button.danger:hover {
   font-size: 12px;
 }
 
-/* ---------- Task modal (Todoist-style two-column) ---------- */
+/* ---------- Task modal (two-column) ---------- */
 dialog.task-modal {
   padding: 0;
   width: min(960px, 92vw);
