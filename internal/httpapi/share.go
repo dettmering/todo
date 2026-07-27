@@ -108,7 +108,8 @@ body{margin:0;padding:2rem 1rem;background:var(--bg);color:var(--fg);font:16px/1
 main{max-width:32rem;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.5rem 1.75rem}
 .head{padding-bottom:1rem;border-bottom:1px solid var(--line);margin-bottom:1.25rem}
 h1{margin:0;font-size:1.4rem}
-.sub{margin:0 0 1.25rem;color:var(--muted);font-size:.9rem}
+h2{margin:1.5rem 0 .3rem;font-size:1.15rem;font-weight:600}
+.note{margin:0 0 1rem;color:var(--muted);font-size:.85rem}
 .status{display:flex;align-items:center;gap:.6rem;font-size:1.15rem;font-weight:600;padding:.9rem 1.1rem;border-radius:10px;margin:0 0 1rem}
 .status::before{content:"";width:.7rem;height:.7rem;border-radius:50%;background:currentColor;flex:none}
 .status.available{color:var(--ok);background:var(--okbg)}
@@ -129,7 +130,8 @@ footer{max-width:32rem;margin:1rem auto 0;color:var(--muted);font-size:.8rem;tex
 <main>
 <div class="head"><h1>Availability</h1></div>
 <div class="status ` + statusCls + `">` + html.EscapeString(phrase) + `</div>
-<p class="sub">Scheduled absences. “Business Trip” = travelling for work, usually reachable.</p>
+<h2>Scheduled absences</h2>
+<p class="note">“Business Trip” = travelling for work, usually reachable.</p>
 ` + rows.String() + `
 </main>` + footerHTML(lastUpdated) + `
 </body>
