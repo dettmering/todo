@@ -91,6 +91,12 @@ func buildAbsencesSharePage(absences []*domain.Absence, status domain.Availabili
 			)
 		}
 		rows.WriteString(`</ul>`)
+		// The legend explains the two badges; it only makes sense next to an
+		// actual list, so the empty state stays legend-free.
+		rows.WriteString(`<dl class="legend">` +
+			`<dt><span class="badge away">Away</span></dt><dd>not working, not reachable</dd>` +
+			`<dt><span class="badge trip">Business Trip</span></dt><dd>travelling for work, usually reachable</dd>` +
+			`</dl>`)
 	}
 
 	return `<!doctype html>
@@ -108,21 +114,21 @@ body{margin:0;padding:2rem 1rem;background:var(--bg);color:var(--fg);font:16px/1
 main{max-width:32rem;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.5rem 1.75rem}
 .head{padding-bottom:1rem;border-bottom:1px solid var(--line);margin-bottom:1.25rem}
 h1{margin:0;font-size:1.4rem}
-h2{margin:1.5rem 0 .3rem;font-size:1.15rem;font-weight:600}
-.note{margin:0 0 1rem;color:var(--muted);font-size:.85rem}
+h2{margin:1.5rem 0 .6rem;font-size:1.15rem;font-weight:600}
 .status{display:flex;align-items:center;gap:.6rem;font-size:1.15rem;font-weight:600;padding:.9rem 1.1rem;border-radius:10px;margin:0 0 1rem}
 .status::before{content:"";width:.7rem;height:.7rem;border-radius:50%;background:currentColor;flex:none}
 .status.available{color:var(--ok);background:var(--okbg)}
 .status.away{color:var(--away);background:var(--awaybg)}
 .status.trip{color:var(--trip);background:var(--tripbg)}
 .list{list-style:none;margin:0;padding:0}
-.list li{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.7rem 0;border-bottom:1px solid var(--line)}
-.list li:last-child{border-bottom:0}
+.list li{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.45rem 0}
 .range{font-variant-numeric:tabular-nums}
 .badge{flex:none;font-size:.8rem;font-weight:600;padding:.15rem .6rem;border-radius:999px}
 .badge.away{color:var(--away);background:var(--awaybg)}
 .badge.trip{color:var(--trip);background:var(--tripbg)}
 .empty{color:var(--muted)}
+.legend{display:grid;grid-template-columns:auto 1fr;gap:.45rem .7rem;align-items:center;margin:1.1rem 0 0;padding-top:.9rem;border-top:1px solid var(--line);color:var(--muted);font-size:.8rem}
+.legend dt,.legend dd{margin:0}
 footer{max-width:32rem;margin:1rem auto 0;color:var(--muted);font-size:.8rem;text-align:center}
 </style>
 </head>
@@ -131,7 +137,6 @@ footer{max-width:32rem;margin:1rem auto 0;color:var(--muted);font-size:.8rem;tex
 <div class="head"><h1>Availability</h1></div>
 <div class="status ` + statusCls + `">` + html.EscapeString(phrase) + `</div>
 <h2>Scheduled absences</h2>
-<p class="note">“Business Trip” = travelling for work, usually reachable.</p>
 ` + rows.String() + `
 </main>` + footerHTML(lastUpdated) + `
 </body>

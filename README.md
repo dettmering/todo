@@ -563,12 +563,15 @@ Requests), sodass die sensiblen Felder gar nicht erst im Browser landen:
   arbeitsblockierende Abwesenheit ⇒ *away*, nur eine Dienstreise ⇒ *on a
   business trip*, sonst *available*). Der Name wird über `SHARE_NAME` gesetzt;
   ohne diese Variable heißt es „Currently available".
-- Darunter folgt die Zwischenüberschrift **„Scheduled absences"**, direkt
-  darunter der erklärende Hinweis zu Dienstreisen („Business Trip" = travelling
-  for work, usually reachable) und erst dann die Liste: gezeigt wird nur der
-  **Datumsbereich** plus ein grober Status — **„Away"** für alles außer
-  Dienstreisen, **„Business Trip"** für `business_trip` (blockiert keine Arbeit,
-  i. d. R. erreichbar). **Grund und `label` werden nie ausgeliefert.**
+- Darunter folgt die Zwischenüberschrift **„Scheduled absences"** und die Liste:
+  gezeigt wird nur der **Datumsbereich** plus ein grober Status — **„Away"** für
+  alles außer Dienstreisen, **„Business Trip"** für `business_trip` (blockiert
+  keine Arbeit, i. d. R. erreichbar). **Grund und `label` werden nie
+  ausgeliefert.**
+- Unterhalb der Liste steht eine **Legende**, die beide Badges erklärt („Away" =
+  not working, not reachable; „Business Trip" = travelling for work, usually
+  reachable). Sie erscheint nur, wenn es auch Einträge gibt — der Leerzustand
+  bleibt legendenfrei.
 - Nur **gegenwärtige und kommende** Zeiträume (`end_date >= heute`),
   chronologisch sortiert. Vergangene Abwesenheiten erscheinen nicht.
 - Die Fußzeile „Last updated" zeigt das **Datum der letzten

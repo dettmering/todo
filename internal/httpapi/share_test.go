@@ -46,6 +46,31 @@ func TestBuildAbsencesSharePage_BusinessTripIsUnterwegs(t *testing.T) {
 	}
 }
 
+func TestBuildAbsencesSharePage_Legend(t *testing.T) {
+	// The legend sits below the list and explains both badges — but only when
+	// there is a list to explain.
+	a := absence("absence_4", "vacation", "", date(2026, 7, 10), date(2026, 7, 24))
+	out := buildAbsencesSharePage([]*domain.Absence{a}, domain.StatusAvailable, "Till", shareUpdated)
+
+	if !strings.Contains(out, `<dl class="legend">`) {
+		t.Errorf("expected legend in:\n%s", out)
+	}
+	if i, j := strings.Index(out, `<ul class="list">`), strings.Index(out, `<dl class="legend">`); i > j {
+		t.Errorf("legend must come after the list (list at %d, legend at %d)", i, j)
+	}
+	for _, want := range []string{"not working, not reachable", "travelling for work, usually reachable"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing legend text %q in:\n%s", want, out)
+		}
+	}
+
+	// The .legend CSS rule always ships in the <style> block, so look for the
+	// rendered element rather than the bare word.
+	if empty := buildAbsencesSharePage(nil, domain.StatusAvailable, "Till", shareUpdated); strings.Contains(empty, `<dl class="legend">`) {
+		t.Errorf("empty state should carry no legend:\n%s", empty)
+	}
+}
+
 func TestBuildAbsencesSharePage_Empty(t *testing.T) {
 	out := buildAbsencesSharePage(nil, domain.StatusAvailable, "Till", shareUpdated)
 	if !strings.Contains(out, "No scheduled absences") {
