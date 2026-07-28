@@ -771,7 +771,9 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
 }
 .td-title::placeholder { color: var(--text-muted); font-weight: 500; }
 
-.td-description-wrap { margin-left: 34px; margin-top: 4px; }
+/* 25px + 1px Border + 8px Padding der Kinder = 34px, damit der Text exakt
+   unter dem Titel steht (Checkbox 22px + 12px gap). */
+.td-description-wrap { margin-left: 25px; margin-top: 4px; }
 .td-description-rendered {
   font-size: 14px;
   color: var(--text);
@@ -1255,7 +1257,6 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
     max-width: 100%;
   }
   .td-title { font-size: 18px; }
-  .td-description-wrap { margin-left: 30px; }
   .td-sidebar {
     flex: 0 0 auto;
     overflow: visible;
