@@ -274,7 +274,6 @@ body {
   display: block;
 }
 .quick-add-input-wrap input[type="text"] {
-  padding-right: 84px; /* leave room for the embedded button */
   position: relative;
   z-index: 1;
   /* Text rendered by the overlay; we keep the caret visible here. */
@@ -289,7 +288,7 @@ body {
 .qa-overlay {
   position: absolute;
   inset: 0;
-  padding: 4px 84px 4px 0;
+  padding: 4px 0;
   font-size: 14px;
   line-height: inherit;
   font-family: inherit;
@@ -346,26 +345,6 @@ body {
 .qa-project-menu .qa-project-item.active,
 .qa-project-menu .qa-project-item:hover { background: var(--hover); }
 .qa-project-menu .qa-project-empty { padding: 8px 10px; color: var(--text-muted); font-size: 12px; }
-.do-it-btn {
-  position: absolute;
-  right: 6px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  padding: 6px 14px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  cursor: pointer;
-  font-family: inherit;
-  transition: background 0.12s ease;
-}
-.do-it-btn:hover { background: var(--accent-hover); }
-.do-it-btn:active { transform: translateY(calc(-50% + 1px)); }
-.do-it-btn:focus-visible { outline: 2px solid var(--p4); outline-offset: 2px; }
 
 /* ---------- Task list ---------- */
 .task-list { list-style: none; margin: 0; padding: 0; }
