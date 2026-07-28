@@ -124,8 +124,15 @@ body {
   user-select: none;
   line-height: 20px;
   position: relative;
+  /* iOS legt sonst beim Antippen ein dunkelgraues Overlay ueber den Link,
+     bevor die .active-Klasse greift. */
+  -webkit-tap-highlight-color: transparent;
 }
-.nav-item:hover, .project-item:hover { background: var(--hover); }
+/* Nur auf Geraeten mit echtem Zeiger: auf Touch bleibt :hover nach dem Tap
+   haengen und mischt sich als Grau unter die Akzentflaeche. */
+@media (hover: hover) {
+  .nav-item:hover, .project-item:hover { background: var(--hover); }
+}
 .nav-item.active, .project-item.active {
   background: var(--accent-soft);
 }

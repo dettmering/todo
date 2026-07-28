@@ -214,6 +214,10 @@ function viewToPath(view) {
 // when canonicalising the URL on first load so the back button still works.
 function pushView(view, { replace = false } = {}) {
   state.view = view;
+  // Mark the clicked entry before refresh() awaits the network. Otherwise the
+  // accent only lands once the fetch resolves, and the item sits in its
+  // hover/tap state until then.
+  markActiveNav();
   const path = viewToPath(view);
   if (location.pathname !== path) {
     if (replace) history.replaceState({}, "", path);
@@ -430,6 +434,21 @@ function activeProjects() {
   return state.projects.filter(p => !p.archived);
 }
 
+// Toggles the .active highlight on the sidebar entries to match state.view.
+// Cheap and synchronous on purpose — pushView calls it before the refresh
+// round-trip so the accent appears on the same frame as the click.
+function markActiveNav() {
+  document.querySelectorAll(".sidebar-nav .nav-item").forEach(el => {
+    el.classList.toggle("active", el.dataset.view === state.view.kind);
+  });
+  document.querySelectorAll("#project-list .project-item").forEach(el => {
+    el.classList.toggle(
+      "active",
+      state.view.kind === "project" && el.dataset.projectId === state.view.id,
+    );
+  });
+}
+
 function renderSidebar() {
   const list = document.getElementById("project-list");
   list.innerHTML = "";
@@ -465,10 +484,7 @@ function renderSidebar() {
     }
     list.appendChild(el);
   }
-  // sidebar nav active state
-  document.querySelectorAll(".sidebar-nav .nav-item").forEach(el => {
-    el.classList.toggle("active", el.dataset.view === state.view.kind);
-  });
+  markActiveNav();
 
   // Task edit: include archived ones so existing tasks still resolve their current project.
   const editProjects = [...state.projects].sort((a, b) => Number(a.archived) - Number(b.archived) || a.sort_order - b.sort_order || a.name.localeCompare(b.name));
