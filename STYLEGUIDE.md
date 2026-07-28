@@ -12,6 +12,12 @@ lesbare Vanilla-CSS-Implementierung überträgt.
 > Default-Theme des Referenz-Clients). Erkennbar im HTML an
 > `<html class="theme_moonstone …">`.
 
+> **Bewusste Abweichung von der Referenz:** Struktur, Typografie, Abstände,
+> Prioritäts- und Statusfarben folgen weiterhin Moonstone. Der **Akzent
+> nicht**: statt des Rots (`#dc4c3e`) verwenden wir ein Salbei-Teal, und die
+> Neutralflächen sind ungetönt statt warm. Begründung in 2.2. Wo unten
+> Referenzwerte stehen, ist die Spalte „Unser Wert" maßgeblich.
+
 ---
 
 ## 1. Designsystem-Schichten
@@ -35,28 +41,54 @@ Wenn weitere Themes kommen, kann diese Schicht problemlos um
 
 ### 2.1 Flächen und Hintergründe
 
-| Token (Referenz) | Wert | Verwendung | Unser Mapping |
-| --- | --- | --- | --- |
-| `--product-library-background-base-primary` | `#fff` | Hauptinhaltsbereich | `--main-bg` |
-| `--product-library-background-base-secondary` | `#fcfbf8` | Leicht abgesetzte Flächen | (frei) |
-| `--theme-card-sidebar-color` (Moonstone) | `#fcf9f8` | Sidebar-Hintergrund | `--sidebar-bg` |
-| `--product-library-background-overlay` | `rgba(0,0,0,.4)` | Dialog-Backdrop | `dialog::backdrop` |
-| `--theme-card-sidebar-hover-color` (Moonstone) | `#f2f2f2` | Hover auf Sidebar-Items | `--hover` |
-| `--theme-card-sidebar-selected-color` (Moonstone) | `#fee6e3` | Aktive Auswahl in Sidebar | `--accent-soft` |
+| Token (Referenz) | Referenzwert | Verwendung | Unser Mapping | Unser Wert |
+| --- | --- | --- | --- | --- |
+| `--product-library-background-base-primary` | `#fff` | Hauptinhaltsbereich | `--main-bg` | `#ffffff` |
+| `--product-library-background-base-secondary` | `#fcfbf8` | Leicht abgesetzte Flächen | `--surface` | `#fafafa` |
+| `--theme-card-sidebar-color` (Moonstone) | `#fcf9f8` | Sidebar-Hintergrund | `--sidebar-bg` | `#fafafa` |
+| `--product-library-background-overlay` | `rgba(0,0,0,.4)` | Dialog-Backdrop | `dialog::backdrop` | unverändert |
+| `--theme-card-sidebar-hover-color` (Moonstone) | `#f2f2f2` | Hover auf Sidebar-Items | `--hover` | `#f2f2f2` |
+| `--theme-card-sidebar-selected-color` (Moonstone) | `#fee6e3` | Aktive Auswahl in Sidebar | `--accent-soft` | `#e8f5f3` |
+
+Die Referenz tönt ihren Sidebar-Hintergrund warm (`#fcf9f8`, Farbton ~15°).
+Wir nicht: Salbei liegt bei 169°, ein Rosa-Creme stünde ihm damit fast
+komplementär gegenüber und beide Farben wirkten stumpf. **Alle
+Neutralflächen sind ungetönt** — das war bei `--surface`, `--hover`,
+`--border`, `--border-strong` und `--date-sep` ohnehin schon so; nur
+`--sidebar-bg` musste nachziehen.
 
 ### 2.2 Akzentfarbe & Brand
 
-Der Referenz-Client hat **rot** (`#dc4c3e`) als Akzent. Diese Farbe wird sehr
-sparsam eingesetzt: Brand-Logo, primärer Button („Add task"),
-Auswahl-Highlights in der Sidebar (kombiniert mit `#fee6e3`),
-Destructive-Aktion (Löschen).
+Der Referenz-Client hat **rot** (`#dc4c3e`) als Akzent. **Wir nicht** — bei
+uns ist der Akzent ein **Salbei-Teal**. Die Einsatzregel bleibt gleich und
+bleibt sparsam: Brand-Logo, primärer Button, Auswahl-Highlight in der
+Sidebar, Focus-Ring.
 
-| Zweck | Wert |
-| --- | --- |
-| Brand / Akzent | `#dc4c3e` (`--accent`) |
-| Akzent-Hover | `#b03d32` |
-| Akzent weich (Background bei Auswahl) | `#fee6e3` (`--accent-soft`) |
-| Destructive (Löschen-Button-Border) | `#dc4c3e` |
+| Zweck | Unser Wert | Dark Mode | Referenz |
+| --- | --- | --- | --- |
+| Brand / Akzent | `#2f7d6e` (`--accent`) | `#429485` | `#dc4c3e` |
+| Akzent-Hover | `#27675a` (`--accent-hover`) | `#377c6e` | `#b03d32` |
+| Akzent weich (Auswahl) | `#e8f5f3` (`--accent-soft`) | `#1d2d2a` | `#fee6e3` |
+| Destructive (Löschen) | `--p1` `#d1453b` | `#e05549` | `#dc4c3e` |
+
+**Warum der Akzent aus dem Warmbereich verbannt ist.** Das warme Spektrum ist
+bei uns dreifach mit Signalfarben belegt: `--p1`/`--overdue` bei 4°, `--p2`
+bei 34°, `--due-tomorrow` und `--deadline-color` bei 34–35°. Das alte Rot
+`#dc4c3e` lag bei 5° und damit **1,3° von P1 entfernt** — Markenfarbe und
+„dringend" waren faktisch dieselbe Farbe. Ein Akzent, der überall auftaucht,
+darf nicht dasselbe signalisieren wie eine Prioritätsmarkierung.
+
+Der Teal-Korridor ist dagegen frei. `#2f7d6e` (169°) hält **32,5°** Abstand
+zum Grün von `--due-today` (136°) und **47,6°** zum Blau von `--p3` /
+`--due-future` (216°). Keine Signalfarbe in Reichweite.
+
+Geprüfte Alternativen und warum sie ausschieden, siehe Gitea-Issue zur
+Farbumstellung — kurz: Terracotta/Beere/Pflaume blieben zu nah an P1 bzw.
+P2, ein reines Blau wäre mit `--p3` kollidiert.
+
+**Der Akzent trägt keine Destructive-Semantik mehr.** In der Referenz waren
+Brand- und Löschfarbe zufällig identisch (beides Rot); Löschen nutzt bei uns
+`--p1`. Neue destruktive Elemente also nie an `--accent` hängen.
 
 ### 2.3 Text
 
@@ -92,6 +124,12 @@ verschachtelt, aber öffentlich bekannt:
 Diese vier Farben werden in der hohlen Checkbox als Border verwendet,
 mit einem 8 %-igen Tint als Innenfläche (`rgba(... ,0.08)`), damit auch
 P4 deutlich von einer normalen Border unterscheidbar bleibt.
+
+> **Prioritäts- und Statusfarben sind von Akzentwechseln ausgenommen** und
+> bleiben exakt wie hier und in 2.6 dokumentiert. Sie sind Signal, nicht
+> Marke — P1 soll „dringend" heißen, unabhängig davon, welche Akzentfarbe
+> das Produkt gerade trägt. Umgekehrt gilt: **ein neuer Akzent muss um sie
+> herum gewählt werden**, nicht sie um ihn.
 
 ### 2.6 Status-Datumsfarben
 
@@ -167,7 +205,7 @@ Schatten sind in der Referenz extrem zurückhaltend. Verwendet werden:
 │             │  │                                        │  │
 │  Sidebar    │  │  Quick-Add (Card, focus-ring akzent)   │  │
 │  280 px     │  │                                        │  │
-│  (warm bg)  │  │  Group Header                          │  │
+│ (neutral bg)│  │  Group Header                          │  │
 │             │  │  Task / Task / Task                    │  │
 │             │  │  Group Header                          │  │
 │             │  │  Task / Task                           │  │
@@ -190,7 +228,7 @@ Schatten sind in der Referenz extrem zurückhaltend. Verwendet werden:
 
 * Höhe pro Item ≈ `32px` (Padding `6px 8px`, Inhalt `20px` line-height).
 * Layout: `[icon 24×24] [label, flex:1] [count]`.
-* **Idle:** transparent. **Hover:** `#f2f2f2`. **Active:** `#fee6e3` mit Akzentfarbe `#dc4c3e` für Icon und Label.
+* **Idle:** transparent. **Hover:** `#f2f2f2`. **Active:** `#e8f5f3` mit Akzentfarbe `#2f7d6e` für Icon und Label.
 * Icons sind 22 × 22 px Inline-SVGs im Lucide-Stil
   (`stroke-width: 1.8`, `stroke-linecap: round`).
 * Das **„Heute"-Icon** ist ein Kalender-SVG, in dessen Innenrahmen wir
@@ -259,8 +297,8 @@ KW 21   18.05.–24.05.                                         3
 * Form-Layout: vertikaler Flex mit `gap: 12px`, sauberes Padding `20px 24px`.
 * Inputs/Selects haben Focus-Ring in Akzentfarbe statt Browser-Default.
 * Buttons:
-  * **Primary** („Speichern", „Anlegen"): rot gefüllt (`#dc4c3e`),
-    weißer Text, Hover `#c44035`.
+  * **Primary** („Speichern", „Anlegen"): salbei gefüllt (`#2f7d6e`),
+    weißer Text, Hover `#27675a`.
   * **Secondary** („Abbrechen"): weißer Hintergrund, dezenter Border.
   * **Danger** („Löschen"): outline-Style mit P1-Farbe, links
     angeordnet (per `margin-right: auto`).
@@ -345,7 +383,7 @@ Inbox-Indigo der Referenz.
 | --- | --- |
 | **Hover-Reveal**       | Aktions-Icons auf Items werden bei Hover sichtbar, der Platz ist permanent reserviert (`visibility`, kein `display: none`). Verhindert Layout-Sprünge. |
 | **Selected vs Hover**  | Selected überschreibt Hover — selected-Background bleibt, selbst wenn der Cursor das Item verlässt. |
-| **Single primary action** | Pro Dialog/Form genau ein primärer Button (rot). Sekundäres ist outline. |
+| **Single primary action** | Pro Dialog/Form genau ein primärer Button (Akzentfarbe). Sekundäres ist outline. |
 | **Optimistic refresh** | Nach einer Mutation (`createTask`, `completeTask` …) ruft das Frontend `refresh()` — wir verzichten bewusst auf clientseitiges Diffing; es ist schnell genug. Bei größeren Datenmengen würden wir auf optimistische Updates wechseln. |
 | **Toast-freie Errors** | Fehler werden inline im jeweiligen Dialog angezeigt, nicht global. |
 
@@ -374,10 +412,10 @@ Icon-Inventar in `app.js` saubere Andockpunkte.
 
 | Unsere Variable | Wert | Entspricht Referenz-Token |
 | --- | --- | --- |
-| `--sidebar-bg` | `#fcf9f8` | `--theme-card-sidebar-color` (Moonstone) |
+| `--sidebar-bg` | `#fafafa` | `--theme-card-sidebar-color` (Moonstone), Tint entfernt |
 | `--main-bg` | `#ffffff` | `--product-library-background-base-primary` |
-| `--accent` | `#dc4c3e` | `--product-library-actionable-destructive-idle-fill` |
-| `--accent-soft` | `#fee6e3` | `--theme-card-sidebar-selected-color` (Moonstone) |
+| `--accent` | `#2f7d6e` | **eigene Wahl** — Referenz nutzt hier Rot |
+| `--accent-soft` | `#e8f5f3` | **eigene Wahl** — Referenz nutzt hier ein Rosa |
 | `--text` | `#202020` | `--product-library-display-primary-idle-tint` |
 | `--text-secondary` | `#4d4d4d` | `--theme-card-content-color` (Moonstone) |
 | `--text-muted` | `#666` | `--product-library-display-secondary-idle-tint` |

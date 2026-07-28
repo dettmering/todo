@@ -1,11 +1,16 @@
-/* "Moonstone" inspired palette (see STYLEGUIDE.md) */
+/* Salbei-Akzent auf neutralen Graustufen (siehe STYLEGUIDE.md).
+   Der Akzent liegt bewusst im Teal-Korridor: >=30 Grad Abstand sowohl zum
+   Gruen von --due-today als auch zum Blau von --p3/--due-future, damit die
+   Markenfarbe mit keiner Signalfarbe verwechselbar ist. Die Neutraltoene
+   sind ungetoent - ein warmer Stich stuende dem Salbei komplementaer
+   gegenueber und wirkte schlammig. */
 :root {
-  --sidebar-bg: #fcf9f8;
+  --sidebar-bg: #fafafa;
   --sidebar-text: #202020;
   --sidebar-muted: #666666;
-  --accent: #dc4c3e;
-  --accent-hover: #c44035;
-  --accent-soft: #fee6e3;
+  --accent: #2f7d6e;
+  --accent-hover: #27675a;
+  --accent-soft: #e8f5f3;
   --main-bg: #ffffff;
   --surface: #fafafa;
   --text: #202020;
@@ -38,9 +43,9 @@
     --sidebar-bg: #1e1e1e;
     --sidebar-text: #e8e8e8;
     --sidebar-muted: #888888;
-    --accent: #e05549;
-    --accent-hover: #c94a3f;
-    --accent-soft: #3d2120;
+    --accent: #429485;
+    --accent-hover: #377c6e;
+    --accent-soft: #1d2d2a;
     --main-bg: #1a1a1a;
     --surface: #252525;
     --text: #e8e8e8;
