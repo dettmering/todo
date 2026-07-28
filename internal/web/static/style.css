@@ -1166,6 +1166,12 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
 .activity-diff-sep { margin: 0 4px; }
 .activity-diff-new { color: var(--text-secondary); }
 
+/* Tablet hochkant (iPad Air ~820px, iPad Pro ~1024px): Desktop-Grid bleibt,
+   aber die Sidebar-Spalte ist ~1cm schmaler als am Desktop. */
+@media (min-width: 721px) and (max-width: 1024px) {
+  .app { grid-template-columns: 242px 1fr; }
+}
+
 @media (max-width: 720px) {
   /* ---------- Layout ---------- */
   .app { grid-template-columns: 1fr; }
@@ -1196,7 +1202,7 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
     top: 0;
     left: 0;
     bottom: 0;
-    width: 280px;
+    width: 242px; /* ~1cm schmaler als die Desktop-Sidebar (280px) */
     max-width: 85vw;
     transform: translateX(-100%);
     transition: transform 0.22s ease;
