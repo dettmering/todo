@@ -111,11 +111,40 @@ func TestBuildAbsencesICS_OutlookFields(t *testing.T) {
 		"CREATED:20260601T083000Z\r\n",
 		"LAST-MODIFIED:20260602T090000Z\r\n",
 		"X-MICROSOFT-CDO-ALLDAYEVENT:TRUE\r\n",
-		"X-MICROSOFT-CDO-BUSYSTATUS:FREE\r\n",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing Outlook-compat field %q in:\n%s", want, out)
 		}
+	}
+}
+
+func TestBuildAbsencesICS_BusyStatusPerType(t *testing.T) {
+	cases := []struct {
+		typ    string
+		transp string
+		busy   string
+	}{
+		{"vacation", "OPAQUE", "OOF"},
+		{"holiday", "OPAQUE", "OOF"},
+		{"sick", "OPAQUE", "OOF"},
+		{"other", "OPAQUE", "OOF"},
+		// Only a business trip leaves the user schedulable.
+		{"business_trip", "TRANSPARENT", "WORKINGELSEWHERE"},
+	}
+	for _, c := range cases {
+		t.Run(c.typ, func(t *testing.T) {
+			a := absence("absence_1", c.typ, "", date(2026, 1, 1), date(2026, 1, 2))
+			out := buildAbsencesICS([]*domain.Absence{a}, stamp)
+
+			for _, want := range []string{
+				"TRANSP:" + c.transp + "\r\n",
+				"X-MICROSOFT-CDO-BUSYSTATUS:" + c.busy + "\r\n",
+			} {
+				if !strings.Contains(out, want) {
+					t.Errorf("missing %q in:\n%s", want, out)
+				}
+			}
+		})
 	}
 }
 

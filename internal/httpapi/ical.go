@@ -23,6 +23,30 @@ var absenceSummaryPrefix = map[domain.AbsenceType]string{
 	domain.AbsenceOther:        "Abwesend",
 }
 
+// absenceBusyStatus maps an absence type to the Outlook-specific
+// X-MICROSOFT-CDO-BUSYSTATUS value. Everything reads as "out of office"
+// (purple hatching in Outlook, Teams flips to "not in the office"); only a
+// business trip is WORKINGELSEWHERE, mirroring domain.Absence.BlocksWork —
+// it's the one type where work still happens. Types not listed default to OOF.
+var absenceBusyStatus = map[domain.AbsenceType]string{
+	domain.AbsenceBusinessTrip: "WORKINGELSEWHERE",
+}
+
+// absenceBusyFields returns the free/busy pair for an absence: the RFC 5545
+// TRANSP value every client understands, plus its Outlook counterpart.
+func absenceBusyFields(a *domain.Absence) (transp, busyStatus string) {
+	busyStatus = absenceBusyStatus[a.Type]
+	if busyStatus == "" {
+		busyStatus = "OOF"
+	}
+	// A business trip shouldn't block meeting scheduling — the user is
+	// reachable, just elsewhere. Real absences do block.
+	if a.Type == domain.AbsenceBusinessTrip {
+		return "TRANSPARENT", busyStatus
+	}
+	return "OPAQUE", busyStatus
+}
+
 // handleAbsencesICS serves the absences as a subscribable iCalendar feed.
 //
 // This route is meant to be exempted from the reverse-proxy BasicAuth (calendar
@@ -77,13 +101,14 @@ func buildAbsencesICS(absences []*domain.Absence, now time.Time) string {
 		writeICSLine(&b, "DTEND;VALUE=DATE:"+icalDate(a.End.AddDays(1)))
 		writeICSLine(&b, "SUMMARY:"+escapeICSText(absenceSummary(a)))
 		writeICSLine(&b, "CATEGORIES:"+escapeICSText(strings.ToUpper(string(a.Type))))
-		// Absences shouldn't mark the user busy for meeting-scheduling purposes.
-		// The X-MICROSOFT-CDO-* pair is the Outlook-specific equivalent: without
-		// the ALLDAYEVENT flag Outlook renders VALUE=DATE events unreliably and
-		// drops some; BUSYSTATUS:FREE mirrors TRANSP:TRANSPARENT.
-		writeICSLine(&b, "TRANSP:TRANSPARENT")
+		// Free/busy signalling: TRANSP is the portable field, the
+		// X-MICROSOFT-CDO-* pair the Outlook-specific equivalent. Without the
+		// ALLDAYEVENT flag Outlook renders VALUE=DATE events unreliably and
+		// drops some.
+		transp, busyStatus := absenceBusyFields(a)
+		writeICSLine(&b, "TRANSP:"+transp)
 		writeICSLine(&b, "X-MICROSOFT-CDO-ALLDAYEVENT:TRUE")
-		writeICSLine(&b, "X-MICROSOFT-CDO-BUSYSTATUS:FREE")
+		writeICSLine(&b, "X-MICROSOFT-CDO-BUSYSTATUS:"+busyStatus)
 		writeICSLine(&b, "END:VEVENT")
 	}
 	writeICSLine(&b, "END:VCALENDAR")

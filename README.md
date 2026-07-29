@@ -537,13 +537,23 @@ Hinweise zur Erzeugung:
 - `SUMMARY` ist deutsch nach Typ (`Urlaub`, `Feiertag`, `Dienstreise`, `Krank`,
   sonst `Abwesend`), optional mit `: <label>`.
 - `UID` ist stabil (`<id>@todo`), sodass erneutes Abrufen Events aktualisiert
-  statt zu duplizieren. `TRANSP:TRANSPARENT` markiert den Nutzer nicht als
-  „belegt".
-- Für Outlook werden zusätzlich `X-MICROSOFT-CDO-ALLDAYEVENT:TRUE` und
-  `X-MICROSOFT-CDO-BUSYSTATUS:FREE` je Event gesetzt (sonst rendert Outlook
-  `VALUE=DATE`-Events unzuverlässig und lässt einzelne aus), dazu `SEQUENCE`,
-  `CREATED`/`LAST-MODIFIED` sowie `X-PUBLISHED-TTL:PT12H` als Refresh-Hinweis.
-  Andere Clients (Google, Apple) ignorieren die `X-`-Felder.
+  statt zu duplizieren.
+- **Frei/Belegt-Status hängt am Typ.** `TRANSP` ist das portable Feld,
+  `X-MICROSOFT-CDO-BUSYSTATUS` das Outlook-Pendant (`OOF` = Out of Office,
+  lila schraffiert, Teams-Status springt auf „nicht im Büro"):
+
+  | Typ | `TRANSP` | `X-MICROSOFT-CDO-BUSYSTATUS` |
+  | --- | --- | --- |
+  | `vacation`, `holiday`, `sick`, `other` | `OPAQUE` | `OOF` |
+  | `business_trip` | `TRANSPARENT` | `WORKINGELSEWHERE` |
+
+  Nur die Dienstreise bleibt terminierbar — analog zu `Absence.BlocksWork()`,
+  dem einzigen Typ, an dem trotzdem gearbeitet wird.
+- Für Outlook wird zusätzlich `X-MICROSOFT-CDO-ALLDAYEVENT:TRUE` je Event
+  gesetzt (sonst rendert Outlook `VALUE=DATE`-Events unzuverlässig und lässt
+  einzelne aus), dazu `SEQUENCE`, `CREATED`/`LAST-MODIFIED` sowie
+  `X-PUBLISHED-TTL:PT12H` als Refresh-Hinweis. Andere Clients (Google, Apple)
+  ignorieren die `X-`-Felder.
 
 Hinter einem Reverse-Proxy mit Auth (z. B. Traefik BasicAuth) müssen die Pfade
 `/api/absences.ics` **und** `/api/absences.html` von der Auth ausgenommen
