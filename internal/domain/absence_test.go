@@ -74,6 +74,47 @@ func TestLocalDateAddDaysAndWeekend(t *testing.T) {
 	}
 }
 
+func TestReturnDate(t *testing.T) {
+	// Vacation Mon–Fri 2026-06-15..19, so work resumes Monday 2026-06-22.
+	vacation := &Absence{Type: AbsenceVacation, Start: mustDate(t, "2026-06-15"), End: mustDate(t, "2026-06-19")}
+	trip := &Absence{Type: AbsenceBusinessTrip, Start: mustDate(t, "2026-06-15"), End: mustDate(t, "2026-06-19")}
+	sick := &Absence{Type: AbsenceSick, Start: mustDate(t, "2026-06-17"), End: mustDate(t, "2026-06-17")}
+
+	cases := []struct {
+		name     string
+		absences []*Absence
+		today    string
+		want     string // "" = zero date, i.e. nothing to announce
+	}{
+		{"available", []*Absence{vacation}, "2026-06-10", ""},
+		{"no absences at all", nil, "2026-06-10", ""},
+		{"business trip stays reachable", []*Absence{trip}, "2026-06-17", ""},
+		{"mid-vacation", []*Absence{vacation}, "2026-06-17", "2026-06-22"},
+		{"first day of vacation", []*Absence{vacation}, "2026-06-15", "2026-06-22"},
+		{"last day of vacation", []*Absence{vacation}, "2026-06-19", "2026-06-22"},
+		{"single sick day", []*Absence{sick}, "2026-06-17", "2026-06-18"},
+		// A blocking absence wins over a concurrent trip, and the trip days it
+		// covers still count as workdays afterwards.
+		{"sick during a trip", []*Absence{trip, sick}, "2026-06-17", "2026-06-18"},
+		// Absence ending on a Friday pushes the return past the weekend.
+		{"ends friday", []*Absence{{Type: AbsenceVacation, Start: mustDate(t, "2026-06-08"), End: mustDate(t, "2026-06-12")}}, "2026-06-12", "2026-06-15"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := ReturnDate(c.absences, mustDate(t, c.today))
+			if c.want == "" {
+				if !got.IsZero() {
+					t.Errorf("ReturnDate = %s, want zero date", got.String())
+				}
+				return
+			}
+			if got.String() != c.want {
+				t.Errorf("ReturnDate = %s, want %s", got.String(), c.want)
+			}
+		})
+	}
+}
+
 func TestNextWorkday(t *testing.T) {
 	vacation := Absence{Type: AbsenceVacation, Start: mustDate(t, "2026-06-15"), End: mustDate(t, "2026-06-19")}
 	trip := Absence{Type: AbsenceBusinessTrip, Start: mustDate(t, "2026-06-15"), End: mustDate(t, "2026-06-19")}

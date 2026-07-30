@@ -91,6 +91,22 @@ func CurrentAvailability(absences []*Absence, today LocalDate) AvailabilityStatu
 	return StatusAvailable
 }
 
+// ReturnDate reports when work resumes: the next workday after `today` (see
+// NextWorkday). It only answers while a work-blocking absence actually covers
+// today — someone who is available, or merely on a business trip (work goes on),
+// has no return date to announce, and the zero LocalDate is returned instead.
+// Used for the "Back on …" line of the public share page.
+func ReturnDate(absences []*Absence, today LocalDate) LocalDate {
+	if CurrentAvailability(absences, today) != StatusAway {
+		return LocalDate{}
+	}
+	vals := make([]Absence, 0, len(absences))
+	for _, a := range absences {
+		vals = append(vals, *a)
+	}
+	return NextWorkday(today, vals)
+}
+
 // LatestUpdate returns the most recent UpdatedAt across the given absences, i.e.
 // when the absence data was last touched. The bool is false when there are no
 // absences (or none carry a timestamp), so callers can omit a "last updated"

@@ -573,6 +573,12 @@ Requests), sodass die sensiblen Felder gar nicht erst im Browser landen:
   arbeitsblockierende Abwesenheit ⇒ *away*, nur eine Dienstreise ⇒ *on a
   business trip*, sonst *available*). Der Name wird über `SHARE_NAME` gesetzt;
   ohne diese Variable heißt es „Currently available".
+- Direkt darunter steht — **nur im Status *away*** — die Zeile **„Back on
+  &lt;Wochentag, Datum&gt;"**, z. B. „Back on **Monday, 3 August 2026**". Das ist
+  der nächste Arbeitstag nach heute: Wochenenden und weitere blockierende
+  Abwesenheiten werden übersprungen, Dienstreisetage zählen als Arbeitstage
+  (gleiche Regel wie `GET /api/next-workday`). Bei *available* und *on a
+  business trip* entfällt die Zeile — da ist nichts anzukündigen.
 - Darunter folgt die Zwischenüberschrift **„Scheduled absences"** und die Liste:
   gezeigt wird nur der **Datumsbereich** plus ein grober Status — **„Away"** für
   alles außer Dienstreisen, **„Business Trip"** für `business_trip` (blockiert

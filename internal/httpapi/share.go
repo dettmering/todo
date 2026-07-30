@@ -32,6 +32,8 @@ func (h *Handler) handleAbsencesShare(w http.ResponseWriter, r *http.Request) {
 	today := domain.DateOf(time.Now())
 	upcoming := domain.UpcomingAbsences(all, today)
 	status := domain.CurrentAvailability(all, today)
+	// Zero while reachable — the page then omits the "Back on" line entirely.
+	backOn := domain.ReturnDate(all, today)
 	// "Last updated" reflects the actual last change to the absence data, not the
 	// request time. Rendered in the server's local zone (TZ, e.g. Europe/Berlin);
 	// stored timestamps are UTC.
@@ -41,7 +43,7 @@ func (h *Handler) handleAbsencesShare(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	_, _ = io.WriteString(w, buildAbsencesSharePage(upcoming, status, h.shareName, lastUpdated))
+	_, _ = io.WriteString(w, buildAbsencesSharePage(upcoming, status, h.shareName, backOn, lastUpdated))
 }
 
 // availabilityPhrase builds the prominent current-status sentence, e.g.
@@ -63,15 +65,17 @@ func availabilityPhrase(status domain.AvailabilityStatus, name string) (text, cl
 
 // buildAbsencesSharePage renders the anonymized absences as a self-contained
 // HTML document (inline CSS, no external requests, light/dark aware). `status`
-// drives the prominent current-availability banner, `name` personalizes it, and
-// `lastUpdated` (already in the target zone) fills the "Last updated" footer —
-// a zero value omits it (all parameters so tests stay deterministic).
+// drives the prominent current-availability banner, `name` personalizes it,
+// `backOn` adds the "Back on …" line below it (zero = omit, see
+// domain.ReturnDate), and `lastUpdated` (already in the target zone) fills the
+// "Last updated" footer — a zero value omits it too (all parameters so tests
+// stay deterministic).
 //
 // Anonymization happens here: only the date range and a two-state status are
 // emitted. Business trips (which don't block work — see Absence.BlocksWork)
 // render as "Business Trip"; everything else as "Away". Labels and exact types
 // are never written to the output.
-func buildAbsencesSharePage(absences []*domain.Absence, status domain.AvailabilityStatus, name string, lastUpdated time.Time) string {
+func buildAbsencesSharePage(absences []*domain.Absence, status domain.AvailabilityStatus, name string, backOn domain.LocalDate, lastUpdated time.Time) string {
 	phrase, statusCls := availabilityPhrase(status, name)
 
 	var rows strings.Builder
@@ -115,7 +119,9 @@ main{max-width:32rem;margin:0 auto;background:var(--card);border:1px solid var(-
 .head{padding-bottom:1rem;border-bottom:1px solid var(--line);margin-bottom:1.25rem}
 h1{margin:0;font-size:1.4rem}
 h2{margin:1.5rem 0 .6rem;font-size:1.15rem;font-weight:600}
-.status{display:flex;align-items:center;gap:.6rem;font-size:1.15rem;font-weight:600;padding:.9rem 1.1rem;border-radius:10px;margin:0 0 1rem}
+.status{display:flex;align-items:center;gap:.6rem;font-size:1.15rem;font-weight:600;padding:.9rem 1.1rem;border-radius:10px;margin:0 0 .75rem}
+.back{margin:0 0 1rem;padding:0 .15rem;color:var(--muted);font-size:.95rem}
+.back strong{color:var(--fg);font-weight:600;font-variant-numeric:tabular-nums}
 .status::before{content:"";width:.7rem;height:.7rem;border-radius:50%;background:currentColor;flex:none}
 .status.available{color:var(--ok);background:var(--okbg)}
 .status.away{color:var(--away);background:var(--awaybg)}
@@ -135,13 +141,24 @@ footer{max-width:32rem;margin:1rem auto 0;color:var(--muted);font-size:.8rem;tex
 <body>
 <main>
 <div class="head"><h1>Availability</h1></div>
-<div class="status ` + statusCls + `">` + html.EscapeString(phrase) + `</div>
+<div class="status ` + statusCls + `">` + html.EscapeString(phrase) + `</div>` + backOnHTML(backOn) + `
 <h2>Scheduled absences</h2>
 ` + rows.String() + `
 </main>` + footerHTML(lastUpdated) + `
 </body>
 </html>
 `
+}
+
+// backOnHTML renders the "Back on <weekday, date>" line shown under the status
+// banner while the user is away. A zero date (they're reachable — see
+// domain.ReturnDate) renders nothing.
+func backOnHTML(backOn domain.LocalDate) string {
+	if backOn.IsZero() {
+		return ""
+	}
+	return "\n<p class=\"back\">Back on <strong>" +
+		html.EscapeString(formatWeekdayDate(backOn)) + "</strong></p>"
 }
 
 // footerHTML renders the "Last updated" footer, or nothing when no timestamp is
@@ -162,6 +179,14 @@ var englishMonths = [...]string{
 // "2 March 2026" (no time-of-day).
 func formatTimestampDate(t time.Time) string {
 	return fmt.Sprintf("%d %s %d", t.Day(), englishMonths[t.Month()], t.Year())
+}
+
+// formatWeekdayDate renders a single date with its weekday — "Monday, 3 August
+// 2026". The weekday is what makes a return date readable at a glance ("ah,
+// Monday") without counting days on a calendar.
+func formatWeekdayDate(d domain.LocalDate) string {
+	return fmt.Sprintf("%s, %d %s %d",
+		d.Weekday().String(), d.Day, englishMonths[d.Month], d.Year)
 }
 
 // formatRange renders an inclusive date range for humans. A single day collapses

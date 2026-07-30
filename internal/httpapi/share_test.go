@@ -18,7 +18,7 @@ func TestBuildAbsencesSharePage_Anonymized(t *testing.T) {
 	// A vacation with a label must render only the range + "abwesend": neither
 	// the label ("Kreta") nor the type ("vacation"/"Urlaub") may leak.
 	a := absence("absence_1", "vacation", "Kreta", date(2026, 7, 10), date(2026, 7, 24))
-	out := buildAbsencesSharePage([]*domain.Absence{a}, domain.StatusAvailable, "Till", shareUpdated)
+	out := buildAbsencesSharePage([]*domain.Absence{a}, domain.StatusAvailable, "Till", domain.LocalDate{}, shareUpdated)
 
 	if !strings.Contains(out, "Away") {
 		t.Errorf("expected status 'Away' in:\n%s", out)
@@ -33,7 +33,7 @@ func TestBuildAbsencesSharePage_Anonymized(t *testing.T) {
 func TestBuildAbsencesSharePage_BusinessTripIsUnterwegs(t *testing.T) {
 	trip := absence("absence_2", "business_trip", "Berlin", date(2026, 8, 3), date(2026, 8, 5))
 	vac := absence("absence_3", "sick", "", date(2026, 8, 10), date(2026, 8, 12))
-	out := buildAbsencesSharePage([]*domain.Absence{trip, vac}, domain.StatusAvailable, "Till", shareUpdated)
+	out := buildAbsencesSharePage([]*domain.Absence{trip, vac}, domain.StatusAvailable, "Till", domain.LocalDate{}, shareUpdated)
 
 	if !strings.Contains(out, "Business Trip") {
 		t.Errorf("business trip should render as 'Business Trip' in:\n%s", out)
@@ -50,7 +50,7 @@ func TestBuildAbsencesSharePage_Legend(t *testing.T) {
 	// The legend sits below the list and explains both badges — but only when
 	// there is a list to explain.
 	a := absence("absence_4", "vacation", "", date(2026, 7, 10), date(2026, 7, 24))
-	out := buildAbsencesSharePage([]*domain.Absence{a}, domain.StatusAvailable, "Till", shareUpdated)
+	out := buildAbsencesSharePage([]*domain.Absence{a}, domain.StatusAvailable, "Till", domain.LocalDate{}, shareUpdated)
 
 	if !strings.Contains(out, `<dl class="legend">`) {
 		t.Errorf("expected legend in:\n%s", out)
@@ -66,13 +66,13 @@ func TestBuildAbsencesSharePage_Legend(t *testing.T) {
 
 	// The .legend CSS rule always ships in the <style> block, so look for the
 	// rendered element rather than the bare word.
-	if empty := buildAbsencesSharePage(nil, domain.StatusAvailable, "Till", shareUpdated); strings.Contains(empty, `<dl class="legend">`) {
+	if empty := buildAbsencesSharePage(nil, domain.StatusAvailable, "Till", domain.LocalDate{}, shareUpdated); strings.Contains(empty, `<dl class="legend">`) {
 		t.Errorf("empty state should carry no legend:\n%s", empty)
 	}
 }
 
 func TestBuildAbsencesSharePage_Empty(t *testing.T) {
-	out := buildAbsencesSharePage(nil, domain.StatusAvailable, "Till", shareUpdated)
+	out := buildAbsencesSharePage(nil, domain.StatusAvailable, "Till", domain.LocalDate{}, shareUpdated)
 	if !strings.Contains(out, "No scheduled absences") {
 		t.Errorf("expected empty-state message in:\n%s", out)
 	}
@@ -86,7 +86,7 @@ func TestBuildAbsencesSharePage_Empty(t *testing.T) {
 
 func TestBuildAbsencesSharePage_NoTimestampOmitsFooter(t *testing.T) {
 	// Zero lastUpdated (e.g. no absences recorded yet) => no "Last updated" footer.
-	out := buildAbsencesSharePage(nil, domain.StatusAvailable, "Till", time.Time{})
+	out := buildAbsencesSharePage(nil, domain.StatusAvailable, "Till", domain.LocalDate{}, time.Time{})
 	if strings.Contains(out, "Last updated") {
 		t.Errorf("expected no footer for zero timestamp in:\n%s", out)
 	}
@@ -106,9 +106,52 @@ func TestBuildAbsencesSharePage_StatusLine(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			out := buildAbsencesSharePage(nil, c.status, c.person, shareUpdated)
+			out := buildAbsencesSharePage(nil, c.status, c.person, domain.LocalDate{}, shareUpdated)
 			if !strings.Contains(out, c.want) {
 				t.Errorf("missing status line %q in:\n%s", c.want, out)
+			}
+		})
+	}
+}
+
+func TestBuildAbsencesSharePage_BackOn(t *testing.T) {
+	// The return date sits between the status banner and the absence list.
+	out := buildAbsencesSharePage(nil, domain.StatusAway, "Till", date(2026, 8, 3), shareUpdated)
+
+	if !strings.Contains(out, "Back on <strong>Monday, 3 August 2026</strong>") {
+		t.Errorf("missing 'Back on' line in:\n%s", out)
+	}
+	i, j := strings.Index(out, `class="status`), strings.Index(out, `<h2>`)
+	if k := strings.Index(out, `class="back"`); k < i || k > j {
+		t.Errorf("'Back on' line must sit between status (%d) and heading (%d), got %d", i, j, k)
+	}
+}
+
+func TestBuildAbsencesSharePage_BackOnOmittedWhenZero(t *testing.T) {
+	// Available or on a business trip => domain.ReturnDate yields a zero date and
+	// the line disappears rather than rendering an empty or bogus date.
+	for _, status := range []domain.AvailabilityStatus{domain.StatusAvailable, domain.StatusBusinessTrip} {
+		out := buildAbsencesSharePage(nil, status, "Till", domain.LocalDate{}, shareUpdated)
+		if strings.Contains(out, "Back on") {
+			t.Errorf("status %v should carry no 'Back on' line:\n%s", status, out)
+		}
+	}
+}
+
+func TestFormatWeekdayDate(t *testing.T) {
+	cases := []struct {
+		name string
+		in   domain.LocalDate
+		want string
+	}{
+		{"monday", date(2026, 8, 3), "Monday, 3 August 2026"},
+		{"first of month", date(2026, 3, 1), "Sunday, 1 March 2026"},
+		{"year end", date(2026, 12, 31), "Thursday, 31 December 2026"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := formatWeekdayDate(c.in); got != c.want {
+				t.Errorf("formatWeekdayDate = %q, want %q", got, c.want)
 			}
 		})
 	}

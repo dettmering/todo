@@ -66,9 +66,14 @@ func (d LocalDate) AddDays(n int) LocalDate {
 	return DateOf(t)
 }
 
+// Weekday reports which day of the week d falls on.
+func (d LocalDate) Weekday() time.Weekday {
+	return time.Date(d.Year, d.Month, d.Day, 0, 0, 0, 0, time.UTC).Weekday()
+}
+
 // IsWeekend reports whether d falls on a Saturday or Sunday.
 func (d LocalDate) IsWeekend() bool {
-	wd := time.Date(d.Year, d.Month, d.Day, 0, 0, 0, 0, time.UTC).Weekday()
+	wd := d.Weekday()
 	return wd == time.Saturday || wd == time.Sunday
 }
 
