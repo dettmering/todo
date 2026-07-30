@@ -47,7 +47,7 @@ func (h *Handler) handleAbsencesShare(w http.ResponseWriter, r *http.Request) {
 	// along in the Referer header — and with it access to the page. The document
 	// links nowhere today, but that's one edit away from being untrue.
 	w.Header().Set("Referrer-Policy", "no-referrer")
-	_, _ = io.WriteString(w, buildAbsencesSharePage(upcoming, status, h.shareName, backOn, lastUpdated))
+	_, _ = io.WriteString(w, buildAbsencesSharePage(upcoming, status, h.shareName, today, backOn, lastUpdated))
 }
 
 // availabilityPhrase builds the prominent current-status sentence, e.g.
@@ -70,7 +70,8 @@ func availabilityPhrase(status domain.AvailabilityStatus, name string) (text, cl
 // buildAbsencesSharePage renders the anonymized absences as a self-contained
 // HTML document (inline CSS, no external requests, light/dark aware). `status`
 // drives the prominent current-availability banner, `name` personalizes it,
-// `backOn` adds the "Back on …" line below it (zero = omit, see
+// `today` marks the running absence and dates the "in N days" hints, `backOn`
+// adds the "Back on …" line below the banner (zero = omit, see
 // domain.ReturnDate), and `lastUpdated` (already in the target zone) fills the
 // "Last updated" footer — a zero value omits it too (all parameters so tests
 // stay deterministic).
@@ -79,7 +80,7 @@ func availabilityPhrase(status domain.AvailabilityStatus, name string) (text, cl
 // emitted. Business trips (which don't block work — see Absence.BlocksWork)
 // render as "Business Trip"; everything else as "Away". Labels and exact types
 // are never written to the output.
-func buildAbsencesSharePage(absences []*domain.Absence, status domain.AvailabilityStatus, name string, backOn domain.LocalDate, lastUpdated time.Time) string {
+func buildAbsencesSharePage(absences []*domain.Absence, status domain.AvailabilityStatus, name string, today, backOn domain.LocalDate, lastUpdated time.Time) string {
 	phrase, statusCls := availabilityPhrase(status, name)
 
 	var rows strings.Builder
@@ -92,10 +93,16 @@ func buildAbsencesSharePage(absences []*domain.Absence, status domain.Availabili
 			if !a.BlocksWork() { // business trip
 				status, cls = "Business Trip", "trip"
 			}
+			// Which entry is running right now is otherwise left to the reader to
+			// work out against today's date.
+			now := ""
+			if a.Covers(today) {
+				now = `<span class="now">now</span>`
+			}
 			fmt.Fprintf(&rows,
-				`<li><span class="range">%s</span><span class="badge %s">%s</span></li>`,
+				`<li><span class="range">%s</span>%s<span class="badge %s">%s</span></li>`,
 				html.EscapeString(formatRange(a.Start, a.End)),
-				cls, status,
+				now, cls, status,
 			)
 		}
 		rows.WriteString(`</ul>`)
@@ -131,8 +138,10 @@ h2{margin:1.5rem 0 .6rem;font-size:1.15rem;font-weight:600}
 .status.away{color:var(--away);background:var(--awaybg)}
 .status.trip{color:var(--trip);background:var(--tripbg)}
 .list{list-style:none;margin:0;padding:0}
-.list li{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.45rem 0}
+.list li{display:flex;align-items:center;gap:.55rem;padding:.45rem 0}
+.list li .badge{margin-left:auto}
 .range{font-variant-numeric:tabular-nums}
+.now{flex:none;font-size:.68rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);padding:.05rem .4rem;border-radius:999px}
 .badge{flex:none;font-size:.8rem;font-weight:600;padding:.15rem .6rem;border-radius:999px}
 .badge.away{color:var(--away);background:var(--awaybg)}
 .badge.trip{color:var(--trip);background:var(--tripbg)}
@@ -145,7 +154,7 @@ footer{max-width:32rem;margin:1rem auto 0;color:var(--muted);font-size:.8rem;tex
 <body>
 <main>
 <div class="head"><h1>Availability</h1></div>
-<div class="status ` + statusCls + `">` + html.EscapeString(phrase) + `</div>` + backOnHTML(backOn) + `
+<div class="status ` + statusCls + `">` + html.EscapeString(phrase) + `</div>` + backOnHTML(today, backOn) + `
 <h2>Scheduled absences</h2>
 ` + rows.String() + `
 </main>` + footerHTML(lastUpdated) + `
@@ -154,15 +163,60 @@ footer{max-width:32rem;margin:1rem auto 0;color:var(--muted);font-size:.8rem;tex
 `
 }
 
-// backOnHTML renders the "Back on <weekday, date>" line shown under the status
-// banner while the user is away. A zero date (they're reachable — see
+// backOnHTML renders the "Back in N days on <weekday, date>" line shown under
+// the status banner while the user is away. The distance leads because that's
+// the part the reader is after; the exact date follows so a forwarded screenshot
+// still says something true. A zero date (they're reachable — see
 // domain.ReturnDate) renders nothing.
-func backOnHTML(backOn domain.LocalDate) string {
+func backOnHTML(today, backOn domain.LocalDate) string {
 	if backOn.IsZero() {
 		return ""
 	}
-	return "\n<p class=\"back\">Back on <strong>" +
-		html.EscapeString(formatWeekdayDate(backOn)) + "</strong></p>"
+	days := today.DaysUntil(backOn)
+	if days == 1 {
+		// "tomorrow" is already a complete time adverbial, so English wants an
+		// apposition after it rather than a second preposition — "back tomorrow on
+		// Tuesday" reads like a translation slip. The weekday goes with it: next to
+		// "tomorrow" it carries nothing.
+		return backLine("Back tomorrow, ", formatRange(backOn, backOn))
+	}
+	if rel := relativeDays(days); rel != "" {
+		return backLine("Back "+rel+" on ", formatWeekdayDate(backOn))
+	}
+	return backLine("Back on ", formatWeekdayDate(backOn))
+}
+
+// backLine wraps a finished return sentence, emphasising its date half.
+func backLine(lead, date string) string {
+	return "\n<p class=\"back\">" + html.EscapeString(lead) +
+		"<strong>" + html.EscapeString(date) + "</strong></p>"
+}
+
+// relativeDays turns a distance in days into the phrase that saves the reader
+// from counting on a calendar — the absolute date always stays next to it, so
+// this only ever has to be roughly right, never load-bearing. Every result slots
+// into "Back <phrase> on <date>", so they all read as "in …".
+//
+// Deliberately absent: anything of the "next Monday" family. Whether that means
+// the coming Monday or the one after is genuinely contested between speakers,
+// and the weekday is already spelled out beside it. Non-positive distances
+// return "" — the caller only has future dates, and "in 0 days" helps nobody.
+//
+// "tomorrow" needs a different sentence around it than the "in …" phrases; see
+// backOnHTML, which builds that one itself.
+func relativeDays(days int) string {
+	switch {
+	case days <= 0:
+		return ""
+	case days == 1:
+		return "tomorrow"
+	case days < 7:
+		return fmt.Sprintf("in %d days", days)
+	case days < 14:
+		return "in a week"
+	default:
+		return fmt.Sprintf("in %d weeks", days/7)
+	}
 }
 
 // footerHTML renders the "Last updated" footer, or nothing when no timestamp is

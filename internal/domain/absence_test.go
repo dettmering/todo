@@ -74,6 +74,33 @@ func TestLocalDateAddDaysAndWeekend(t *testing.T) {
 	}
 }
 
+func TestLocalDateDaysUntil(t *testing.T) {
+	cases := []struct {
+		name     string
+		from, to string
+		want     int
+	}{
+		{"same day", "2026-07-07", "2026-07-07", 0},
+		{"next day", "2026-07-07", "2026-07-08", 1},
+		{"backwards", "2026-07-08", "2026-07-07", -1},
+		{"across month", "2026-07-07", "2026-08-03", 27},
+		{"across year", "2026-12-30", "2027-01-02", 3},
+		// March 2026 crosses the European DST switch (29 March); anchoring at UTC
+		// midnight keeps the count at whole days.
+		{"across dst switch", "2026-03-28", "2026-03-30", 2},
+		{"leap day", "2028-02-28", "2028-03-01", 2},
+		{"non-leap february", "2026-02-28", "2026-03-01", 1},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := mustDate(t, c.from).DaysUntil(mustDate(t, c.to))
+			if got != c.want {
+				t.Errorf("%s.DaysUntil(%s) = %d, want %d", c.from, c.to, got, c.want)
+			}
+		})
+	}
+}
+
 func TestReturnDate(t *testing.T) {
 	// Vacation Mon–Fri 2026-06-15..19, so work resumes Monday 2026-06-22.
 	vacation := &Absence{Type: AbsenceVacation, Start: mustDate(t, "2026-06-15"), End: mustDate(t, "2026-06-19")}
@@ -125,9 +152,9 @@ func TestNextWorkday(t *testing.T) {
 		absences []Absence
 		want     string
 	}{
-		{"weekday no absence", "2026-06-10", nil, "2026-06-11"},     // Wed -> Thu
-		{"friday skips weekend", "2026-06-12", nil, "2026-06-15"},   // Fri -> Mon
-		{"vacation whole week", "2026-06-12", []Absence{vacation}, "2026-06-22"}, // Fri -> Mon after vacation week
+		{"weekday no absence", "2026-06-10", nil, "2026-06-11"},                    // Wed -> Thu
+		{"friday skips weekend", "2026-06-12", nil, "2026-06-15"},                  // Fri -> Mon
+		{"vacation whole week", "2026-06-12", []Absence{vacation}, "2026-06-22"},   // Fri -> Mon after vacation week
 		{"business trip not skipped", "2026-06-12", []Absence{trip}, "2026-06-15"}, // Fri -> Mon (trip day allowed)
 	}
 	for _, c := range cases {
@@ -145,13 +172,13 @@ func TestAbsencesForView(t *testing.T) {
 	mk := func(start, end string) *Absence {
 		return &Absence{Start: mustDate(t, start), End: mustDate(t, end)}
 	}
-	lastYear := mk("2025-12-20", "2025-12-31")        // ended last year -> dropped
-	earlyThisYear := mk("2026-01-05", "2026-01-09")   // past, this year -> kept
-	pastThisYear := mk("2026-05-01", "2026-05-05")    // past, this year -> kept
-	current := mk("2026-06-10", "2026-06-15")         // current -> kept
-	upcoming := mk("2026-07-01", "2026-07-10")        // upcoming -> kept
-	nextYear := mk("2027-01-02", "2027-01-09")        // upcoming next year -> kept
-	spanning := mk("2025-12-28", "2026-01-02")        // ends this year -> kept
+	lastYear := mk("2025-12-20", "2025-12-31")      // ended last year -> dropped
+	earlyThisYear := mk("2026-01-05", "2026-01-09") // past, this year -> kept
+	pastThisYear := mk("2026-05-01", "2026-05-05")  // past, this year -> kept
+	current := mk("2026-06-10", "2026-06-15")       // current -> kept
+	upcoming := mk("2026-07-01", "2026-07-10")      // upcoming -> kept
+	nextYear := mk("2027-01-02", "2027-01-09")      // upcoming next year -> kept
+	spanning := mk("2025-12-28", "2026-01-02")      // ends this year -> kept
 
 	in := []*Absence{lastYear, earlyThisYear, pastThisYear, current, upcoming, nextYear, spanning}
 	got := AbsencesForView(in, today)
@@ -221,12 +248,12 @@ func TestUpcomingAbsences(t *testing.T) {
 	mk := func(start, end string) *Absence {
 		return &Absence{Start: mustDate(t, start), End: mustDate(t, end)}
 	}
-	past := mk("2026-05-01", "2026-05-05")     // ended before today -> dropped
+	past := mk("2026-05-01", "2026-05-05")           // ended before today -> dropped
 	endedYesterday := mk("2026-06-01", "2026-06-11") // ended before today -> dropped
-	endsToday := mk("2026-06-05", "2026-06-12")  // End == today -> kept (boundary)
-	current := mk("2026-06-10", "2026-06-20")    // running -> kept
-	soon := mk("2026-06-15", "2026-06-18")       // upcoming -> kept
-	later := mk("2026-08-01", "2026-08-10")      // upcoming -> kept
+	endsToday := mk("2026-06-05", "2026-06-12")      // End == today -> kept (boundary)
+	current := mk("2026-06-10", "2026-06-20")        // running -> kept
+	soon := mk("2026-06-15", "2026-06-18")           // upcoming -> kept
+	later := mk("2026-08-01", "2026-08-10")          // upcoming -> kept
 
 	// Deliberately unsorted input to exercise the Start-ascending sort.
 	in := []*Absence{later, current, past, soon, endsToday, endedYesterday}
@@ -250,12 +277,12 @@ func TestAbsencesInRange(t *testing.T) {
 	// Window = calendar week Mon 2026-06-15 .. Sun 2026-06-21.
 	from, to := mustDate(t, "2026-06-15"), mustDate(t, "2026-06-21")
 
-	before := mk("2026-06-08", "2026-06-12")   // ends before window -> out
-	endsInside := mk("2026-06-12", "2026-06-16") // running into window -> in
-	inside := mk("2026-06-17", "2026-06-18")    // fully inside -> in
-	running := mk("2026-06-10", "2026-06-30")   // spans the whole window -> in
+	before := mk("2026-06-08", "2026-06-12")       // ends before window -> out
+	endsInside := mk("2026-06-12", "2026-06-16")   // running into window -> in
+	inside := mk("2026-06-17", "2026-06-18")       // fully inside -> in
+	running := mk("2026-06-10", "2026-06-30")      // spans the whole window -> in
 	startsInside := mk("2026-06-21", "2026-06-25") // touches last day -> in
-	after := mk("2026-06-22", "2026-06-24")     // starts after window -> out
+	after := mk("2026-06-22", "2026-06-24")        // starts after window -> out
 
 	in := []*Absence{before, endsInside, inside, running, startsInside, after}
 	got := AbsencesInRange(in, from, to)

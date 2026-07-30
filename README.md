@@ -573,17 +573,28 @@ Requests), sodass die sensiblen Felder gar nicht erst im Browser landen:
   arbeitsblockierende Abwesenheit ⇒ *away*, nur eine Dienstreise ⇒ *on a
   business trip*, sonst *available*). Der Name wird über `SHARE_NAME` gesetzt;
   ohne diese Variable heißt es „Currently available".
-- Direkt darunter steht — **nur im Status *away*** — die Zeile **„Back on
-  &lt;Wochentag, Datum&gt;"**, z. B. „Back on **Monday, 3 August 2026**". Das ist
-  der nächste Arbeitstag nach heute: Wochenenden und weitere blockierende
-  Abwesenheiten werden übersprungen, Dienstreisetage zählen als Arbeitstage
-  (gleiche Regel wie `GET /api/next-workday`). Bei *available* und *on a
-  business trip* entfällt die Zeile — da ist nichts anzukündigen.
+- Direkt darunter steht — **nur im Status *away*** — die Zeile **„Back &lt;in N
+  days&gt; on &lt;Wochentag, Datum&gt;"**, z. B. „Back in 4 days on **Monday, 3
+  August 2026**". Das ist der nächste Arbeitstag nach heute: Wochenenden und
+  weitere blockierende Abwesenheiten werden übersprungen, Dienstreisetage zählen
+  als Arbeitstage (gleiche Regel wie `GET /api/next-workday`). Bei *available*
+  und *on a business trip* entfällt die Zeile — da ist nichts anzukündigen.
+- Die **Distanz steht vorn**, weil sie die eigentlich gesuchte Information ist;
+  das exakte Datum folgt, damit ein weitergereichter Screenshot weiterhin etwas
+  Wahres sagt. Staffelung: 2–6 Tage ⇒ „in N days", 7–13 Tage ⇒ „in a week", ab
+  14 Tagen ⇒ „in N weeks" (abgerundet). Bewusst vermieden: „next Monday" —
+  mehrdeutig, und der Wochentag steht ohnehin daneben.
+- **Ein Tag** bekommt einen eigenen Satzbau: „Back tomorrow, **8 July 2026**".
+  „tomorrow" ist ein vollständiges Zeitadverbial und verträgt kein „on" hinter
+  sich; der Wochentag entfällt hier, weil er neben „tomorrow" nichts trägt.
 - Darunter folgt die Zwischenüberschrift **„Scheduled absences"** und die Liste:
   gezeigt wird nur der **Datumsbereich** plus ein grober Status — **„Away"** für
   alles außer Dienstreisen, **„Business Trip"** für `business_trip` (blockiert
   keine Arbeit, i. d. R. erreichbar). **Grund und `label` werden nie
   ausgeliefert.**
+- Der Eintrag, der **heute gerade läuft**, trägt zusätzlich den Marker **„now"**
+  zwischen Zeitraum und Badge. Ohne ihn müsste der Leser jeden Zeitraum gegen
+  das aktuelle Datum abgleichen, um zu sehen, welcher der laufende ist.
 - Unterhalb der Liste steht eine **Legende**, die beide Badges erklärt („Away" =
   not working, not reachable; „Business Trip" = travelling for work, usually
   reachable). Sie erscheint nur, wenn es auch Einträge gibt — der Leerzustand

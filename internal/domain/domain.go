@@ -66,6 +66,16 @@ func (d LocalDate) AddDays(n int) LocalDate {
 	return DateOf(t)
 }
 
+// DaysUntil returns the number of calendar days from d to other — positive when
+// other lies in the future, negative when it's in the past. Both operands are
+// timezone-naive and anchored at UTC midnight here, so no zone shift or DST
+// transition can bend the result.
+func (d LocalDate) DaysUntil(other LocalDate) int {
+	from := time.Date(d.Year, d.Month, d.Day, 0, 0, 0, 0, time.UTC)
+	to := time.Date(other.Year, other.Month, other.Day, 0, 0, 0, 0, time.UTC)
+	return int(to.Sub(from).Hours()) / 24
+}
+
 // Weekday reports which day of the week d falls on.
 func (d LocalDate) Weekday() time.Weekday {
 	return time.Date(d.Year, d.Month, d.Day, 0, 0, 0, 0, time.UTC).Weekday()
