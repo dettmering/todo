@@ -157,7 +157,7 @@ footer{max-width:32rem;margin:1rem auto 0;color:var(--muted);font-size:.8rem;tex
 <div class="status ` + statusCls + `">` + html.EscapeString(phrase) + `</div>` + backOnHTML(today, backOn) + `
 <h2>Scheduled absences</h2>
 ` + rows.String() + `
-</main>` + footerHTML(lastUpdated) + `
+</main>` + footerHTML(today, lastUpdated) + `
 </body>
 </html>
 `
@@ -221,11 +221,46 @@ func relativeDays(days int) string {
 
 // footerHTML renders the "Last updated" footer, or nothing when no timestamp is
 // available (zero time — e.g. no absences recorded yet).
-func footerHTML(lastUpdated time.Time) string {
+//
+// This is the one date on the page that reads better as pure age: the question
+// behind it isn't "when exactly" but "can I still trust this". "2 months ago" is
+// an instant verdict, "30 May 2026" makes the reader subtract. The exact date
+// stays available on hover.
+func footerHTML(today domain.LocalDate, lastUpdated time.Time) string {
 	if lastUpdated.IsZero() {
 		return ""
 	}
-	return "\n<footer>Last updated: " + html.EscapeString(formatTimestampDate(lastUpdated)) + "</footer>"
+	exact := formatTimestampDate(lastUpdated)
+	age := relativeDaysAgo(domain.DateOf(lastUpdated).DaysUntil(today))
+	if age == "" { // clock skew: a timestamp from the future
+		return "\n<footer>Last updated: " + html.EscapeString(exact) + "</footer>"
+	}
+	return "\n<footer title=\"" + html.EscapeString(exact) + "\">Last updated " +
+		html.EscapeString(age) + "</footer>"
+}
+
+// relativeDaysAgo is relativeDays looking backwards, for the "Last updated"
+// footer. It coarsens faster than its forward twin: past a fortnight nobody
+// counts days, they just want to know whether the page is stale, so weeks and
+// then months carry the signal. A negative distance (a timestamp from the
+// future — clock skew) returns "", leaving the caller to print the plain date.
+func relativeDaysAgo(days int) string {
+	switch {
+	case days < 0:
+		return ""
+	case days == 0:
+		return "today"
+	case days == 1:
+		return "yesterday"
+	case days < 7:
+		return fmt.Sprintf("%d days ago", days)
+	case days < 14:
+		return "a week ago"
+	case days < 60:
+		return fmt.Sprintf("%d weeks ago", days/7)
+	default:
+		return fmt.Sprintf("%d months ago", days/30)
+	}
 }
 
 var englishMonths = [...]string{

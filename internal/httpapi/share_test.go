@@ -82,8 +82,9 @@ func TestBuildAbsencesSharePage_Empty(t *testing.T) {
 	if !strings.Contains(out, "No scheduled absences") {
 		t.Errorf("expected empty-state message in:\n%s", out)
 	}
-	if !strings.Contains(out, "Last updated: 7 July 2026") {
-		t.Errorf("expected footer date in:\n%s", out)
+	// shareUpdated and shareToday are the same day, so the footer reads as age.
+	if !strings.Contains(out, `<footer title="7 July 2026">Last updated today</footer>`) {
+		t.Errorf("expected footer in:\n%s", out)
 	}
 	if strings.Contains(out, "12:00") {
 		t.Errorf("footer should not include a time-of-day in:\n%s", out)
@@ -183,6 +184,63 @@ func TestRelativeDays(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRelativeDaysAgo(t *testing.T) {
+	cases := []struct {
+		days int
+		want string
+	}{
+		{-1, ""}, // clock skew — caller falls back to the plain date
+		{0, "today"},
+		{1, "yesterday"},
+		{2, "2 days ago"},
+		{6, "6 days ago"},
+		{7, "a week ago"},
+		{13, "a week ago"},
+		{14, "2 weeks ago"},
+		{59, "8 weeks ago"},
+		{60, "2 months ago"},
+		{365, "12 months ago"},
+	}
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("%d days", c.days), func(t *testing.T) {
+			if got := relativeDaysAgo(c.days); got != c.want {
+				t.Errorf("relativeDaysAgo(%d) = %q, want %q", c.days, got, c.want)
+			}
+		})
+	}
+}
+
+func TestFooterHTML(t *testing.T) {
+	updated := time.Date(2026, 7, 7, 12, 0, 0, 0, time.UTC)
+
+	t.Run("stale page keeps the exact date on hover", func(t *testing.T) {
+		// Rendered two months later: the age is the headline, the date the detail.
+		got := footerHTML(date(2026, 9, 8), updated)
+		if !strings.Contains(got, "Last updated 2 months ago") {
+			t.Errorf("expected age in footer, got:\n%s", got)
+		}
+		if !strings.Contains(got, `title="7 July 2026"`) {
+			t.Errorf("expected exact date as title, got:\n%s", got)
+		}
+	})
+
+	t.Run("no timestamp omits the footer", func(t *testing.T) {
+		if got := footerHTML(shareToday, time.Time{}); got != "" {
+			t.Errorf("expected no footer, got %q", got)
+		}
+	})
+
+	t.Run("future timestamp falls back to the plain date", func(t *testing.T) {
+		got := footerHTML(date(2026, 7, 1), updated)
+		if !strings.Contains(got, "Last updated: 7 July 2026") {
+			t.Errorf("expected plain date fallback, got:\n%s", got)
+		}
+		if strings.Contains(got, "ago") {
+			t.Errorf("must not phrase a future timestamp as an age, got:\n%s", got)
+		}
+	})
 }
 
 func TestRelativeDays_NoAmbiguousWeekdayPhrases(t *testing.T) {

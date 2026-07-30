@@ -601,10 +601,15 @@ Requests), sodass die sensiblen Felder gar nicht erst im Browser landen:
   bleibt legendenfrei.
 - Nur **gegenwärtige und kommende** Zeiträume (`end_date >= heute`),
   chronologisch sortiert. Vergangene Abwesenheiten erscheinen nicht.
-- Die Fußzeile „Last updated" zeigt das **Datum der letzten
-  Abwesenheits-Änderung** (jüngstes `updated_at` aller Abwesenheiten, als Datum
-  in der Server-Zeitzone `TZ`), nicht die Abrufzeit. Ohne Abwesenheiten entfällt
-  sie.
+- Die Fußzeile „Last updated" zeigt das **Alter der letzten
+  Abwesenheits-Änderung** (jüngstes `updated_at` aller Abwesenheiten, gerechnet
+  in der Server-Zeitzone `TZ`), nicht die Abrufzeit: „Last updated today /
+  yesterday / 3 days ago / a week ago / 2 weeks ago / 2 months ago". Hier ist
+  die Frage nicht „wann genau", sondern „ist das noch aktuell" — und „2 months
+  ago" ist dafür ein sofortiges Urteil, ein Datum nicht. Das **exakte Datum
+  hängt als `title`-Attribut** daran (Hover). Ohne Abwesenheiten entfällt die
+  Zeile; bei einem Zeitstempel aus der Zukunft (Uhrenversatz) fällt sie auf die
+  alte Form „Last updated: 7 July 2026" zurück.
 - Schutz identisch zum iCal-Feed: `token`-Query-Parameter muss der
   Umgebungsvariable `SHARE_TOKEN` entsprechen (Vergleich in konstanter Zeit).
   **Ist `SHARE_TOKEN` nicht gesetzt, ist die Seite deaktiviert** (`404`);
