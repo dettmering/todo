@@ -43,6 +43,10 @@ func (h *Handler) handleAbsencesShare(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
+	// The share token sits in the URL, so any outbound navigation would carry it
+	// along in the Referer header — and with it access to the page. The document
+	// links nowhere today, but that's one edit away from being untrue.
+	w.Header().Set("Referrer-Policy", "no-referrer")
 	_, _ = io.WriteString(w, buildAbsencesSharePage(upcoming, status, h.shareName, backOn, lastUpdated))
 }
 
