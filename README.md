@@ -43,7 +43,7 @@ Erweiterungspunkte:
 | --- | --- |
 | `ICAL_TOKEN` | Aktiviert `GET /api/absences.ics` (leer ⇒ Route `404`) |
 | `SHARE_TOKEN` | Aktiviert `GET /api/absences.html` (leer ⇒ Route `404`) |
-| `SHARE_NAME` | Name in der Statuszeile der Share-Seite |
+| `SHARE_NAME` | Name in der Statuszeile der Share-Seite **und** im Kalendernamen des iCal-Feeds |
 | `MCP_TOKEN` | Aktiviert den MCP-Endpunkt `/mcp` (leer ⇒ Route `404`) |
 | `WEBHOOK_URL` | Aktiviert den Webhook-Versand (siehe [Webhooks](#webhooks)) |
 
@@ -538,6 +538,12 @@ Hinweise zur Erzeugung:
   sonst `Abwesend`), optional mit `: <label>`.
 - `UID` ist stabil (`<id>@todo`), sodass erneutes Abrufen Events aktualisiert
   statt zu duplizieren.
+- Jedes Event bekommt `STATUS:CONFIRMED` — Abwesenheiten sind Tatsachen, keine
+  vorläufigen Einladungen. Die meisten Clients nehmen das ohnehin an, einige
+  wollen es ausgeschrieben.
+- **Der Kalendername folgt `SHARE_NAME`**: gesetzt ⇒ `<name>s Abwesenheiten`
+  (z. B. `Tills Abwesenheiten`), sonst generisch `Abwesenheiten`. Dieselbe
+  Variable personalisiert die Statuszeile der Share-Seite.
 - **Frei/Belegt-Status hängt am Typ.** `TRANSP` ist das portable Feld,
   `X-MICROSOFT-CDO-BUSYSTATUS` das Outlook-Pendant (`OOF` = Out of Office,
   lila schraffiert, Teams-Status springt auf „nicht im Büro"):
@@ -551,9 +557,20 @@ Hinweise zur Erzeugung:
   dem einzigen Typ, an dem trotzdem gearbeitet wird.
 - Für Outlook wird zusätzlich `X-MICROSOFT-CDO-ALLDAYEVENT:TRUE` je Event
   gesetzt (sonst rendert Outlook `VALUE=DATE`-Events unzuverlässig und lässt
-  einzelne aus), dazu `SEQUENCE`, `CREATED`/`LAST-MODIFIED` sowie
-  `X-PUBLISHED-TTL:PT12H` als Refresh-Hinweis. Andere Clients (Google, Apple)
-  ignorieren die `X-`-Felder.
+  einzelne aus), dazu `SEQUENCE` und `CREATED`/`LAST-MODIFIED`. Andere Clients
+  (Google, Apple) ignorieren die `X-`-Felder.
+- **Kalender-Metadaten stehen doppelt drin**, weil keine Schreibweise alle
+  Clients erreicht — die vorstandardisierten `X-`-Felder und ihre Nachfolger aus
+  RFC 7986:
+
+  | Zweck | vorstandardisiert | RFC 7986 |
+  | --- | --- | --- |
+  | Kalendername | `X-WR-CALNAME` | `NAME` |
+  | Beschreibung | — | `DESCRIPTION` |
+  | Refresh-Intervall (12 h) | `X-PUBLISHED-TTL` | `REFRESH-INTERVAL;VALUE=DURATION` |
+
+  Outlook liest `X-PUBLISHED-TTL`, Apple Calendar und Thunderbird
+  `REFRESH-INTERVAL`. Google ignoriert beide und pollt nach eigenem Zeitplan.
 
 Hinter einem Reverse-Proxy mit Auth (z. B. Traefik BasicAuth) müssen die Pfade
 `/api/absences.ics` **und** `/api/absences.html` von der Auth ausgenommen

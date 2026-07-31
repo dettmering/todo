@@ -13,6 +13,10 @@ import (
 // icalProdID identifies the generating software (RFC 5545 §3.7.3).
 const icalProdID = "-//till//todo//DE"
 
+// icalCalendarDescription fills the RFC 7986 DESCRIPTION property — the blurb a
+// client may show beneath the calendar name in its subscription list.
+const icalCalendarDescription = "Urlaub, Dienstreisen und sonstige Abwesenheiten"
+
 // absenceSummaryPrefix maps an absence type to the German word used as the
 // VEVENT SUMMARY prefix in the calendar feed.
 var absenceSummaryPrefix = map[domain.AbsenceType]string{
@@ -64,26 +68,48 @@ func (h *Handler) handleAbsencesICS(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/calendar; charset=utf-8")
 	w.Header().Set("Content-Disposition", `inline; filename="abwesenheiten.ics"`)
-	_, _ = io.WriteString(w, buildAbsencesICS(as, time.Now()))
+	_, _ = io.WriteString(w, buildAbsencesICS(as, time.Now(), h.shareName))
+}
+
+// calendarName is the title subscribers see for the feed. SHARE_NAME — the same
+// setting that personalizes the share page's status line — makes it "Tills
+// Abwesenheiten" so the calendar is identifiable among a stack of
+// subscriptions; without it the feed stays generic. German, like everything
+// else in this feed (SUMMARY prefixes, DESCRIPTION).
+func calendarName(name string) string {
+	if name == "" {
+		return "Abwesenheiten"
+	}
+	return name + "s Abwesenheiten"
 }
 
 // buildAbsencesICS renders absences as an RFC 5545 iCalendar document. Each
 // absence becomes an all-day VEVENT. `now` supplies the DTSTAMP (a parameter so
-// the output is deterministic in tests).
+// the output is deterministic in tests), `name` the person the calendar belongs
+// to (empty = generic title, see calendarName).
 //
 // All-day events use DATE values whose DTEND is *exclusive*: an absence running
 // through end date D must set DTEND to D+1, otherwise calendars drop the last
 // day. See domain.Absence — Start/End are inclusive.
-func buildAbsencesICS(absences []*domain.Absence, now time.Time) string {
+func buildAbsencesICS(absences []*domain.Absence, now time.Time, name string) string {
 	var b strings.Builder
 	writeICSLine(&b, "BEGIN:VCALENDAR")
 	writeICSLine(&b, "VERSION:2.0")
 	writeICSLine(&b, "PRODID:"+icalProdID)
 	writeICSLine(&b, "CALSCALE:GREGORIAN")
 	writeICSLine(&b, "METHOD:PUBLISH")
-	writeICSLine(&b, "X-WR-CALNAME:Abwesenheiten")
-	// Refresh hint honoured by Outlook for subscribed calendars.
+	// Calendar title and blurb, twice over: X-WR-CALNAME is the pre-standard
+	// spelling everything reads, NAME/DESCRIPTION its RFC 7986 successors.
+	// Clients that know both prefer the standard ones.
+	title := calendarName(name)
+	writeICSLine(&b, "X-WR-CALNAME:"+escapeICSText(title))
+	writeICSLine(&b, "NAME:"+escapeICSText(title))
+	writeICSLine(&b, "DESCRIPTION:"+escapeICSText(icalCalendarDescription))
+	// Refresh hint, twice over as well: X-PUBLISHED-TTL is what Outlook reads,
+	// REFRESH-INTERVAL the RFC 7986 property Apple Calendar and Thunderbird
+	// honour. Google ignores both and polls on its own schedule.
 	writeICSLine(&b, "X-PUBLISHED-TTL:PT12H")
+	writeICSLine(&b, "REFRESH-INTERVAL;VALUE=DURATION:PT12H")
 	stamp := icalDateTime(now)
 	for _, a := range absences {
 		writeICSLine(&b, "BEGIN:VEVENT")
@@ -99,6 +125,9 @@ func buildAbsencesICS(absences []*domain.Absence, now time.Time) string {
 		}
 		writeICSLine(&b, "DTSTART;VALUE=DATE:"+icalDate(a.Start))
 		writeICSLine(&b, "DTEND;VALUE=DATE:"+icalDate(a.End.AddDays(1)))
+		// Absences are facts, never tentative invitations. Most clients assume
+		// CONFIRMED anyway; a few want it spelled out.
+		writeICSLine(&b, "STATUS:CONFIRMED")
 		writeICSLine(&b, "SUMMARY:"+escapeICSText(absenceSummary(a)))
 		writeICSLine(&b, "CATEGORIES:"+escapeICSText(strings.ToUpper(string(a.Type))))
 		// Free/busy signalling: TRANSP is the portable field, the

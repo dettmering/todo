@@ -24,7 +24,7 @@ func absence(id, typ, label string, start, end domain.LocalDate) *domain.Absence
 var stamp = time.Date(2026, 7, 7, 12, 0, 0, 0, time.UTC)
 
 func TestBuildAbsencesICS_Envelope(t *testing.T) {
-	out := buildAbsencesICS(nil, stamp)
+	out := buildAbsencesICS(nil, stamp, "")
 
 	// Every line must be CRLF-terminated (RFC 5545 §3.1).
 	if strings.Contains(strings.ReplaceAll(out, "\r\n", ""), "\n") {
@@ -46,10 +46,66 @@ func TestBuildAbsencesICS_Envelope(t *testing.T) {
 	}
 }
 
+// The calendar-level metadata is emitted twice over: the pre-standard
+// X-WR-/X-PUBLISHED- spellings plus their RFC 7986 successors, because no single
+// spelling reaches every client.
+func TestBuildAbsencesICS_CalendarMetadata(t *testing.T) {
+	out := buildAbsencesICS(nil, stamp, "")
+
+	for _, want := range []string{
+		"X-WR-CALNAME:Abwesenheiten\r\n",
+		"NAME:Abwesenheiten\r\n",
+		// The description carries a comma, a TEXT metacharacter — it must arrive escaped.
+		"DESCRIPTION:" + escapeICSText(icalCalendarDescription) + "\r\n",
+		"X-PUBLISHED-TTL:PT12H\r\n",
+		"REFRESH-INTERVAL;VALUE=DURATION:PT12H\r\n",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in:\n%s", want, out)
+		}
+	}
+}
+
+// SHARE_NAME titles the calendar so it's identifiable among a stack of
+// subscriptions; without it the feed keeps the generic name.
+func TestBuildAbsencesICS_CalendarNameFromShareName(t *testing.T) {
+	out := buildAbsencesICS(nil, stamp, "Till")
+
+	for _, want := range []string{
+		"X-WR-CALNAME:Tills Abwesenheiten\r\n",
+		"NAME:Tills Abwesenheiten\r\n",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "CALNAME:Abwesenheiten") {
+		t.Errorf("generic name should be replaced:\n%s", out)
+	}
+}
+
+// A name carrying a TEXT metacharacter must not break out of the property.
+func TestBuildAbsencesICS_CalendarNameIsEscaped(t *testing.T) {
+	out := buildAbsencesICS(nil, stamp, "Till, jr.")
+
+	if !strings.Contains(out, `X-WR-CALNAME:Till\, jr.s Abwesenheiten`) {
+		t.Errorf("comma not escaped in calendar name:\n%s", out)
+	}
+}
+
+func TestBuildAbsencesICS_EventStatus(t *testing.T) {
+	a := absence("absence_1", "vacation", "Kreta", date(2026, 7, 10), date(2026, 7, 24))
+	out := buildAbsencesICS([]*domain.Absence{a}, stamp, "")
+
+	if !strings.Contains(out, "STATUS:CONFIRMED\r\n") {
+		t.Errorf("missing STATUS:CONFIRMED in:\n%s", out)
+	}
+}
+
 func TestBuildAbsencesICS_DTENDIsExclusive(t *testing.T) {
 	// Kreta 10.–24. July (inclusive) => DTEND must be the 25th (end + 1 day).
 	a := absence("absence_1", "vacation", "Kreta", date(2026, 7, 10), date(2026, 7, 24))
-	out := buildAbsencesICS([]*domain.Absence{a}, stamp)
+	out := buildAbsencesICS([]*domain.Absence{a}, stamp, "")
 
 	for _, want := range []string{
 		"DTSTART;VALUE=DATE:20260710\r\n",
@@ -64,7 +120,7 @@ func TestBuildAbsencesICS_DTENDIsExclusive(t *testing.T) {
 func TestBuildAbsencesICS_SingleDayDTEND(t *testing.T) {
 	// A one-day absence still needs DTEND = start + 1.
 	a := absence("absence_x", "sick", "", date(2026, 3, 2), date(2026, 3, 2))
-	out := buildAbsencesICS([]*domain.Absence{a}, stamp)
+	out := buildAbsencesICS([]*domain.Absence{a}, stamp, "")
 
 	if !strings.Contains(out, "DTSTART;VALUE=DATE:20260302\r\n") {
 		t.Errorf("missing DTSTART in:\n%s", out)
@@ -91,7 +147,7 @@ func TestBuildAbsencesICS_Summary(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.typ+"/"+c.label, func(t *testing.T) {
 			a := absence("absence_1", c.typ, c.label, date(2026, 1, 1), date(2026, 1, 2))
-			out := buildAbsencesICS([]*domain.Absence{a}, stamp)
+			out := buildAbsencesICS([]*domain.Absence{a}, stamp, "")
 			if !strings.Contains(out, c.want) {
 				t.Errorf("missing %q in:\n%s", c.want, out)
 			}
@@ -103,7 +159,7 @@ func TestBuildAbsencesICS_OutlookFields(t *testing.T) {
 	a := absence("absence_1", "vacation", "Kreta", date(2026, 7, 10), date(2026, 7, 24))
 	a.CreatedAt = time.Date(2026, 6, 1, 8, 30, 0, 0, time.UTC)
 	a.UpdatedAt = time.Date(2026, 6, 2, 9, 0, 0, 0, time.UTC)
-	out := buildAbsencesICS([]*domain.Absence{a}, stamp)
+	out := buildAbsencesICS([]*domain.Absence{a}, stamp, "")
 
 	for _, want := range []string{
 		"X-PUBLISHED-TTL:PT12H\r\n", // calendar-level refresh hint
@@ -134,7 +190,7 @@ func TestBuildAbsencesICS_BusyStatusPerType(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.typ, func(t *testing.T) {
 			a := absence("absence_1", c.typ, "", date(2026, 1, 1), date(2026, 1, 2))
-			out := buildAbsencesICS([]*domain.Absence{a}, stamp)
+			out := buildAbsencesICS([]*domain.Absence{a}, stamp, "")
 
 			for _, want := range []string{
 				"TRANSP:" + c.transp + "\r\n",
@@ -151,7 +207,7 @@ func TestBuildAbsencesICS_BusyStatusPerType(t *testing.T) {
 func TestBuildAbsencesICS_OmitsZeroTimestamps(t *testing.T) {
 	// Absence with zero CreatedAt/UpdatedAt must not emit empty CREATED lines.
 	a := absence("absence_1", "vacation", "Kreta", date(2026, 7, 10), date(2026, 7, 24))
-	out := buildAbsencesICS([]*domain.Absence{a}, stamp)
+	out := buildAbsencesICS([]*domain.Absence{a}, stamp, "")
 
 	if strings.Contains(out, "CREATED:\r\n") || strings.Contains(out, "LAST-MODIFIED:\r\n") {
 		t.Errorf("emitted empty timestamp line for zero-valued time:\n%s", out)
@@ -160,7 +216,7 @@ func TestBuildAbsencesICS_OmitsZeroTimestamps(t *testing.T) {
 
 func TestBuildAbsencesICS_EscapesSpecialChars(t *testing.T) {
 	a := absence("absence_1", "other", `A; B, C\D`, date(2026, 1, 1), date(2026, 1, 2))
-	out := buildAbsencesICS([]*domain.Absence{a}, stamp)
+	out := buildAbsencesICS([]*domain.Absence{a}, stamp, "")
 
 	want := `SUMMARY:Abwesend: A\; B\, C\\D` + "\r\n"
 	if !strings.Contains(out, want) {
@@ -170,7 +226,7 @@ func TestBuildAbsencesICS_EscapesSpecialChars(t *testing.T) {
 
 func TestBuildAbsencesICS_StableUIDAndStamp(t *testing.T) {
 	a := absence("absence_abc", "vacation", "Kreta", date(2026, 7, 10), date(2026, 7, 24))
-	out := buildAbsencesICS([]*domain.Absence{a}, stamp)
+	out := buildAbsencesICS([]*domain.Absence{a}, stamp, "")
 
 	if !strings.Contains(out, "UID:absence_abc@todo\r\n") {
 		t.Errorf("missing stable UID in:\n%s", out)
@@ -183,7 +239,7 @@ func TestBuildAbsencesICS_StableUIDAndStamp(t *testing.T) {
 func TestBuildAbsencesICS_FoldsLongLines(t *testing.T) {
 	long := strings.Repeat("x", 200)
 	a := absence("absence_1", "other", long, date(2026, 1, 1), date(2026, 1, 2))
-	out := buildAbsencesICS([]*domain.Absence{a}, stamp)
+	out := buildAbsencesICS([]*domain.Absence{a}, stamp, "")
 
 	// No physical line (between CRLFs) may exceed 75 octets.
 	for _, line := range strings.Split(out, "\r\n") {
