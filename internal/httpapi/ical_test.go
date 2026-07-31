@@ -57,8 +57,11 @@ func TestBuildAbsencesICS_CalendarMetadata(t *testing.T) {
 		"NAME:Abwesenheiten\r\n",
 		// The description carries a comma, a TEXT metacharacter — it must arrive escaped.
 		"DESCRIPTION:" + escapeICSText(icalCalendarDescription) + "\r\n",
-		"X-PUBLISHED-TTL:PT12H\r\n",
-		"REFRESH-INTERVAL;VALUE=DURATION:PT12H\r\n",
+		// Spelled out rather than built from icalRefreshInterval: both properties
+		// must carry the same value, and changing the interval should be a
+		// deliberate edit here, not something a constant quietly carries along.
+		"X-PUBLISHED-TTL:PT4H\r\n",
+		"REFRESH-INTERVAL;VALUE=DURATION:PT4H\r\n",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in:\n%s", want, out)
@@ -162,7 +165,7 @@ func TestBuildAbsencesICS_OutlookFields(t *testing.T) {
 	out := buildAbsencesICS([]*domain.Absence{a}, stamp, "")
 
 	for _, want := range []string{
-		"X-PUBLISHED-TTL:PT12H\r\n", // calendar-level refresh hint
+		"X-PUBLISHED-TTL:" + icalRefreshInterval + "\r\n", // calendar-level refresh hint
 		"SEQUENCE:0\r\n",
 		"CREATED:20260601T083000Z\r\n",
 		"LAST-MODIFIED:20260602T090000Z\r\n",

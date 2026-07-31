@@ -17,6 +17,12 @@ const icalProdID = "-//till//todo//DE"
 // client may show beneath the calendar name in its subscription list.
 const icalCalendarDescription = "Urlaub, Dienstreisen und sonstige Abwesenheiten"
 
+// icalRefreshInterval is how often subscribers should re-fetch, as an ISO 8601
+// duration. Absences are usually planned weeks ahead, but sick days aren't —
+// four hours keeps a same-day entry from sitting invisible for half a day. It
+// feeds two properties that must not drift apart, hence the constant.
+const icalRefreshInterval = "PT4H"
+
 // absenceSummaryPrefix maps an absence type to the German word used as the
 // VEVENT SUMMARY prefix in the calendar feed.
 var absenceSummaryPrefix = map[domain.AbsenceType]string{
@@ -108,8 +114,8 @@ func buildAbsencesICS(absences []*domain.Absence, now time.Time, name string) st
 	// Refresh hint, twice over as well: X-PUBLISHED-TTL is what Outlook reads,
 	// REFRESH-INTERVAL the RFC 7986 property Apple Calendar and Thunderbird
 	// honour. Google ignores both and polls on its own schedule.
-	writeICSLine(&b, "X-PUBLISHED-TTL:PT12H")
-	writeICSLine(&b, "REFRESH-INTERVAL;VALUE=DURATION:PT12H")
+	writeICSLine(&b, "X-PUBLISHED-TTL:"+icalRefreshInterval)
+	writeICSLine(&b, "REFRESH-INTERVAL;VALUE=DURATION:"+icalRefreshInterval)
 	stamp := icalDateTime(now)
 	for _, a := range absences {
 		writeICSLine(&b, "BEGIN:VEVENT")

@@ -567,10 +567,13 @@ Hinweise zur Erzeugung:
   | --- | --- | --- |
   | Kalendername | `X-WR-CALNAME` | `NAME` |
   | Beschreibung | — | `DESCRIPTION` |
-  | Refresh-Intervall (12 h) | `X-PUBLISHED-TTL` | `REFRESH-INTERVAL;VALUE=DURATION` |
+  | Refresh-Intervall (`PT4H`) | `X-PUBLISHED-TTL` | `REFRESH-INTERVAL;VALUE=DURATION` |
 
   Outlook liest `X-PUBLISHED-TTL`, Apple Calendar und Thunderbird
   `REFRESH-INTERVAL`. Google ignoriert beide und pollt nach eigenem Zeitplan.
+  Die vier Stunden orientieren sich am ungünstigsten Fall: Urlaub steht Wochen
+  vorher fest, eine Krankmeldung entsteht am selben Tag und soll nicht bis zum
+  Abend unsichtbar bleiben.
 
 Hinter einem Reverse-Proxy mit Auth (z. B. Traefik BasicAuth) müssen die Pfade
 `/api/absences.ics` **und** `/api/absences.html` von der Auth ausgenommen
