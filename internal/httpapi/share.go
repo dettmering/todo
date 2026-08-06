@@ -70,8 +70,8 @@ func availabilityPhrase(status domain.AvailabilityStatus, name string) (text, cl
 // buildAbsencesSharePage renders the anonymized absences as a self-contained
 // HTML document (inline CSS, no external requests, light/dark aware). `status`
 // drives the prominent current-availability banner, `name` personalizes it,
-// `today` marks the running absence, dates the "in N days" hints and anchors
-// the twelve-week timeline strip, `backOn` adds the "Back on …" line below
+// `today` marks the running absence and anchors the twelve-week timeline
+// strip, `backOn` adds the "Back on …" line below
 // the banner (zero = omit, see domain.ReturnDate), and `lastUpdated`
 // (already in the target zone) fills the "Last updated" footer — a zero value
 // omits it too (all parameters so tests stay deterministic).
@@ -79,8 +79,8 @@ func availabilityPhrase(status domain.AvailabilityStatus, name string) (text, cl
 // Anonymization happens here: only the date range and a two-state status are
 // emitted. Business trips (which don't block work — see Absence.BlocksWork)
 // render as "Business Trip"; everything else as "Away". Labels and exact types
-// are never written to the output — that also holds for the timeline strip and
-// the per-row meta line, which are both derived from dates alone.
+// are never written to the output — that also holds for the timeline strip,
+// which is derived from dates alone.
 func buildAbsencesSharePage(absences []*domain.Absence, status domain.AvailabilityStatus, name string, today, backOn domain.LocalDate, lastUpdated time.Time) string {
 	phrase, statusCls := availabilityPhrase(status, name)
 
@@ -89,10 +89,6 @@ func buildAbsencesSharePage(absences []*domain.Absence, status domain.Availabili
 		rows.WriteString(`<p class="empty">No scheduled absences.</p>`)
 	} else {
 		rows.WriteString(`<ul class="list">`)
-		// Only the first entry that still lies ahead may carry a "starts …" hint
-		// (see absenceMeta); everything after it is far enough down the list that
-		// a start distance is noise.
-		startHinted := false
 		for _, a := range absences {
 			status, cls := "Away", "away"
 			if !a.BlocksWork() { // business trip
@@ -104,15 +100,10 @@ func buildAbsencesSharePage(absences []*domain.Absence, status domain.Availabili
 			if a.Covers(today) {
 				now = `<span class="now">now</span>`
 			}
-			isNext := false
-			if !startHinted && today.Before(a.Start) {
-				isNext, startHinted = true, true
-			}
 			fmt.Fprintf(&rows,
-				`<li><div class="when"><span class="range">%s</span>%s</div><span class="badge %s">%s</span><div class="meta">%s</div></li>`,
+				`<li><span class="range">%s</span>%s<span class="badge %s">%s</span></li>`,
 				html.EscapeString(formatRange(a.Start, a.End)),
 				now, cls, status,
-				html.EscapeString(absenceMeta(a, today, isNext)),
 			)
 		}
 		rows.WriteString(`</ul>`)
@@ -157,18 +148,16 @@ h2{margin:1.5rem 0 .6rem;padding-top:1.1rem;border-top:1px solid var(--line);fon
 .tl-months{position:relative;height:1rem;margin-top:.5rem;font-size:.7rem;color:var(--muted)}
 .tl-months span{position:absolute;top:0}
 .list{list-style:none;margin:0;padding:0}
-.list li{display:grid;grid-template-columns:1fr auto;column-gap:.75rem;align-items:center;row-gap:.1rem;padding:.5rem 0}
-.when{grid-column:1;display:flex;align-items:center;gap:.55rem;min-width:0}
+.list li{display:flex;align-items:center;gap:.55rem;padding:.5rem 0}
+.list li .badge{margin-left:auto}
 .range{font-variant-numeric:tabular-nums}
-.meta{grid-column:1;color:var(--muted);font-size:.8rem}
 .now{flex:none;white-space:nowrap;font-size:.68rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);padding:.05rem .4rem;border-radius:999px}
-.badge{grid-column:2;grid-row:1/span 2;align-self:center;flex:none;white-space:nowrap;font-size:.8rem;font-weight:600;padding:.15rem .6rem;border-radius:999px}
+.badge{flex:none;white-space:nowrap;font-size:.8rem;font-weight:600;padding:.15rem .6rem;border-radius:999px}
 .badge.away{color:var(--away);background:var(--awaybg)}
 .badge.trip{color:var(--trip);background:var(--tripbg)}
 .empty{color:var(--muted)}
 .legend{display:grid;grid-template-columns:auto 1fr;gap:.45rem .7rem;align-items:center;margin:1.1rem 0 0;padding-top:.9rem;border-top:1px solid var(--line);color:var(--muted);font-size:.8rem}
 .legend dt,.legend dd{margin:0}
-.legend .badge{grid-row:auto}
 footer{max-width:32rem;margin:1rem auto 0;color:var(--muted);font-size:.8rem;text-align:center}
 @media (max-width:430px){main{padding:1.25rem 1.15rem}}
 </style>
@@ -183,37 +172,6 @@ footer{max-width:32rem;margin:1rem auto 0;color:var(--muted);font-size:.8rem;tex
 </body>
 </html>
 `
-}
-
-// absenceMeta builds the muted second line of a list row: the length of the
-// absence, plus the one temporal hint the reader would otherwise compute
-// themselves — "ends in N days" (or "last day") for the entry running now,
-// and "starts in N days" for the next upcoming entry (`isNext`), but only
-// while its start is at most two weeks out. A start distance on anything
-// further away, or on later entries, is noise ("in 9 weeks") and stays off.
-// Derived from dates only, so it can never leak a label or type.
-func absenceMeta(a *domain.Absence, today domain.LocalDate, isNext bool) string {
-	days := a.Start.DaysUntil(a.End) + 1
-	dur := "1 day"
-	if days > 1 {
-		dur = fmt.Sprintf("%d days", days)
-	}
-	switch {
-	case a.Covers(today):
-		if a.End == today {
-			return dur + " · last day"
-		}
-		if rel := relativeDays(today.DaysUntil(a.End)); rel != "" {
-			return dur + " · ends " + rel
-		}
-	case isNext && today.Before(a.Start):
-		if d := today.DaysUntil(a.Start); d <= 14 {
-			if rel := relativeDays(d); rel != "" {
-				return dur + " · starts " + rel
-			}
-		}
-	}
-	return dur
 }
 
 // absenceTimelineHTML renders the coming twelve weeks as a slim horizontal
