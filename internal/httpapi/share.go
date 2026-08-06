@@ -139,7 +139,7 @@ body{margin:0;padding:2rem 1rem;background:var(--bg);color:var(--fg);font:16px/1
 main{max-width:32rem;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.5rem 1.75rem}
 .head{margin-bottom:.85rem}
 h1{margin:0;font-size:1.4rem}
-h2{margin:1.5rem 0 .6rem;font-size:1.15rem;font-weight:600}
+h2{margin:1.5rem 0 .6rem;padding-top:1.1rem;border-top:1px solid var(--line);font-size:1.15rem;font-weight:600}
 .status{display:flex;align-items:center;gap:.6rem;font-size:1.15rem;font-weight:600;padding:.9rem 1.1rem;border-radius:10px;margin:0 0 .75rem}
 .back{margin:0 0 1rem;padding:0 .15rem;color:var(--muted);font-size:.95rem}
 .back strong{color:var(--fg);font-weight:600;font-variant-numeric:tabular-nums}
