@@ -89,6 +89,10 @@ func buildAbsencesSharePage(absences []*domain.Absence, status domain.Availabili
 		rows.WriteString(`<p class="empty">No scheduled absences.</p>`)
 	} else {
 		rows.WriteString(`<ul class="list">`)
+		// Only the first entry that still lies ahead may carry a "starts …" hint
+		// (see absenceMeta); everything after it is far enough down the list that
+		// a start distance is noise.
+		startHinted := false
 		for _, a := range absences {
 			status, cls := "Away", "away"
 			if !a.BlocksWork() { // business trip
@@ -100,11 +104,15 @@ func buildAbsencesSharePage(absences []*domain.Absence, status domain.Availabili
 			if a.Covers(today) {
 				now = `<span class="now">now</span>`
 			}
+			isNext := false
+			if !startHinted && today.Before(a.Start) {
+				isNext, startHinted = true, true
+			}
 			fmt.Fprintf(&rows,
 				`<li><div class="when"><span class="range">%s</span>%s</div><span class="badge %s">%s</span><div class="meta">%s</div></li>`,
 				html.EscapeString(formatRange(a.Start, a.End)),
 				now, cls, status,
-				html.EscapeString(absenceMeta(a, today)),
+				html.EscapeString(absenceMeta(a, today, isNext)),
 			)
 		}
 		rows.WriteString(`</ul>`)
@@ -129,7 +137,7 @@ func buildAbsencesSharePage(absences []*domain.Absence, status domain.Availabili
 *{box-sizing:border-box}
 body{margin:0;padding:2rem 1rem;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
 main{max-width:32rem;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.5rem 1.75rem}
-.head{padding-bottom:1rem;border-bottom:1px solid var(--line);margin-bottom:1.25rem}
+.head{margin-bottom:.85rem}
 h1{margin:0;font-size:1.4rem}
 h2{margin:1.5rem 0 .6rem;font-size:1.15rem;font-weight:600}
 .status{display:flex;align-items:center;gap:.6rem;font-size:1.15rem;font-weight:600;padding:.9rem 1.1rem;border-radius:10px;margin:0 0 .75rem}
@@ -179,10 +187,12 @@ footer{max-width:32rem;margin:1rem auto 0;color:var(--muted);font-size:.8rem;tex
 
 // absenceMeta builds the muted second line of a list row: the length of the
 // absence, plus the one temporal hint the reader would otherwise compute
-// themselves — "starts in N days" for future entries, "ends in N days" (or
-// "last day") for the one running now. Derived from dates only, so it can
-// never leak a label or type.
-func absenceMeta(a *domain.Absence, today domain.LocalDate) string {
+// themselves — "ends in N days" (or "last day") for the entry running now,
+// and "starts in N days" for the next upcoming entry (`isNext`), but only
+// while its start is at most two weeks out. A start distance on anything
+// further away, or on later entries, is noise ("in 9 weeks") and stays off.
+// Derived from dates only, so it can never leak a label or type.
+func absenceMeta(a *domain.Absence, today domain.LocalDate, isNext bool) string {
 	days := a.Start.DaysUntil(a.End) + 1
 	dur := "1 day"
 	if days > 1 {
@@ -196,9 +206,11 @@ func absenceMeta(a *domain.Absence, today domain.LocalDate) string {
 		if rel := relativeDays(today.DaysUntil(a.End)); rel != "" {
 			return dur + " · ends " + rel
 		}
-	case today.Before(a.Start):
-		if rel := relativeDays(today.DaysUntil(a.Start)); rel != "" {
-			return dur + " · starts " + rel
+	case isNext && today.Before(a.Start):
+		if d := today.DaysUntil(a.Start); d <= 14 {
+			if rel := relativeDays(d); rel != "" {
+				return dur + " · starts " + rel
+			}
 		}
 	}
 	return dur

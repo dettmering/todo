@@ -318,6 +318,30 @@ func TestFormatRange(t *testing.T) {
 	}
 }
 
+func TestAbsenceMeta(t *testing.T) {
+	// shareToday is 7 July 2026.
+	cases := []struct {
+		name   string
+		a      *domain.Absence
+		isNext bool
+		want   string
+	}{
+		{"running shows end", absence("a", "vacation", "", date(2026, 7, 5), date(2026, 7, 9)), false, "5 days · ends in 2 days"},
+		{"running last day", absence("a", "vacation", "", date(2026, 7, 5), date(2026, 7, 7)), false, "3 days · last day"},
+		{"next within two weeks", absence("a", "vacation", "", date(2026, 7, 10), date(2026, 7, 24)), true, "15 days · starts in 3 days"},
+		{"next at exactly two weeks", absence("a", "vacation", "", date(2026, 7, 21), date(2026, 7, 21)), true, "1 day · starts in 2 weeks"},
+		{"next but too far out", absence("a", "vacation", "", date(2026, 9, 10), date(2026, 9, 11)), true, "2 days"},
+		{"near but not the next entry", absence("a", "vacation", "", date(2026, 7, 10), date(2026, 7, 10)), false, "1 day"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := absenceMeta(c.a, shareToday, c.isNext); got != c.want {
+				t.Errorf("absenceMeta = %q, want %q", got, c.want)
+			}
+		})
+	}
+}
+
 // --- Handler token gating (does not touch the service layer) ---
 
 func TestHandleAbsencesShare_Disabled(t *testing.T) {
