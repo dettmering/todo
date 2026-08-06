@@ -70,16 +70,17 @@ func availabilityPhrase(status domain.AvailabilityStatus, name string) (text, cl
 // buildAbsencesSharePage renders the anonymized absences as a self-contained
 // HTML document (inline CSS, no external requests, light/dark aware). `status`
 // drives the prominent current-availability banner, `name` personalizes it,
-// `today` marks the running absence and dates the "in N days" hints, `backOn`
-// adds the "Back on …" line below the banner (zero = omit, see
-// domain.ReturnDate), and `lastUpdated` (already in the target zone) fills the
-// "Last updated" footer — a zero value omits it too (all parameters so tests
-// stay deterministic).
+// `today` marks the running absence, dates the "in N days" hints and anchors
+// the twelve-week timeline strip, `backOn` adds the "Back on …" line below
+// the banner (zero = omit, see domain.ReturnDate), and `lastUpdated`
+// (already in the target zone) fills the "Last updated" footer — a zero value
+// omits it too (all parameters so tests stay deterministic).
 //
 // Anonymization happens here: only the date range and a two-state status are
 // emitted. Business trips (which don't block work — see Absence.BlocksWork)
 // render as "Business Trip"; everything else as "Away". Labels and exact types
-// are never written to the output.
+// are never written to the output — that also holds for the timeline strip and
+// the per-row meta line, which are both derived from dates alone.
 func buildAbsencesSharePage(absences []*domain.Absence, status domain.AvailabilityStatus, name string, today, backOn domain.LocalDate, lastUpdated time.Time) string {
 	phrase, statusCls := availabilityPhrase(status, name)
 
@@ -100,9 +101,10 @@ func buildAbsencesSharePage(absences []*domain.Absence, status domain.Availabili
 				now = `<span class="now">now</span>`
 			}
 			fmt.Fprintf(&rows,
-				`<li><span class="range">%s</span>%s<span class="badge %s">%s</span></li>`,
+				`<li><div class="when"><span class="range">%s</span>%s</div><span class="badge %s">%s</span><div class="meta">%s</div></li>`,
 				html.EscapeString(formatRange(a.Start, a.End)),
 				now, cls, status,
+				html.EscapeString(absenceMeta(a, today)),
 			)
 		}
 		rows.WriteString(`</ul>`)
@@ -122,8 +124,8 @@ func buildAbsencesSharePage(absences []*domain.Absence, status domain.Availabili
 <meta name="robots" content="noindex, nofollow">
 <title>Availability</title>
 <style>
-:root{color-scheme:light dark;--bg:#faf9f7;--card:#fff;--fg:#202020;--muted:#808080;--line:#eee;--away:#eb5757;--awaybg:#fdecec;--trip:#4073ff;--tripbg:#eaf0ff;--ok:#2fa36b;--okbg:#e7f6ee}
-@media (prefers-color-scheme:dark){:root{--bg:#1a1a1a;--card:#242424;--fg:#e8e8e8;--muted:#8a8a8a;--line:#333;--away:#ff7a7a;--awaybg:#3a2626;--trip:#7aa0ff;--tripbg:#232d47;--ok:#5cd39b;--okbg:#1e3a2c}}
+:root{color-scheme:light dark;--bg:#faf9f7;--card:#fff;--fg:#202020;--muted:#808080;--line:#eee;--track:#f4f4f2;--tick:#d0d0cc;--away:#eb5757;--awaybg:#fdecec;--trip:#4073ff;--tripbg:#eaf0ff;--ok:#2fa36b;--okbg:#e7f6ee}
+@media (prefers-color-scheme:dark){:root{--bg:#1a1a1a;--card:#242424;--fg:#e8e8e8;--muted:#8a8a8a;--line:#333;--track:#2d2d2d;--tick:#4d4d4d;--away:#ff7a7a;--awaybg:#3a2626;--trip:#7aa0ff;--tripbg:#232d47;--ok:#5cd39b;--okbg:#1e3a2c}}
 *{box-sizing:border-box}
 body{margin:0;padding:2rem 1rem;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
 main{max-width:32rem;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.5rem 1.75rem}
@@ -137,18 +139,30 @@ h2{margin:1.5rem 0 .6rem;font-size:1.15rem;font-weight:600}
 .status.available{color:var(--ok);background:var(--okbg)}
 .status.away{color:var(--away);background:var(--awaybg)}
 .status.trip{color:var(--trip);background:var(--tripbg)}
+.timeline{margin:0 0 1.1rem}
+.tl-cap{display:block;margin:0 0 .6rem;color:var(--muted);font-size:.8rem;font-weight:600}
+.tl-track{position:relative;height:.5rem;border-radius:999px;background-color:var(--track);background-image:repeating-linear-gradient(to right,transparent 0,transparent calc(100%/12 - 1px),var(--tick) calc(100%/12 - 1px),var(--tick) calc(100%/12))}
+.tl-span{position:absolute;top:0;bottom:0;border-radius:999px;min-width:.5rem}
+.tl-span.away{background:var(--away)}
+.tl-span.trip{background:var(--trip)}
+.tl-today{position:absolute;top:50%;width:.7rem;height:.7rem;border-radius:50%;background:var(--fg);box-shadow:0 0 0 2px var(--card);transform:translate(-50%,-50%)}
+.tl-months{position:relative;height:1rem;margin-top:.5rem;font-size:.7rem;color:var(--muted)}
+.tl-months span{position:absolute;top:0}
 .list{list-style:none;margin:0;padding:0}
-.list li{display:flex;align-items:center;gap:.55rem;padding:.45rem 0}
-.list li .badge{margin-left:auto}
+.list li{display:grid;grid-template-columns:1fr auto;column-gap:.75rem;align-items:center;row-gap:.1rem;padding:.5rem 0}
+.when{grid-column:1;display:flex;align-items:center;gap:.55rem;min-width:0}
 .range{font-variant-numeric:tabular-nums}
-.now{flex:none;font-size:.68rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);padding:.05rem .4rem;border-radius:999px}
-.badge{flex:none;font-size:.8rem;font-weight:600;padding:.15rem .6rem;border-radius:999px}
+.meta{grid-column:1;color:var(--muted);font-size:.8rem}
+.now{flex:none;white-space:nowrap;font-size:.68rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);padding:.05rem .4rem;border-radius:999px}
+.badge{grid-column:2;grid-row:1/span 2;align-self:center;flex:none;white-space:nowrap;font-size:.8rem;font-weight:600;padding:.15rem .6rem;border-radius:999px}
 .badge.away{color:var(--away);background:var(--awaybg)}
 .badge.trip{color:var(--trip);background:var(--tripbg)}
 .empty{color:var(--muted)}
 .legend{display:grid;grid-template-columns:auto 1fr;gap:.45rem .7rem;align-items:center;margin:1.1rem 0 0;padding-top:.9rem;border-top:1px solid var(--line);color:var(--muted);font-size:.8rem}
 .legend dt,.legend dd{margin:0}
+.legend .badge{grid-row:auto}
 footer{max-width:32rem;margin:1rem auto 0;color:var(--muted);font-size:.8rem;text-align:center}
+@media (max-width:430px){main{padding:1.25rem 1.15rem}}
 </style>
 </head>
 <body>
@@ -156,11 +170,102 @@ footer{max-width:32rem;margin:1rem auto 0;color:var(--muted);font-size:.8rem;tex
 <div class="head"><h1>Availability</h1></div>
 <div class="status ` + statusCls + `">` + html.EscapeString(phrase) + `</div>` + backOnHTML(today, backOn) + `
 <h2>Scheduled absences</h2>
-` + rows.String() + `
+` + absenceTimelineHTML(absences, today) + rows.String() + `
 </main>` + footerHTML(today, lastUpdated) + `
 </body>
 </html>
 `
+}
+
+// absenceMeta builds the muted second line of a list row: the length of the
+// absence, plus the one temporal hint the reader would otherwise compute
+// themselves — "starts in N days" for future entries, "ends in N days" (or
+// "last day") for the one running now. Derived from dates only, so it can
+// never leak a label or type.
+func absenceMeta(a *domain.Absence, today domain.LocalDate) string {
+	days := a.Start.DaysUntil(a.End) + 1
+	dur := "1 day"
+	if days > 1 {
+		dur = fmt.Sprintf("%d days", days)
+	}
+	switch {
+	case a.Covers(today):
+		if a.End == today {
+			return dur + " · last day"
+		}
+		if rel := relativeDays(today.DaysUntil(a.End)); rel != "" {
+			return dur + " · ends " + rel
+		}
+	case today.Before(a.Start):
+		if rel := relativeDays(today.DaysUntil(a.Start)); rel != "" {
+			return dur + " · starts " + rel
+		}
+	}
+	return dur
+}
+
+// absenceTimelineHTML renders the coming twelve weeks as a slim horizontal
+// rail: colored pill-shaped spans for the absences, a "today" dot, thin ticks
+// dividing the rail into calendar weeks, and month labels underneath. It
+// answers "when are the gaps?" at a glance, which a
+// list of ranges can't — the list below stays the readable source of truth,
+// so the rail is aria-hidden decoration. The window starts on the Monday of
+// the current week so it doesn't shift mid-week; spans are clipped to the
+// window (fully outside = omitted, they still appear in the list). No
+// absences = no rail.
+func absenceTimelineHTML(absences []*domain.Absence, today domain.LocalDate) string {
+	if len(absences) == 0 {
+		return ""
+	}
+	const totalDays = 12 * 7
+	start := today.AddDays(-((int(today.Weekday()) + 6) % 7))
+	end := start.AddDays(totalDays - 1)
+	pos := func(d domain.LocalDate) float64 {
+		return float64(start.DaysUntil(d)) * 100 / totalDays
+	}
+	var b strings.Builder
+	b.WriteString(`<section class="timeline" aria-hidden="true"><span class="tl-cap">Next 12 weeks</span><div class="tl-track">`)
+	for _, a := range absences {
+		s, e := a.Start, a.End
+		if end.Before(s) || e.Before(start) {
+			continue
+		}
+		if s.Before(start) {
+			s = start
+		}
+		if end.Before(e) {
+			e = end
+		}
+		cls := "away"
+		if !a.BlocksWork() {
+			cls = "trip"
+		}
+		// Deliberately no title/tooltip: the list below spells the range out, and
+		// a date string here would shadow the list's copy as the document's first
+		// occurrence (the now-marker test anchors on that order).
+		fmt.Fprintf(&b, `<div class="tl-span %s" style="left:%.3f%%;width:%.3f%%"></div>`,
+			cls, pos(s), float64(s.DaysUntil(e)+1)*100/totalDays)
+	}
+	// The marker sits mid-cell on today's column.
+	fmt.Fprintf(&b, `<div class="tl-today" style="left:%.3f%%"></div>`, pos(today)+100.0/(2*totalDays))
+	b.WriteString(`</div><div class="tl-months">`)
+	// Month labels under the track: the window's own month, then each first of a
+	// month. Labels closer than ~9% to the previous one (or hugging the right
+	// edge) are dropped rather than overlapped.
+	last := -100.0
+	for d := start; !end.Before(d); d = d.AddDays(1) {
+		if d != start && d.Day != 1 {
+			continue
+		}
+		p := pos(d)
+		if p-last < 9 || p > 94 {
+			continue
+		}
+		fmt.Fprintf(&b, `<span style="left:%.3f%%">%s</span>`, p, englishMonths[d.Month][:3])
+		last = p
+	}
+	b.WriteString(`</div></section>`)
+	return b.String()
 }
 
 // backOnHTML renders the "Back in N days on <weekday, date>" line shown under
