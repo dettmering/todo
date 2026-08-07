@@ -1317,8 +1317,65 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
 .absences-toolbar {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
+
+/* Zeitleiste: 12 Wochen als Schiene, Wochenraster als Ticks im Hintergrund. */
+.timeline { margin: 0 0 20px; }
+.tl-cap {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.tl-track {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background-color: var(--surface);
+  background-image: repeating-linear-gradient(
+    to right,
+    transparent 0, transparent calc(100% / 12 - 1px),
+    var(--border-strong) calc(100% / 12 - 1px), var(--border-strong) calc(100% / 12));
+}
+.tl-span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 4px;
+  border-radius: 999px;
+  background: var(--text-muted);
+  transition: transform 0.12s ease;
+}
+.tl-span.hl {
+  transform: scaleY(1.6);
+  box-shadow: 0 0 0 2px var(--main-bg);
+}
+.tl-span.type-vacation      { background: var(--absence-vacation-fg); }
+.tl-span.type-holiday       { background: var(--absence-holiday-fg); }
+.tl-span.type-business_trip { background: var(--absence-business_trip-fg); }
+.tl-span.type-sick          { background: var(--absence-sick-fg); }
+.tl-today {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--text);
+  box-shadow: 0 0 0 2px var(--main-bg);
+  transform: translate(-50%, -50%);
+}
+.tl-months {
+  position: relative;
+  height: 16px;
+  margin-top: 7px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.tl-months span { position: absolute; top: 0; }
 .absence-list {
   display: flex;
   flex-direction: column;
@@ -1337,11 +1394,13 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   border-bottom: 1px solid var(--border);
 }
 .absence-row:hover { background: var(--hover); }
+/* Die laufende Abwesenheit wird neutral grau hinterlegt, nicht in der
+   Akzentfarbe — sie ist eine Ortsmarke, kein Signal. */
 .absence-row.active {
-  background: var(--accent-soft);
+  background: var(--hover);
   border-radius: 6px;
 }
-.absence-row.active:hover { background: var(--accent-soft); }
+.absence-row.active:hover { background: var(--hover); }
 .absence-type {
   font-size: 12px;
   font-weight: 600;
@@ -1363,9 +1422,38 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.absence-when {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  text-align: right;
+}
 .absence-range {
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+.absence-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.absence-row.active .absence-meta { color: var(--text-secondary); }
+
+@media (max-width: 720px) {
+  .absence-row {
+    grid-template-columns: auto 1fr 32px 32px;
+    row-gap: 4px;
+  }
+  /* Datum/Dauer in eine eigene zweite Zeile, die Buttons bleiben oben rechts. */
+  .absence-when {
+    grid-column: 1 / 3;
+    grid-row: 2;
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: flex-start;
+    gap: 8px;
+  }
 }

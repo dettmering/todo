@@ -658,6 +658,123 @@ function absenceWarningText(iso) {
   return `⚠ fällt in ${type}${label}`;
 }
 
+// ---------- Absence date arithmetic ----------
+// All of these work on ISO strings ("YYYY-MM-DD") and go through local
+// midnight Dates. Distances use Math.round so a DST-shifted 23/25-hour day
+// still counts as one.
+
+function isoToDate(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function dateToISO(dt) {
+  const mm = String(dt.getMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getDate()).padStart(2, "0");
+  return `${dt.getFullYear()}-${mm}-${dd}`;
+}
+
+function addDaysISO(iso, n) {
+  const dt = isoToDate(iso);
+  dt.setDate(dt.getDate() + n);
+  return dateToISO(dt);
+}
+
+// Days from `from` to `to`, negative when `to` lies before `from`.
+function daysBetweenISO(from, to) {
+  return Math.round((isoToDate(to) - isoToDate(from)) / 86400000);
+}
+
+// Distance as the phrase that saves counting on a calendar. Only ever a rough
+// hint — the exact date always sits next to it. Non-positive => "" (the caller
+// has its own wording for today).
+function relativeDaysDE(days) {
+  if (days <= 0) return "";
+  if (days === 1) return "morgen";
+  if (days < 7) return `in ${days} Tagen`;
+  if (days < 14) return "in einer Woche";
+  return `in ${Math.floor(days / 7)} Wochen`;
+}
+
+// Inclusive length of an absence, as "1 Tag" / "12 Tage".
+function absenceDurationDE(a) {
+  const days = daysBetweenISO(a.start_date, a.end_date) + 1;
+  return days === 1 ? "1 Tag" : `${days} Tage`;
+}
+
+// Where the absence stands relative to today: "beginnt in 3 Wochen",
+// "noch 4 Tage", "endet heute" — or "" for past ones, where the date says it all.
+function absenceTimingDE(a, today) {
+  if (a.end_date < today) return "";
+  if (a.start_date > today) {
+    const rel = relativeDaysDE(daysBetweenISO(today, a.start_date));
+    return rel === "morgen" ? "beginnt morgen" : `beginnt ${rel}`;
+  }
+  const left = daysBetweenISO(today, a.end_date);
+  if (left === 0) return "endet heute";
+  if (left === 1) return "endet morgen";
+  return `noch ${left} Tage`;
+}
+
+const MONTH_SHORT = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+
+// ---------- Timeline ----------
+
+// Twelve weeks as a slim horizontal rail: one colored span per absence, thin
+// ticks dividing it into calendar weeks, a "today" dot, month labels below.
+// It answers "where are the gaps?" at a glance, which the list can't. The
+// window starts on the Monday of the current week so it doesn't crawl
+// mid-week; spans are clipped to the window, absences fully outside it are
+// omitted (they stay in the list). Hovering a list row highlights its span.
+const TIMELINE_WEEKS = 12;
+
+function renderAbsenceTimeline(absences, today) {
+  const box = document.getElementById("absence-timeline");
+  if (!box) return;
+  const totalDays = TIMELINE_WEEKS * 7;
+  // getDay(): 0 = Sunday, so shift into a Monday-first week.
+  const start = addDaysISO(today, -((isoToDate(today).getDay() + 6) % 7));
+  const end = addDaysISO(start, totalDays - 1);
+  const pos = iso => daysBetweenISO(start, iso) * 100 / totalDays;
+
+  const visible = absences.filter(a => a.start_date <= end && a.end_date >= start);
+  if (!visible.length) { box.innerHTML = ""; return; }
+
+  let spans = "";
+  for (const a of visible) {
+    const s = a.start_date < start ? start : a.start_date;
+    const e = a.end_date > end ? end : a.end_date;
+    const width = (daysBetweenISO(s, e) + 1) * 100 / totalDays;
+    const type = ABSENCE_TYPE_LABEL[a.type] || a.type;
+    const range = a.start_date === a.end_date
+      ? formatAbsenceDate(a.start_date)
+      : `${formatAbsenceDate(a.start_date)} – ${formatAbsenceDate(a.end_date)}`;
+    const title = `${type}${a.label ? " · " + a.label : ""} · ${range} · ${absenceDurationDE(a)}`;
+    spans += `<div class="tl-span type-${escapeHTML(a.type)}" data-id="${escapeHTML(a.id)}"` +
+      ` style="left:${pos(s).toFixed(3)}%;width:${width.toFixed(3)}%"` +
+      ` title="${escapeHTML(title)}"></div>`;
+  }
+  // The marker sits mid-cell on today's column.
+  spans += `<div class="tl-today" style="left:${(pos(today) + 100 / (2 * totalDays)).toFixed(3)}%"></div>`;
+
+  // Month labels: the window's own month, then every first of a month. Labels
+  // closer than ~9% to the previous one (or hugging the right edge) are dropped
+  // rather than overlapped.
+  let months = "", last = -100;
+  for (let d = start; d <= end; d = addDaysISO(d, 1)) {
+    if (d !== start && !d.endsWith("-01")) continue;
+    const p = pos(d);
+    if (p - last < 9 || p > 94) continue;
+    months += `<span style="left:${p.toFixed(3)}%">${MONTH_SHORT[isoToDate(d).getMonth()]}</span>`;
+    last = p;
+  }
+
+  box.innerHTML = `<section class="timeline">` +
+    `<span class="tl-cap">Nächste ${TIMELINE_WEEKS} Wochen</span>` +
+    `<div class="tl-track">${spans}</div>` +
+    `<div class="tl-months">${months}</div></section>`;
+}
+
 function setAbsencesViewVisible(visible) {
   const av = document.getElementById("absences-view");
   if (!av) return;
@@ -677,12 +794,13 @@ function setAbsencesViewVisible(visible) {
 function renderAbsences() {
   const list = document.getElementById("absence-list");
   if (!list) return;
+  const today = todayISO();
+  renderAbsenceTimeline(state.absences, today);
   list.innerHTML = "";
   if (!state.absences.length) {
     list.innerHTML = `<p class="absence-empty">Noch keine Abwesenheiten hinterlegt.</p>`;
     return;
   }
-  const today = todayISO();
   // Upcoming/current (end today or later) sorted soonest-first; past below,
   // most-recent-first — mirroring the grouped layout of the "Demnächst" view.
   const upcoming = state.absences.filter(a => a.end_date >= today).sort((a, b) => a.start_date.localeCompare(b.start_date));
@@ -706,6 +824,7 @@ function createAbsenceRow(a, today, editable) {
   const row = document.createElement("div");
   const active = a.start_date <= today && a.end_date >= today;
   row.className = "absence-row" + (active ? " active" : "");
+  row.dataset.id = a.id;
   const range = a.start_date === a.end_date
     ? formatAbsenceDate(a.start_date)
     : `${formatAbsenceDate(a.start_date)} – ${formatAbsenceDate(a.end_date)}`;
@@ -713,13 +832,24 @@ function createAbsenceRow(a, today, editable) {
   const editCell = editable
     ? `<button type="button" class="icon-btn absence-edit" title="Bearbeiten">${ICON.edit}</button>`
     : `<span class="absence-edit-placeholder"></span>`;
+  // Duration and distance sit under the range: how long it lasts and how far
+  // off it is are exactly what the bare dates make you compute yourself.
+  const timing = absenceTimingDE(a, today);
+  const meta = [absenceDurationDE(a), timing].filter(Boolean).join(" · ");
   row.innerHTML = `
     <span class="absence-type type-${escapeHTML(a.type)}">${escapeHTML(ABSENCE_TYPE_LABEL[a.type] || a.type)}</span>
     <span class="absence-label">${escapeHTML(a.label || "")}</span>
-    <span class="absence-range">${escapeHTML(range)}</span>
+    <span class="absence-when">
+      <span class="absence-range">${escapeHTML(range)}</span>
+      <span class="absence-meta">${escapeHTML(meta)}</span>
+    </span>
     ${editCell}
     <button type="button" class="icon-btn absence-delete" title="Löschen">${ICON.trash}</button>
   `;
+  // Hovering a row lights up its span in the rail above, so the two views read
+  // as one thing rather than two lists of dates.
+  row.addEventListener("mouseenter", () => highlightTimelineSpan(a.id, true));
+  row.addEventListener("mouseleave", () => highlightTimelineSpan(a.id, false));
   if (editable) {
     row.querySelector(".absence-edit").addEventListener("click", () => openAbsenceDialog(a));
   }
@@ -730,6 +860,11 @@ function createAbsenceRow(a, today, editable) {
     renderAbsences();
   });
   return row;
+}
+
+function highlightTimelineSpan(id, on) {
+  const span = document.querySelector(`#absence-timeline .tl-span[data-id="${CSS.escape(id)}"]`);
+  if (span) span.classList.toggle("hl", on);
 }
 
 // ---------- Absence dialog (create + edit) ----------
