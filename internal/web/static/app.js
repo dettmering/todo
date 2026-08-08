@@ -1209,7 +1209,12 @@ function groupTasksByWeek(tasks) {
     const past = sundayStr < todayStr;
     const current = !past && mondayStr <= todayStr;
     // Absences (any type) overlapping this calendar week, for the header hint.
-    const absences = (state.absences || []).filter(a => a.start_date <= sundayStr && a.end_date >= mondayStr);
+    // Chronological: what comes first in the week sits leftmost. The repo hands
+    // them over newest-first, so sort explicitly — earlier start wins, an
+    // already-running absence therefore leads; ties break on the shorter one.
+    const absences = (state.absences || [])
+      .filter(a => a.start_date <= sundayStr && a.end_date >= mondayStr)
+      .sort((a, b) => a.start_date.localeCompare(b.start_date) || a.end_date.localeCompare(b.end_date));
     groups.push({ key: g.key, label, range, past, current, tasks: g.tasks, absences });
   }
   return groups;
