@@ -141,8 +141,7 @@ h2{margin:1.5rem 0 .6rem;padding-top:1.1rem;border-top:1px solid var(--line);fon
 .status.available{color:var(--ok);background:var(--okbg)}
 .status.away{color:var(--away);background:var(--awaybg)}
 .status.trip{color:var(--trip);background:var(--tripbg)}
-.timeline{margin:0 0 1.1rem}
-.tl-cap{display:block;margin:0 0 .6rem;color:var(--muted);font-size:.8rem;font-weight:600}
+.timeline{margin:1.1rem 0 1.3rem}
 .tl-track{position:relative;height:.5rem;border-radius:999px;background-color:var(--track);background-image:repeating-linear-gradient(to right,transparent 0,transparent calc(100%/12 - 1px),var(--tick) calc(100%/12 - 1px),var(--tick) calc(100%/12))}
 .tl-span{position:absolute;top:0;bottom:0;border-radius:999px;min-width:.5rem}
 .tl-span.away{background:var(--away)}
@@ -169,12 +168,23 @@ footer{max-width:32rem;margin:1rem auto 0;color:var(--muted);font-size:.8rem;tex
 <main>
 <div class="head"><h1>Availability</h1></div>
 <div class="status ` + statusCls + `">` + html.EscapeString(phrase) + `</div>` + backOnHTML(today, backOn) + `
-<h2>Scheduled absences</h2>
+<h2>` + absencesHeading() + `</h2>
 ` + absenceTimelineHTML(absences, today) + rows.String() + `
 </main>` + footerHTML(today, lastUpdated) + `
 </body>
 </html>
 `
+}
+
+// absencesHeading names the absences section and states the horizon it covers,
+// so readers see that the list is a window (domain.ShareWindowWeeks) and not
+// everything on the calendar. The timeline below it carries no caption of its
+// own — this heading labels both.
+func absencesHeading() string {
+	if domain.ShareWindowWeeks == 1 {
+		return "Scheduled absences in the next week"
+	}
+	return fmt.Sprintf("Scheduled absences in the next %d weeks", domain.ShareWindowWeeks)
 }
 
 // absenceTimelineHTML renders the coming twelve weeks as a slim horizontal
@@ -195,7 +205,7 @@ func absenceTimelineHTML(absences []*domain.Absence, today domain.LocalDate) str
 		return float64(start.DaysUntil(d)) * 100 / totalDays
 	}
 	var b strings.Builder
-	b.WriteString(`<section class="timeline" aria-hidden="true"><span class="tl-cap">Next 12 weeks</span><div class="tl-track">`)
+	b.WriteString(`<section class="timeline" aria-hidden="true"><div class="tl-track">`)
 	for _, a := range absences {
 		s, e := a.Start, a.End
 		if end.Before(s) || e.Before(start) {

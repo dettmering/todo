@@ -608,8 +608,10 @@ Requests), sodass die sensiblen Felder gar nicht erst im Browser landen:
   „tomorrow" ist ein vollständiges Zeitadverbial und verträgt kein „on" hinter
   sich; der Wochentag entfällt hier, weil er neben „tomorrow" nichts trägt.
 - Darunter — durch eine Trennlinie vom Kopfbereich abgesetzt — folgt die
-  Zwischenüberschrift **„Scheduled absences"**.
-- Direkt unter der Überschrift liegt die **Zeitleiste „Next 12 weeks"**: eine
+  Zwischenüberschrift **„Scheduled absences in the next 12 weeks"**. Die
+  Wochenzahl stammt aus `domain.ShareWindowWeeks`, benennt also dasselbe
+  Fenster, das Zeitleiste und Liste zeigen.
+- Direkt unter der Überschrift liegt die **Zeitleiste**: eine
   schmale waagerechte Schiene, auf der jede Abwesenheit als farbiger Balken
   sitzt (rot = *Away*, blau = *Business Trip*), dazu ein Punkt für **heute**,
   feine Striche als Wochengrenzen und Monatskürzel darunter. Sie beantwortet
