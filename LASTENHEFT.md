@@ -1,14 +1,14 @@
-# Vereinfachtes Lastenheft: Webbasierte Todo-Liste mit API und Webhooks
+# Lastenheft: Webbasierte Todo-Liste mit API und Webhooks
 
-**Ziel:** Minimal nutzbare Aufgabenmanagement-Anwendung nach ausgewählten Prinzipien etablierter Task-Manager
+**Ziel:** Schlanke Aufgabenmanagement-Anwendung nach ausgewählten Prinzipien etablierter Task-Manager
 **Scope:** Single-User, webbasiert, Listenansicht, API-first
-**Nicht-Ziel:** Kollaboration, Mobile/Desktop-Apps, SSO, Analytics, Alarme, Kalenderintegration, Board-/Kanban-Ansicht
+**Nicht-Ziel:** Kollaboration, Mobile/Desktop-Apps, SSO, Analytics, Alarme, Board-/Kanban-Ansicht
 
-> **Hinweis zum Dokumentstatus:** Dieses Lastenheft ist mit dem Implementierungsstand
-> abgeglichen. Abschnitte, die über den aktuellen Code hinausgehen oder bewusst
-> reduziert umgesetzt wurden, sind mit einem **Status:**-Vermerk gekennzeichnet
-> (umgesetzt · teilweise · geplant). Maßgeblich für das tatsächliche Verhalten ist
-> der Code; siehe `CLAUDE.md` für die Architektur.
+> **Hinweis zum Dokumentstatus:** Dieses Lastenheft beschreibt die Anwendung im
+> Produktivbetrieb und ist mit dem Implementierungsstand abgeglichen — es
+> enthält keine Absichtserklärungen, sondern nur, was das System tatsächlich
+> tut. Maßgeblich für Details ist der Code; siehe `CLAUDE.md` für die
+> Architektur.
 
 ---
 
@@ -23,7 +23,7 @@ Die Anwendung soll insbesondere folgende Fähigkeiten bieten:
 * Aufgaben mit Priorität versehen
 * Aufgaben mit einem Erscheinungsdatum versehen
 * Aufgaben mit einer Deadline versehen
-* natürlichsprachige Eingabe für Termine und Wiederholungen unterstützen
+* natürlichsprachige Eingabe für Termine unterstützen
 * wiederkehrende Aufgaben verwalten
 * eine API zur Automatisierung bereitstellen
 * Webhooks zur Ereignisweitergabe bereitstellen
@@ -49,12 +49,14 @@ Die Anwendung soll kein etabliertes Produkt vollständig nachbauen, sondern nur 
 * Webhooks
 * Basisdatenhaltung
 * Import/Export optional
+* Abwesenheiten und daraus abgeleitete Terminlogik (siehe 4.10 und 5.13)
+* Kommentare und Aktivitätsprotokoll (siehe 4.8, 4.9 und 5.12)
+* iCal-Feed, anonymisierte Share-Seite und MCP-Server (siehe 5.14)
 
 ### Out of Scope
 
 * Mehrbenutzerfähigkeit
 * Kollaboration
-* Kommentare
 * Datei-Anhänge
 * Mobile Apps
 * Desktop Apps
@@ -75,13 +77,13 @@ Die Anwendung soll kein etabliertes Produkt vollständig nachbauen, sondern nur 
 
 ## 3. Nutzerrolle
 
-Da keine Kollaboration vorgesehen ist, gibt es im MVP nur eine Rolle.
+Da keine Kollaboration vorgesehen ist, gibt es nur eine Rolle.
 
 | Rolle  | Beschreibung                                                                                |
 | ------ | ------------------------------------------------------------------------------------------- |
 | Nutzer | Verwaltet eigene Aufgaben, Projekte, Prioritäten, Termine, Deadlines und Automatisierungen. |
 
-Eine Authentifizierung kann für den MVP entfallen, sofern die Anwendung nur lokal, in einem geschützten Netzwerk oder hinter einem externen Schutzmechanismus betrieben wird.
+Die Anwendung selbst führt keine Benutzeranmeldung. Sie wird lokal, in einem geschützten Netzwerk oder hinter einem externen Schutzmechanismus betrieben (siehe 5.10).
 
 ---
 
@@ -137,8 +139,8 @@ Ein Projekt gruppiert Aufgaben thematisch.
 | Erstellt am        | Erstellzeitpunkt                                               |
 | Aktualisiert am    | Letzte Änderung                                                |
 
-**Status:** umgesetzt. Slug und Farbe sind über die Implementierung hinzugekommen
-und im Datenmodell (Abschnitt 7) sowie der API enthalten.
+Slug und Farbe sind gegenüber dem ursprünglichen Entwurf hinzugekommen und im
+Datenmodell (Abschnitt 7) sowie der API enthalten.
 
 Beispiele:
 
@@ -236,47 +238,25 @@ Eine Aufgabe kann eine Wiederholungsregel besitzen, z. B.:
 
 Beim Abschließen einer wiederkehrenden Aufgabe wird automatisch eine neue Instanz oder ein neuer Termin erzeugt.
 
-### Offene fachliche Entscheidung
+### Umsetzungsmodell
 
-Es gibt zwei mögliche Modelle:
+Zwei Modelle waren möglich: dieselbe Aufgabe auf das nächste Erscheinungsdatum
+weiterschieben (**A**) oder sie abschließen und eine neue Instanz für den
+nächsten Termin erzeugen (**B**).
 
-#### Modell A: Aufgabe wird weitergeschoben
-
-Beim Erledigen wird dieselbe Aufgabe auf das nächste Erscheinungsdatum gesetzt.
-
-Vorteile:
-
-* einfach
-* wenig Daten
-* gute Nähe zu etablierten Task-Managern
-
-Nachteile:
-
-* keine Historie einzelner Erledigungen
-
-#### Modell B: Neue Aufgabeninstanz wird erzeugt
-
-Beim Erledigen wird die aktuelle Aufgabe abgeschlossen und eine neue Aufgabe für den nächsten Termin erzeugt.
-
-Vorteile:
-
-* bessere Historie
-* API-seitig sauberer
-* spätere Auswertungen möglich
-
-Nachteile:
-
-* etwas komplexer
-
-Für dieses Lastenheft wird **Modell B empfohlen**, weil es API- und Webhook-freundlicher ist.
+Umgesetzt ist **Modell B**. Es kostet etwas mehr Daten, liefert dafür eine
+echte Historie einzelner Erledigungen und ist API- und Webhook-freundlich: Jede
+Instanz hat ihre eigene ID, ihr eigenes `completed_at` und löst eigene Events
+aus (`task.completed` für die erledigte, `task.recurrence_generated` für die
+neue).
 
 ---
 
 ## 4.7 Natürlichsprachige Datumseingabe
 
-Das System muss natürlichsprachige Eingaben für Datum und Wiederholung unterstützen.
+Das System muss natürlichsprachige Datumseingaben unterstützen.
 
-### Datumsphrasen (umgesetzt)
+### Datumsphrasen
 
 Der Parser (`internal/nldate`, Endpunkt `POST /api/parse`) erkennt deutsche
 Datumsangaben. Erkannte Phrasen (case-insensitiv, Whitespace egal):
@@ -300,14 +280,10 @@ Datumsangaben. Erkannte Phrasen (case-insensitiv, Whitespace egal):
 | `2026-05-21`                     | ISO-Datum                                    |
 | `KW32` / `kw 32`                 | Montag der 32. ISO-Kalenderwoche             |
 
-### Wiederholungsphrasen
+### Wiederholungen
 
-**Status:** **noch nicht umgesetzt.** Die natürlichsprachige Erkennung von
-Wiederholungen (`jeden Montag`, `alle 2 Wochen`, `jeden ersten des Monats`) ist
-in `internal/nldate` als dokumentierter Stub angelegt, aber nicht aktiv. `POST
-/api/parse` liefert daher heute nur ein `visible_from`, kein `recurrence_rule`.
-
-Wiederholungen werden stattdessen **strukturiert** gesetzt:
+Die natürlichsprachige Eingabe deckt **Datumsphrasen** ab. Wiederholungen
+werden **strukturiert** gesetzt, nicht aus freiem Text erkannt:
 
 * im Frontend über ein Auswahlfeld mit Presets (Täglich, Werktäglich,
   Wöchentlich, Alle 2 Wochen, Monatlich, Alle 3 Monate, Jährlich, eigene RRULE)
@@ -317,10 +293,9 @@ Siehe Abschnitt 4.6 für den unterstützten RRULE-Umfang.
 
 ### Anforderungen
 
-* natürliche Sprache mindestens auf Deutsch
-* optional Englisch (**nicht umgesetzt**)
-* Parser muss Datum, Deadline und Wiederholung unterscheiden können
-  (Datum/Deadline: umgesetzt; Wiederholung: siehe oben)
+* natürliche Sprache auf Deutsch
+* der Parser unterscheidet Erscheinungsdatum und Deadline anhand des Feldes,
+  in das die Phrase geschrieben wird
 * erkannte Werte müssen vor dem Speichern sichtbar oder prüfbar sein
 * fehlerhafte oder mehrdeutige Eingaben dürfen nicht stillschweigend falsch
   interpretiert werden (unerkannte Eingabe → HTTP 422)
@@ -341,7 +316,7 @@ zeitgestempelte Notiz mit Markdown-Inhalt.
 
 ### Anforderungen
 
-* Kommentare sind append-only (kein Bearbeiten oder Löschen im MVP)
+* Kommentare sind append-only — kein Bearbeiten, kein Löschen
 * der Inhalt unterstützt Markdown; die Darstellung rendert das Markup
 * Kommentare werden absteigend nach Aktualität (neueste zuerst) angezeigt
 * das Setzen von Kommentaren muss auch automatisiert über die API möglich sein
@@ -350,8 +325,6 @@ zeitgestempelte Notiz mit Markdown-Inhalt.
 ---
 
 ## 4.9 Aktivitätsprotokoll (Audit-Log)
-
-**Status:** umgesetzt (über das ursprüngliche Lastenheft hinausgehend).
 
 Das System führt ein Protokoll über die wichtigsten Zustandsänderungen einer
 Aufgabe. Jeder Eintrag wird beim Eintreten der Änderung im Service-Layer
@@ -386,6 +359,65 @@ einsehbar.
 * Einträge sind append-only
 * abrufbar gefiltert nach Aufgabe und nach Kalendertag/-bereich
 * die Frontend-Ansicht „Aktivität" zeigt das Protokoll nach Tag gruppiert
+
+---
+
+## 4.10 Abwesenheit
+
+Eine **Abwesenheit** ist ein zusammenhängender Zeitraum, in dem der Nutzer nicht
+am Platz ist — Urlaub, Feiertag, Krankheit, Dienstreise oder Sonstiges.
+Abwesenheiten hängen an keiner Aufgabe; sie beschreiben die Verfügbarkeit des
+Nutzers und speisen die Terminlogik („nächster Arbeitstag"), die Warnungen beim
+Anlegen von Aufgaben sowie die nach außen geteilten Verfügbarkeits-Sichten
+(iCal-Feed, Share-Seite).
+
+### Attribute einer Abwesenheit
+
+* `id` — eindeutige ID (`absence_*`)
+* `type` — einer von `vacation`, `holiday`, `sick`, `business_trip`, `other`
+* `label` — optionaler freier Name (z. B. „Kreta"); rein informativ
+* `start_date` / `end_date` — **inklusive** Kalendertage (`YYYY-MM-DD`)
+* `created_at` / `updated_at` — Zeitstempel
+
+### Typen und ihre Wirkung
+
+| Typ             | Bedeutung   | Blockiert Arbeit? |
+| --------------- | ----------- | ----------------- |
+| `vacation`      | Urlaub      | ja                |
+| `holiday`       | Feiertag    | ja                |
+| `sick`          | Krank       | ja                |
+| `other`         | Sonstiges (Default) | ja        |
+| `business_trip` | Dienstreise | **nein** — zählt als regulärer Arbeitstag |
+
+Die Dienstreise ist der bewusste Sonderfall: Sie ist eine Abwesenheit (erscheint
+in Listen, Zeitleisten und geteilten Sichten), gilt aber der Terminlogik als
+normaler Arbeitstag und verschiebt daher keine Aufgaben.
+
+### Anforderungen
+
+* Abwesenheiten sind anlegbar, bearbeitbar und löschbar (**harter Delete** —
+  anders als Aufgaben und Projekte gibt es hier kein Soft-Delete/Archiv, weil
+  eine gelöschte Abwesenheit keine Historie trägt)
+* `end_date` muss `>= start_date` sein
+* Abwesenheiten dürfen sich überlappen; die Auswertung nimmt jeweils den
+  strengeren Fall (eine arbeitsblockierende Abwesenheit schlägt eine
+  gleichzeitige Dienstreise)
+* Datumsangaben werden hier **nur als ISO-Datum** entgegengenommen — die
+  natürlichsprachige Eingabe aus 4.7 gilt für Aufgaben, nicht für Abwesenheiten
+* das Anlegen und Pflegen muss auch automatisiert über die API möglich sein
+
+### Abgeleitete Auswertungen
+
+Die folgenden Regeln sind reine Domänenlogik (`internal/domain/absence.go`) und
+werden von API, Frontend und den geteilten Sichten gemeinsam genutzt:
+
+| Auswertung             | Regel                                                                 |
+| ---------------------- | --------------------------------------------------------------------- |
+| **Nächster Arbeitstag** | erster Tag **strikt nach** dem Stichtag, der weder Wochenende noch von einer arbeitsblockierenden Abwesenheit abgedeckt ist |
+| **Aktuelle Verfügbarkeit** | „abwesend", wenn heute eine blockierende Abwesenheit greift; „auf Dienstreise", wenn nur eine Dienstreise greift; sonst „verfügbar" |
+| **Rückkehrdatum**      | der nächste Arbeitstag — aber nur, solange heute tatsächlich eine blockierende Abwesenheit läuft; sonst gibt es nichts anzukündigen |
+| **Ansichts-Auswahl**   | alle laufenden und künftigen Abwesenheiten plus die vergangenen **des laufenden Kalenderjahres** |
+| **Zeitraum-Abfrage**   | alle Abwesenheiten, die ein inklusives Fenster `[von, bis]` **überlappen** — auch solche, die davor begonnen haben |
 
 ---
 
@@ -460,8 +492,6 @@ Das System muss Aufgaben als erledigt markieren können.
 
 ### LA-F-003a Aufgabe wieder öffnen
 
-**Status:** umgesetzt (über das ursprüngliche Lastenheft hinausgehend).
-
 Eine abgeschlossene Aufgabe kann wieder geöffnet werden.
 
 **Muss-Kriterien:**
@@ -535,10 +565,15 @@ Ansichten sind umgesetzt:
 | Inbox       | `/inbox`             | Aufgaben des Standardprojekts                                |
 | Projekt     | `/projects/<slug>`   | Aufgaben eines Projekts                                      |
 | Aktivität   | `/activity`          | Aktivitätsprotokoll (siehe 4.9), nach Tag gruppiert          |
+| Abwesenheiten | `/absences`        | Abwesenheiten (siehe 4.10) als 12-Wochen-Zeitleiste + Liste, laufende/künftige oben, vergangene darunter |
 
 Die gruppierten Ansichten rufen die API mit `scope=all` ab und wenden die
 Sichtbarkeitslogik clientseitig an. Aufgabendetails sind direkt verlinkbar
 (`/tasks/<id>`).
+
+In der Ansicht **Demnächst** trägt jeder Kalenderwochen-Gruppenkopf zusätzlich
+die **Abwesenheits-Badges** der Wochen, die von einer Abwesenheit berührt werden
+(eingefärbt nach Typ) — damit sichtbar wird, warum eine Woche dünn geplant ist.
 
 ---
 
@@ -556,13 +591,13 @@ Sortierung nach (API-Parameter `sort`):
 * Deadline (`deadline`)
 * Erscheinungsdatum (`visible_from`)
 * Erstellzeitpunkt (`created_at`)
-* Standard (leer) — empfohlene Standardsortierung (siehe unten)
-* Projekt — **nicht als eigener Sort-Modus umgesetzt** (Projekte sind in der UI
-  ohnehin eigene Ansichten)
-* manuelle Reihenfolge — **nicht umgesetzt** für Aufgaben (nur Projekte besitzen
-  ein `sort_order`)
+* Standard (leer) — siehe unten
 
-Empfohlene Standardsortierung (umgesetzt als Default `SortDefault`):
+Aufgaben haben bewusst **keine manuelle Reihenfolge** und keinen eigenen
+Sort-Modus „Projekt": Ein `sort_order` tragen nur Projekte, und Projekte sind
+in der UI ohnehin eigene Ansichten.
+
+Standardsortierung (Default `SortDefault`):
 
 1. überfällige Deadlines zuerst
 2. hohe Priorität zuerst
@@ -581,14 +616,11 @@ Das System muss einfache Filter unterstützen.
 
 Filter nach (API-Query-Parameter auf `GET /api/tasks`):
 
-* Projekt (`project_id`) — umgesetzt
-* Status (`status` = open/completed/deleted) — umgesetzt
-* Sichtbarkeit (`scope=all` schaltet die Erscheinungsdatum-Logik ab) — umgesetzt
-* Erscheinungsdatum als Tag/Bereich/KW (`date` · `from`/`to` · `week=YYYY-Www`) — umgesetzt
-* Erledigungsdatum als Tag/Bereich/KW (`completed_date` · `completed_from`/`completed_to` · `completed_week`) — umgesetzt
-* Priorität — **derzeit nicht über die HTTP-API filterbar** (das Storage-Filter
-  unterstützt es, der Handler liest den Parameter aber noch nicht aus)
-* wiederkehrend / nicht wiederkehrend — **nicht umgesetzt**
+* Projekt (`project_id`)
+* Status (`status` = open/completed/deleted)
+* Sichtbarkeit (`scope=all` schaltet die Erscheinungsdatum-Logik ab)
+* Erscheinungsdatum als Tag/Bereich/KW (`date` · `from`/`to` · `week=YYYY-Www`)
+* Erledigungsdatum als Tag/Bereich/KW (`completed_date` · `completed_from`/`completed_to` · `completed_week`)
 
 Beispiele:
 
@@ -597,7 +629,7 @@ Beispiele:
 * alle Aufgaben mit Erscheinungsdatum in einer bestimmten Kalenderwoche
 * alle in einem Zeitraum erledigten Aufgaben
 
-Eine komplexe Filter-Syntax, wie sie etablierte Task-Manager bieten, ist für den MVP nicht erforderlich.
+Eine komplexe Filter-Syntax, wie sie etablierte Task-Manager bieten, ist bewusst nicht vorgesehen.
 
 ---
 
@@ -634,7 +666,7 @@ API-Endpunkte für:
 * Projekte erstellen, lesen, aktualisieren, löschen/archivieren
 * natürlichsprachige Eingabe parsen
 
-### Tatsächlich umgesetzte API-Endpunkte
+### API-Endpunkte
 
 ```http
 GET    /api/tasks
@@ -656,13 +688,32 @@ GET    /api/projects/{id}
 PATCH  /api/projects/{id}
 DELETE /api/projects/{id}
 
+GET    /api/absences
+POST   /api/absences
+GET    /api/absences/{id}
+PATCH  /api/absences/{id}
+DELETE /api/absences/{id}
+GET    /api/next-workday
+
 POST   /api/parse
+```
+
+Zusätzlich, **nicht Teil der JSON-API**, sondern token-geschützte Sonderrouten
+für Konsumenten außerhalb der Anwendung (siehe 5.14):
+
+```http
+GET    /api/absences.ics    iCal-Feed der Abwesenheiten   (ICAL_TOKEN)
+GET    /api/absences.html   anonymisierte Share-Seite     (SHARE_TOKEN)
+POST   /mcp                 MCP-Server (Streamable HTTP)  (MCP_TOKEN)
 ```
 
 **Abweichungen gegenüber dem ursprünglichen Entwurf:**
 
 * `POST /api/tasks/{id}/reopen`, `GET /api/tasks/{id}/audit` und `GET /api/audit`
   sind neu hinzugekommen.
+* Abwesenheiten (`/api/absences*`) und die daraus abgeleitete
+  Terminlogik (`/api/next-workday`) sind ein ganzer Objektbereich, den der
+  ursprüngliche Entwurf nicht kannte — siehe 4.10.
 * Eigene Endpunkte zum Lesen von „Prioritäten" und „Wiederholungsregeln" gibt es
   nicht — beide sind feste Wertebereiche (P1–P4 bzw. der RRULE-Subset aus 4.6)
   und werden nicht über die API ausgeliefert.
@@ -672,29 +723,37 @@ POST   /api/parse
 Hinweise zu Listenparametern: `GET /api/tasks` akzeptiert die Filter-/Sortier-
 Parameter aus 5.6/5.7. `GET /api/projects` liefert standardmäßig nur aktive
 Projekte; `include_archived=true` schließt archivierte ein (das Frontend nutzt
-dies, damit historische Projektlabels weiter auflösen).
+dies, damit historische Projektlabels weiter auflösen). `GET /api/absences`
+kennt zwei Modi: ohne Parameter (bzw. mit `today=`) die Ansichts-Auswahl aus
+4.10, mit `from=`/`to=` die überlappende Zeitraum-Abfrage.
 
 ---
 
-## 5.10 API-Authentifizierung
+## 5.10 Zugriffsschutz
 
-Auch wenn kein Sign-on vorgesehen ist, sollte die API nicht ungeschützt sein, sobald sie außerhalb eines lokalen Netzwerks erreichbar ist.
+Die Anwendung kennt keine Benutzeranmeldung. Der Schutz ist zweistufig
+aufgeteilt, weil die beiden Gruppen von Konsumenten unterschiedliche
+Möglichkeiten haben.
 
-**Status:** **noch nicht umgesetzt.** Die Anwendung enthält derzeit keine
-Authentifizierung; sämtliche API- und UI-Endpunkte sind offen. Der Betrieb setzt
-daher voraus, dass die App nur lokal, im geschützten Netz oder hinter einem
-externen Schutzmechanismus (Reverse-Proxy mit Auth, VPN o. Ä.) erreichbar ist.
+**JSON-API und Weboberfläche** (`/`, `/api/tasks`, `/api/projects`,
+`/api/absences`, `/api/audit`, `/api/parse`) tragen keine eigene
+Authentifizierung. Sie liegen hinter der **BasicAuth des Reverse-Proxys**; die
+Anwendung wird nur lokal, im geschützten Netz oder hinter diesem Proxy
+betrieben.
 
-### Minimalanforderung (geplant)
+**Die Sonderrouten aus 5.14** (`/api/absences.ics`, `/api/absences.html`,
+`/mcp`) müssen von dieser Proxy-Auth ausgenommen sein — Kalender-Clients,
+MCP-Clients und Kollegen können sich nicht interaktiv anmelden. Dort ist ein
+**Token der einzige Schutz**, und für alle drei gilt dasselbe Muster:
 
-* statischer API-Key
-* Übergabe per Header
-
-Beispiel:
-
-```http
-Authorization: Bearer <api-key>
-```
+* je Route eine **eigene** Umgebungsvariable (`ICAL_TOKEN`, `SHARE_TOKEN`,
+  `MCP_TOKEN`), damit ein Zugang einzeln widerrufbar ist und ein geteilter Link
+  nicht mehr freischaltet als gewollt
+* **ist die Variable nicht gesetzt, existiert die Route nicht** (404) — eine
+  Fehlkonfiguration kann die Route also nie ungeschützt ausliefern
+* falscher oder fehlender Token ⇒ 401; der Vergleich läuft in konstanter Zeit
+* der MCP-Endpunkt nimmt den Token zusätzlich als
+  `Authorization: Bearer <token>`-Header entgegen
 
 ### Out of Scope
 
@@ -710,20 +769,19 @@ Authorization: Bearer <api-key>
 
 ### LA-F-010 Webhooks bereitstellen
 
-Das System muss Webhooks unterstützen.
+Das System muss Ereignisse an einen externen Empfänger weitergeben.
 
-**Status:** **reduziert umgesetzt.** Aktuell existiert ein einzelner
-Webhook-Empfänger: Ist die Umgebungsvariable `WEBHOOK_URL` gesetzt, wird **jedes**
-Event des internen Event-Bus als JSON-POST an diese URL zugestellt. Es gibt
-**keine** Verwaltungs-API, keine Auswahl einzelner Events pro Webhook, kein
-Secret, keine Signatur, keinen Retry und keine Zustelllogs. Die Zustellung läuft
-asynchron auf dem Event-Bus und blockiert UI-Aktionen nicht (Timeout 10 s). Die
-ausführlichen Muss-Kriterien unten beschreiben den **Zielzustand** und sind
-noch offen.
+Umgesetzt ist bewusst die **einfachste tragfähige Form**: Ist die
+Umgebungsvariable `WEBHOOK_URL` gesetzt, wird **jedes** Event des internen
+Event-Bus als JSON-POST an diese eine URL zugestellt. Für einen
+Single-User-Betrieb mit genau einem Empfänger (typischerweise eine
+Automatisierungs-Plattform, die selbst filtert) trägt das — eine
+Verwaltungs-API mit mehreren Zielen, Event-Filtern und Secrets wäre Aufwand
+ohne Nutzen.
 
 **Muss-Kriterien:**
 
-Webhook-Ereignisse bei (im Code als Event-Typen vorhanden und ausgelöst):
+Webhook-Ereignisse bei:
 
 * Aufgabe erstellt
 * Aufgabe aktualisiert
@@ -736,8 +794,9 @@ Webhook-Ereignisse bei (im Code als Event-Typen vorhanden und ausgelöst):
 * Projekt gelöscht
 * wiederkehrende Aufgabe erzeugt nächste Instanz
 * Kommentar erstellt
+* Abwesenheit erstellt, aktualisiert, gelöscht
 
-### Beispielhafte Events
+### Event-Typen
 
 ```text
 task.created
@@ -751,6 +810,9 @@ project.created
 project.updated
 project.deleted
 comment.created
+absence.created
+absence.updated
+absence.deleted
 ```
 
 ### Webhook-Payload Beispiel
@@ -772,24 +834,17 @@ comment.created
 }
 ```
 
-### Technische Muss-Kriterien
+### Zustellung
 
-| Kriterium                                            | Status                              |
-| ---------------------------------------------------- | ----------------------------------- |
-| Ziel-URL konfigurierbar                              | umgesetzt (eine URL via `WEBHOOK_URL`) |
-| Events pro Webhook auswählbar                        | geplant (heute: alle Events)        |
-| Secret pro Webhook                                   | geplant                             |
-| Signatur im Header                                   | geplant                             |
-| Retry bei Fehlern                                    | geplant (heute: einmaliger Versuch) |
-| Timeout-Konfiguration                                | teilweise (fester Timeout 10 s)     |
-| Webhook-Logs (letzte Zustellversuche)                | geplant (heute: nur Server-Log)     |
-| Deaktivierung fehlerhafter Webhooks                  | geplant                             |
-
-Empfohlener Signaturheader (für die spätere Umsetzung):
-
-```http
-X-Webhook-Signature: sha256=<signature>
-```
+| Eigenschaft   | Verhalten                                                                 |
+| ------------- | ------------------------------------------------------------------------- |
+| Ziel          | genau eine URL, konfiguriert über `WEBHOOK_URL`; ohne die Variable ist der Versand aus |
+| Auswahl       | keine — es geht **jedes** Event des Busses hinaus, der Empfänger filtert   |
+| Ausführung    | asynchron auf der Bus-Goroutine; eine HTTP-Anfrage wartet nie auf die Zustellung |
+| Timeout       | fest 10 s                                                                  |
+| Wiederholung  | keine — ein Versuch je Event                                               |
+| Fehlerbehandlung | Transportfehler und Antworten ab Status 400 landen im Server-Log         |
+| Absicherung   | keine Signatur, kein Secret — der Empfänger wird über eine nicht öffentliche URL adressiert |
 
 ---
 
@@ -813,7 +868,100 @@ Das System muss erlauben, eine Aufgabe mit Kommentaren zu versehen.
 **Verhalten:**
 
 * leere Kommentare (nur Leerzeichen) werden abgelehnt
-* Kommentare sind append-only — kein Bearbeiten oder Löschen im MVP
+* Kommentare sind append-only — kein Bearbeiten, kein Löschen
+
+---
+
+## 5.13 Abwesenheiten verwalten
+
+### LA-F-012 Abwesenheiten pflegen und auswerten
+
+Das System muss erlauben, Abwesenheitszeiträume (siehe 4.10) zu pflegen und die
+Terminlogik daran auszurichten.
+
+**Muss-Kriterien:**
+
+* eine eigene Ansicht `/absences` listet die Abwesenheiten: laufende und
+  künftige zuerst (nächste zuerst), vergangene darunter (jüngste zuerst)
+* je Eintrag werden Typ-Badge, Label, Zeitraum sowie **Dauer und zeitlicher
+  Abstand** gezeigt („12 Tage · beginnt in 3 Wochen", „5 Tage · noch 2 Tage",
+  „endet heute") — genau das, was man sich aus zwei nackten Datumsangaben sonst
+  selbst ausrechnet; bei vergangenen Einträgen entfällt der Abstand
+* der aktuell laufende Eintrag ist hervorgehoben
+* über der Liste steht eine **Zeitleiste über die nächsten 12 Wochen**: ein
+  farbiger Balken je Abwesenheit auf einer Schiene mit Wochenstrichen,
+  Monatslabels und einer Markierung für heute. Das Fenster beginnt am Montag
+  der laufenden Woche, Balken werden an den Fensterrändern abgeschnitten,
+  Abwesenheiten außerhalb des Fensters entfallen (sie bleiben in der Liste).
+  Ein Hover auf einer Listenzeile hebt den zugehörigen Balken hervor, sodass
+  Leiste und Liste als eine Darstellung lesbar sind
+* Anlegen, Bearbeiten und Löschen laufen über einen Dialog
+* **Warnung statt Verbot:** Fällt das Erscheinungsdatum oder die Deadline einer
+  Aufgabe in eine hinterlegte Abwesenheit, zeigt die Eingabe (Quick-Add wie
+  Aufgabendialog) einen nicht blockierenden Hinweis mit Typ und Label. Alle
+  Typen lösen ihn aus, auch die Dienstreise
+* der Quick-Reschedule-Knopf **„Nächster Arbeitstag"** im Aufgabendialog setzt
+  das Erscheinungsdatum auf den nächsten Arbeitstag nach der Regel aus 4.10
+  (überspringt Wochenenden und blockierende Abwesenheiten)
+
+**Verhalten:**
+
+* die Terminlogik ist **serverseitig** die Quelle der Wahrheit
+  (`GET /api/next-workday`), damit Frontend, API-Clients und MCP-Clients
+  dieselbe Antwort bekommen
+* Anlegen, Ändern und Löschen lösen die Events `absence.created`,
+  `absence.updated` und `absence.deleted` aus (siehe 5.11)
+* Abwesenheiten erzeugen **keine** Audit-Einträge — das Protokoll aus 4.9
+  beschreibt Aufgaben
+
+---
+
+## 5.14 Geteilte Sichten und Integrationen
+
+### LA-F-013 Verfügbarkeit teilen und die App fernsteuerbar machen
+
+Drei Routen liegen außerhalb der JSON-API und richten sich an Konsumenten
+außerhalb der Anwendung. Alle drei sind nach demselben Muster token-geschützt
+(siehe 5.10).
+
+| Route | Zweck | Token |
+| --- | --- | --- |
+| `GET /api/absences.ics` | Abwesenheiten als abonnierbarer iCal-Feed für Kalender-Clients | `ICAL_TOKEN` |
+| `GET /api/absences.html` | anonymisierte Verfügbarkeits-Seite zum Teilen mit Kollegen | `SHARE_TOKEN` |
+| `/mcp` | MCP-Server (Streamable HTTP), damit LLM-Clients die App als Werkzeuge nutzen | `MCP_TOKEN` |
+
+**iCal-Feed:**
+
+* jede Abwesenheit wird ein ganztägiges `VEVENT` mit stabiler `UID`, sodass ein
+  erneuter Abruf Termine aktualisiert statt sie zu duplizieren
+* blockierende Abwesenheiten werden als **„Out of Office"** markiert, die
+  Dienstreise als „woanders arbeitend" — sie bleibt terminierbar
+* Kalendername und Refresh-Intervall werden mitgeliefert; der Kalendername
+  folgt `SHARE_NAME`
+
+**Share-Seite:**
+
+* **anonymisiert:** nur Zeitraum und ein grober Zustand („Away" /
+  „Business Trip") verlassen den Server. Grund (`type` im Detail) und `label`
+  werden nie ausgeliefert
+* die Seite wird **serverseitig** als self-contained HTML gerendert (kein
+  JS-Fetch), damit die sensiblen Felder gar nicht erst im Browser landen
+* sie zeigt: die aktuelle Verfügbarkeit als Satz, bei Abwesenheit das
+  Rückkehrdatum („Back in 4 days on Monday, 3 August 2026"), eine
+  12-Wochen-Zeitleiste, die Liste der laufenden und künftigen Zeiträume, eine
+  Legende und das Alter der letzten Änderung
+* der Token steht in der URL, also setzt die Seite `Referrer-Policy:
+  no-referrer`, damit er nicht über den Referer abfließt
+
+**MCP-Server:**
+
+* eingebettet in dasselbe Binary und auf **derselben Service-Schicht** wie die
+  REST-API — gleiche Validierung, ID-Vergabe, Zeitstempel und Events
+* deckt Aufgaben, Projekte, Abwesenheiten, den nächsten Arbeitstag und den
+  NL-Parser ab
+
+Die vollständige technische Beschreibung (Felder, Parameter, Clientanbindung)
+steht in `README.md`; dieser Abschnitt hält nur die fachliche Anforderung fest.
 
 ---
 
@@ -830,7 +978,7 @@ Das System wird ausschließlich als Webanwendung bereitgestellt.
 * nutzbar auf mobilen Browsern
 * keine native App erforderlich
 * keine Desktop-App erforderlich
-* **Dark Mode** (umgesetzt): folgt automatisch der Systemeinstellung via
+* **Dark Mode:** folgt automatisch der Systemeinstellung via
   `prefers-color-scheme`; keine manuelle Umschaltung
 * **Kein Build-Schritt** im Frontend: `index.html`, `style.css`, `app.js` werden
   per `go:embed` direkt in das Binary eingebettet
@@ -849,15 +997,11 @@ Das System wird ausschließlich als Webanwendung bereitgestellt.
 
 Shortcuts:
 
-| Shortcut | Funktion         | Status            |
-| -------- | ---------------- | ----------------- |
-| `n`      | neue Aufgabe (Quick-Add fokussieren) | umgesetzt |
-| `Enter`  | speichern (Quick-Add, Dialoge), `Strg/Cmd+Enter` für Kommentare | umgesetzt |
-| `Escape` | Dialog/Sidebar schließen | umgesetzt |
-| `e`      | bearbeiten       | nicht umgesetzt   |
-| `d`      | erledigen        | nicht umgesetzt   |
-| `p`      | Priorität ändern | nicht umgesetzt   |
-| `/`      | Suche/Filter     | nicht umgesetzt   |
+| Shortcut | Funktion         |
+| -------- | ---------------- |
+| `n`      | neue Aufgabe (Quick-Add fokussieren) |
+| `Enter`  | speichern (Quick-Add, Dialoge), `Strg/Cmd+Enter` für Kommentare |
+| `Escape` | Dialog/Sidebar schließen |
 
 Die natürlichsprachige Eingabe ist prominent als Quick-Add verfügbar; im
 Quick-Add navigieren Pfeiltasten durch Vorschläge.
@@ -943,6 +1087,23 @@ Wiederholung), `comment_count` sowie die eingebetteten `comments`.
 }
 ```
 
+### Absence
+
+```json
+{
+  "id": "absence_123",
+  "type": "vacation",
+  "label": "Kreta",
+  "start_date": "2026-07-10",
+  "end_date": "2026-07-24",
+  "created_at": "2026-06-08T10:15:00Z",
+  "updated_at": "2026-06-08T10:15:00Z"
+}
+```
+
+`start_date` und `end_date` sind inklusive. Abwesenheiten hängen an keiner
+Aufgabe und tragen keinen Fremdschlüssel.
+
 ### AuditEntry
 
 ```json
@@ -957,33 +1118,14 @@ Wiederholung), `comment_count` sowie die eingebetteten `comments`.
 }
 ```
 
-### Webhook (geplant)
-
-Das folgende Modell beschreibt den Zielzustand der Webhook-Verwaltung
-(Abschnitt 5.11) und ist **noch nicht umgesetzt**. Heute existiert nur eine
-einzelne, per `WEBHOOK_URL` konfigurierte Ziel-URL ohne persistiertes
-Webhook-Objekt.
-
-```json
-{
-  "id": "wh_123",
-  "url": "https://example.com/webhook/todos",
-  "events": [
-    "task.created",
-    "task.completed",
-    "task.recurrence_generated"
-  ],
-  "secret": "stored-encrypted-or-hashed",
-  "active": true,
-  "created_at": "2026-05-20T20:00:00Z"
-}
-```
+Webhooks haben **kein** persistiertes Objekt: Das Ziel ist eine einzelne, per
+`WEBHOOK_URL` konfigurierte Adresse (siehe 5.11).
 
 ---
 
-## 8. MVP-Funktionsumfang
+## 8. Funktionsumfang
 
-Der MVP enthält ausschließlich:
+Die Anwendung umfasst:
 
 ### Aufgaben
 
@@ -1009,6 +1151,8 @@ Der MVP enthält ausschließlich:
 * Deadline
 * wiederkehrende Aufgaben
 * natürlichsprachige Datumseingabe
+* Abwesenheiten (siehe 4.10) inkl. „nächster Arbeitstag" und Warnung, wenn eine
+  Aufgabe in eine Abwesenheit fällt
 
 ### Organisation
 
@@ -1019,13 +1163,14 @@ Der MVP enthält ausschließlich:
 
 ### Automatisierung
 
-* API (umgesetzt)
-* Webhooks (reduziert: eine Ziel-URL, siehe 5.11)
-* API-Key (geplant, noch nicht umgesetzt — siehe 5.10)
+* REST-API
+* Webhooks (eine Ziel-URL, siehe 5.11)
+* iCal-Feed, anonymisierte Share-Seite und MCP-Server (jeweils token-geschützt —
+  siehe 5.14)
 
 ### Web-UI
 
-* Ansichten Heute / Demnächst / Inbox / Projekt / Aktivität
+* Ansichten Heute / Demnächst / Inbox / Projekt / Aktivität / Abwesenheiten
 * Quick-Add mit natürlichsprachiger Datumseingabe
 * Aufgabenformular inkl. Kommentaren
 * Projektverwaltung (inkl. Farbe)
@@ -1048,7 +1193,7 @@ Das System gilt als fachlich abgenommen, wenn folgende Szenarien funktionieren:
 8. Eine überfällige Deadline wird in der Liste hervorgehoben.
 9. Eine Aufgabe kann als erledigt markiert werden.
 10. Eine wiederkehrende Aufgabe erzeugt beim Abschließen den nächsten Termin (Modell B).
-11. Natürlichsprachliche Datumseingaben wie `morgen`, `Freitag`, `in 3 Tagen`, `KW32` werden korrekt interpretiert. *(Wiederholungs-Phrasen wie `jeden Montag` werden derzeit **nicht** per natürlicher Sprache erkannt — Wiederholungen werden über Auswahlfeld/RRULE gesetzt; siehe 4.7.)*
+11. Natürlichsprachliche Datumseingaben wie `morgen`, `Freitag`, `in 3 Tagen`, `KW32` werden korrekt interpretiert; Wiederholungen werden über Auswahlfeld bzw. RRULE gesetzt (siehe 4.7).
 12. Aufgaben können nach Projekt gefiltert werden.
 13. Aufgaben können nach Priorität sortiert werden.
 14. Aufgaben können nach Deadline sortiert werden.
@@ -1057,13 +1202,17 @@ Das System gilt als fachlich abgenommen, wenn folgende Szenarien funktionieren:
 17. Beim Erstellen einer Aufgabe wird ein Webhook ausgelöst.
 18. Beim Abschließen einer Aufgabe wird ein Webhook ausgelöst.
 19. Webhook-Payloads enthalten alle relevanten Aufgabendaten.
-20. Webhook-Fehler werden protokolliert und erneut versucht.
+20. Fehlgeschlagene Webhook-Zustellungen werden im Server-Log protokolliert.
 21. Eine Aufgabe kann über die Weboberfläche kommentiert werden; Kommentare werden mit Markdown gerendert und neueste zuerst angezeigt.
 22. Kommentare können über die API gelesen und erstellt werden.
 23. In der Listenansicht erscheint bei kommentierten Aufgaben eine Sprechblase mit der Kommentaranzahl.
 24. Eine abgeschlossene Aufgabe kann über UI und API wieder geöffnet werden.
 25. Zustandsänderungen einer Aufgabe (Erstellen, Abschließen, Wieder­öffnen, Löschen, Datums- und Projektänderungen) werden im Aktivitätsprotokoll festgehalten und sind nach Aufgabe und Zeitraum abrufbar.
 26. Die Oberfläche folgt automatisch dem hellen/dunklen Systemfarbschema.
+27. Eine Abwesenheit kann über UI und API angelegt, bearbeitet und gelöscht werden; die Ansicht „Abwesenheiten" zeigt sie als 12-Wochen-Zeitleiste und Liste mit Dauer und Abstand.
+28. Der nächste Arbeitstag überspringt Wochenenden und arbeitsblockierende Abwesenheiten, behandelt eine Dienstreise aber als normalen Arbeitstag.
+29. Fällt das Datum einer Aufgabe in eine Abwesenheit, weist die Eingabe nicht blockierend darauf hin.
+30. Der iCal-Feed und die Share-Seite sind ohne gesetzten Token nicht erreichbar (404) und liefern mit falschem Token 401; die Share-Seite gibt weder Typ noch Label preis.
 
 ---
 
@@ -1076,7 +1225,7 @@ Folgende in solchen Produkten übliche Funktionen werden bewusst nicht übernomm
 * Gäste
 * Datei-Uploads
 * Zuweisungen
-* Labels, sofern nicht später gewünscht
+* Labels
 * Board-Ansicht
 * Kalenderansicht
 * Mobile Apps
@@ -1102,12 +1251,12 @@ Folgende in solchen Produkten übliche Funktionen werden bewusst nicht übernomm
 
 ---
 
-## 11. Kurzbeschreibung des Zielprodukts
+## 11. Kurzbeschreibung des Produkts
 
-Das Zielprodukt ist eine **schlanke, persönliche, webbasierte Todo-Anwendung mit API-first-Charakter**.
+Die Anwendung ist eine **schlanke, persönliche, webbasierte Todo-Anwendung mit API-first-Charakter**.
 
 Der Kern ist nicht Kollaboration, sondern:
 
-> Aufgaben sichtbar machen, wenn sie relevant werden; Deadlines separat verfolgen; wiederkehrende Aufgaben zuverlässig neu erzeugen; und alles über API und Webhooks automatisierbar machen.
+> Aufgaben sichtbar machen, wenn sie relevant werden; Deadlines separat verfolgen; wiederkehrende Aufgaben zuverlässig neu erzeugen; Abwesenheiten in die Terminlogik einrechnen; und alles über API, Webhooks und MCP automatisierbar machen.
 
 Damit ist das Produkt eher ein **persönlicher Aufgaben-Kernel mit Web-UI und Automatisierungsschnittstellen** als eine klassische Team-Produktivitätsplattform.

@@ -31,9 +31,10 @@ Der Referenz-Client verwendet ein dreischichtiges CSS-Variablensystem:
 | **Theme-Layer** | `--theme-card-sidebar-color: #fcf9f8;` | Spezifische Werte pro Theme (Moonstone, Reef, Snow Pine, …). |
 
 Wir spiegeln das vereinfacht in einer einzigen Token-Ebene (`:root` in
-`internal/web/static/style.css`), weil wir mit nur einem Theme arbeiten.
-Wenn weitere Themes kommen, kann diese Schicht problemlos um
-`html.theme-dark { … }` oder Ähnliches erweitert werden.
+`internal/web/static/style.css`). Dieselbe Ebene wird in einem
+`@media (prefers-color-scheme: dark)`-Block vollständig neu belegt — das ist
+unser Dark Mode. **Konsequenz: Farben gehören immer in ein Token**, nie direkt
+in eine Regel; ein hart notierter Hex überlebt den Themenwechsel nicht.
 
 ---
 
@@ -142,6 +143,26 @@ dezenten Akzenten:
 | Morgen | `#ad6200` (`--due-tomorrow`) | Warmgelb/Orange |
 | Diese Woche / Zukunft | `#246fe0` (`--due-future`) | Blau |
 | Überfällig | `#d1453b` (`--overdue`) | Rot, ggf. fett |
+
+### 2.7 Abwesenheitsfarben
+
+Jeder Abwesenheitstyp hat ein Paar aus Tint-Fläche (`-bg`) und Schriftfarbe
+(`-fg`). Das Paar trägt Badges in der Abwesenheitsliste und in den
+Gruppenköpfen der Ansicht „Demnächst"; die Balken der Zeitleiste (7.9) nutzen
+die `-fg`-Variante als Vollfläche.
+
+| Typ | Hell (`-bg` / `-fg`) | Dark (`-bg` / `-fg`) |
+| --- | --- | --- |
+| `vacation` | `#e6f4ea` / `#1c7a3f` | `#16321f` / `#6ecb8c` |
+| `holiday` | `#f3eafc` / `#7b3fb8` | `#2c2038` / `#c79aeb` |
+| `business_trip` | `#e7effc` / `#1f5fc0` | `#1a2942` / `#7cabf5` |
+| `sick` | `#fde7e5` / `#c0392b` | `#3d2120` / `#eb8279` |
+| `other` | `--surface` / `--text-secondary` | dito (Token-basiert) |
+
+Die Töne sind bewusst **Kategorie**, nicht Signal: Sie sagen „welche Art von
+Abwesenheit", nicht „dringend". Deshalb liegen sie als weiche Tints deutlich
+unter der Sättigung der Prioritätsfarben aus 2.5 — ein Urlaubs-Badge darf
+neben einem P1-Task nicht um Aufmerksamkeit konkurrieren.
 
 ---
 
@@ -313,6 +334,43 @@ KW 21   18.05.–24.05.                                         3
 * Hex-Feld daneben akzeptiert `#rgb` und `#rrggbb`, ergänzt
   führendes `#` automatisch.
 
+### 7.8 Abwesenheits-Zeile
+
+* Layout: `[Typ-Badge] [Label, flex:1] [Zeitraum + Meta] [Edit] [Delete]`.
+* Das **Typ-Badge** ist eine Pille in den Tokens aus 2.7 — Hintergrund `-bg`,
+  Schrift `-fg`, `11px / 600`, `border-radius: 999px`. `other` fällt auf
+  `--surface` / `--text-secondary` zurück.
+* Unter dem Zeitraum steht eine **Meta-Zeile** in `--text-muted` (`12px`):
+  Dauer und zeitlicher Abstand, mit `·` getrennt („12 Tage · beginnt in
+  3 Wochen"). Bei vergangenen Einträgen entfällt der Abstand.
+* Die **laufende** Abwesenheit ist über `--accent-soft` hinterlegt; Hover
+  überschreibt das nicht (Selected-vor-Hover, siehe 11).
+* Zeiträume nutzen `font-variant-numeric: tabular-nums`, damit die Spalte
+  über mehrere Zeilen ruhig steht.
+
+### 7.9 Zeitleiste (12 Wochen)
+
+Die Abwesenheits-Ansicht setzt eine schmale Schiene über die Liste. Sie ist
+das einzige Element im Produkt, das Zeit **räumlich** darstellt.
+
+* `.tl-track`: Höhe `10px`, `border-radius: 999px`, Grundfläche `--surface`.
+  Die Wochengrenzen sind kein Markup, sondern ein `repeating-linear-gradient`
+  in `--border-strong` mit 12 gleich breiten Feldern — ein Tick pro
+  Kalenderwoche. Die Leiste kommt damit **ohne eigene Tokens** aus.
+* `.tl-span`: ein Balken je Abwesenheit, absolut in Prozent positioniert,
+  eingefärbt mit der **`-fg`-Variante** der Typfarbe (die `-bg`-Tints wären
+  auf der Schiene nicht ablesbar). `min-width` verhindert, dass ein
+  Ein-Tages-Balken verschwindet.
+* `.tl-today`: ein Punkt in Textfarbe mit Ring in Hintergrundfarbe, mittig auf
+  der heutigen Spalte.
+* `.tl-months`: Monatskürzel unterhalb, `11px`, `--text-muted`. Labels, die
+  näher als ~9 % beieinander liegen, werden weggelassen statt überlappt.
+* **Hover-Kopplung:** Ein Hover auf einer Listenzeile setzt `.hl` auf den
+  zugehörigen Balken (`scaleY(1.6)` plus Ring in `--main-bg`). Leiste und Liste sollen als *eine* Darstellung gelesen
+  werden, nicht als zwei Listen von Daten.
+* Das Fenster beginnt am Montag der laufenden Woche, damit die Leiste nicht
+  mitten in der Woche weiterwandert.
+
 ---
 
 ## 8. Icons
@@ -396,15 +454,19 @@ Aus dem Lastenheft („Out of Scope" und „Explizit gestrichene Anforderungen")
 * Drag & Drop in der Task-Liste — die Referenz nutzt dafür ein eigenes
   Virtuoso-basiertes Virtual-List-Setup (`data-testid="virtuoso-item-list"`),
   bei unserer Größenordnung unnötig.
-* Theme-Switcher, Dark Mode.
-* Filters/Labels-Bereich, Karma, Activity Log.
+* **Theme-Switcher.** Ein Dark Mode existiert, aber ohne Umschalter: Die
+  Tokens werden in einem `@media (prefers-color-scheme: dark)`-Block neu
+  belegt und folgen damit der Systemeinstellung. Deshalb ist **jede** Farbe
+  ein Token — ein Hex direkt in einer Regel bleibt im Dark Mode stehen.
+* Filters/Labels-Bereich, Karma.
 * Avatare im User-Switcher (Single-User-Anwendung).
 * Subtasks (Modell nicht vorgesehen).
-* Kalender- und Board-Ansicht.
+* Kalender- und Board-Ansicht. Die Zeitleiste aus 7.9 ist keine Ausnahme
+  davon: Sie zeigt Zeiträume auf einer Achse, kein Kalendergitter, und man
+  kann in ihr nichts anlegen.
 
-Sollten wir später Erweiterungen wie Subtasks oder Filter ergänzen,
-bietet die Token-Schicht in `style.css` und das gut isolierte
-Icon-Inventar in `app.js` saubere Andockpunkte.
+Ein **Aktivitätsprotokoll** haben wir dagegen übernommen (Ansicht
+„Aktivität"); es nutzt die Group-Header-Komponente aus 7.4.
 
 ---
 
@@ -423,6 +485,7 @@ Icon-Inventar in `app.js` saubere Andockpunkte.
 | `--border-strong` | `#e5e5e5` | `--product-library-display-quaternary-idle-tint` |
 | `--hover` | `#f2f2f2` | `--theme-card-sidebar-hover-color` (Moonstone) |
 | `--p1 … --p4` | `#d1453b / #eb8909 / #246fe0 / #b3b3b3` | Prioritäts-Palette der Referenz |
+| `--absence-*-bg` / `-fg` | siehe 2.7 | **eigene Wahl** — die Referenz kennt keine Abwesenheiten |
 
 ---
 

@@ -4,7 +4,7 @@ Schlanke, persönliche, webbasierte Todo-Anwendung nach den Vorgaben in [LASTENH
 
 - **Backend:** Go, stdlib `net/http`, pure-Go SQLite (`modernc.org/sqlite`)
 - **Frontend:** Vanilla HTML/CSS/JS, an gaengigen Task-Managern orientiert, in das Binary eingebettet
-- **Status:** MVP-Kern (Tasks, Projekte, Listenansicht, REST-API, Wiederholungen, NL-Datums-Parser). Erweiterungspunkte für API-Auth und Webhooks sind angelegt.
+- **Umfang:** Tasks, Projekte, Kommentare, Aktivitätsprotokoll, Abwesenheiten mit Arbeitstag-Logik, Wiederholungen, deutscher NL-Datums-Parser, REST-API, Webhooks, MCP-Server, iCal-Feed und anonymisierte Share-Seite.
 
 ## Starten
 
@@ -33,9 +33,9 @@ internal/mcp/           MCP-Server (Streamable HTTP) auf derselben Service-Schic
 internal/web/           Eingebettete HTML/CSS/JS-Assets
 ```
 
-Erweiterungspunkte:
-- **Weitere Event-Subscriber:** `bus.Subscribe(handler)` in `cmd/server/main.go`. Events sind in `internal/events/events.go` definiert.
-- **API-Auth:** Middleware vor `httpapi.New(svc, …)` einhängen, Bearer-Token prüfen.
+Weitere Event-Subscriber werden über `bus.Subscribe(handler)` in
+`cmd/server/main.go` angehängt; die Event-Typen stehen in
+`internal/events/events.go`.
 
 ### Umgebungsvariablen
 
@@ -117,7 +117,7 @@ Alle Fehler liefern `{"error": "<text>"}` als Body. Status-Codes:
 | `GET` | `/api/absences/{id}` | Abwesenheit lesen |
 | `PATCH` | `/api/absences/{id}` | Abwesenheit teilaktualisieren |
 | `DELETE` | `/api/absences/{id}` | Abwesenheit löschen (hart) |
-| `GET` | `/api/next-workday` | Nächsten Werktag berechnen |
+| `GET` | `/api/next-workday` | Nächsten Arbeitstag berechnen |
 | `POST` | `/api/parse` | NL-Datums-/Wiederholungs-Eingabe parsen |
 
 ---
@@ -465,7 +465,7 @@ Projekt zugeordnet, damit historische Beschriftungen erhalten bleiben.
 
 Eine **Abwesenheit** ist ein zusammenhängender Zeitraum, in dem der Nutzer weg
 ist (Urlaub, Dienstreise, krank, Feiertag, …). `start_date` und `end_date` sind
-**inklusive** Kalendertage. Abwesenheiten fließen in die „Nächster Werktag"-
+**inklusive** Kalendertage. Abwesenheiten fließen in die „Nächster Arbeitstag"-
 Berechnung ein.
 
 `type` ist eines von:
@@ -480,7 +480,7 @@ Berechnung ein.
 
 `business_trip` ist der Sonderfall: Es ist eine Abwesenheit (taucht in Listen
 und Range-Abfragen auf), gilt aber bei `GET /api/next-workday` als regulärer
-Werktag und blockiert die Planung nicht.
+Arbeitstag und blockiert die Planung nicht.
 
 #### `GET /api/absences`
 
@@ -607,11 +607,31 @@ Requests), sodass die sensiblen Felder gar nicht erst im Browser landen:
 - **Ein Tag** bekommt einen eigenen Satzbau: „Back tomorrow, **8 July 2026**".
   „tomorrow" ist ein vollständiges Zeitadverbial und verträgt kein „on" hinter
   sich; der Wochentag entfällt hier, weil er neben „tomorrow" nichts trägt.
-- Darunter folgt die Zwischenüberschrift **„Scheduled absences"** und die Liste:
-  gezeigt wird nur der **Datumsbereich** plus ein grober Status — **„Away"** für
-  alles außer Dienstreisen, **„Business Trip"** für `business_trip` (blockiert
-  keine Arbeit, i. d. R. erreichbar). **Grund und `label` werden nie
-  ausgeliefert.**
+- Darunter — durch eine Trennlinie vom Kopfbereich abgesetzt — folgt die
+  Zwischenüberschrift **„Scheduled absences"**.
+- Direkt unter der Überschrift liegt die **Zeitleiste „Next 12 weeks"**: eine
+  schmale waagerechte Schiene, auf der jede Abwesenheit als farbiger Balken
+  sitzt (rot = *Away*, blau = *Business Trip*), dazu ein Punkt für **heute**,
+  feine Striche als Wochengrenzen und Monatskürzel darunter. Sie beantwortet
+  „wo sind die Lücken?" auf einen Blick — etwas, das eine Liste von Zeiträumen
+  nicht leistet. Details:
+  - Das Fenster beginnt am **Montag der laufenden Woche** (nicht bei „heute"),
+    damit die Leiste nicht mitten in der Woche weiterkriecht, und umfasst
+    12 × 7 Tage.
+  - Balken werden am Fensterrand **abgeschnitten**; Abwesenheiten komplett
+    außerhalb des Fensters entfallen — in der Liste darunter stehen sie
+    weiterhin.
+  - Monatslabel: der Monat des Fensterstarts plus jeder Monatserste; Labels,
+    die näher als ~9 % am vorherigen liegen oder am rechten Rand kleben,
+    entfallen statt sich zu überlappen.
+  - Die Leiste trägt **keine Tooltips** und ist `aria-hidden` — sie ist
+    Dekoration, die Liste bleibt die lesbare Quelle. Auch sie ist
+    **anonymisiert**: sie entsteht ausschließlich aus Datumsangaben.
+  - Ohne Abwesenheiten wird gar keine Leiste gerendert.
+- Die Liste darunter zeigt nur den **Datumsbereich** plus einen groben Status —
+  **„Away"** für alles außer Dienstreisen, **„Business Trip"** für
+  `business_trip` (blockiert keine Arbeit, i. d. R. erreichbar). **Grund und
+  `label` werden nie ausgeliefert.**
 - Der Eintrag, der **heute gerade läuft**, trägt zusätzlich den Marker **„now"**
   zwischen Zeitraum und Badge. Ohne ihn müsste der Leser jeden Zeitraum gegen
   das aktuelle Datum abgleichen, um zu sehen, welcher der laufende ist.
@@ -729,7 +749,7 @@ Request:
 
 ```json
 {
-  "text": "jeden Montag",
+  "text": "nächste Woche",
   "today": "2026-05-22"
 }
 ```
@@ -741,11 +761,15 @@ Antwort `200 OK`:
 
 ```json
 {
-  "input": "jeden Montag",
-  "visible_from": "2026-05-25",
-  "recurrence_rule": "FREQ=WEEKLY;BYDAY=MO"
+  "input": "nächste Woche",
+  "visible_from": "2026-05-25"
 }
 ```
+
+Der Parser deckt **Datumsphrasen** ab (siehe [Datumseingabe](#datumseingabe)).
+Wiederholungen werden nicht aus freiem Text erkannt, sondern strukturiert als
+RRULE gesetzt — im Frontend über das Auswahlfeld, über die API im Feld
+`recurrence_rule` (siehe [Wiederholungen](#wiederholungen)).
 
 Antwort `422 Unprocessable Entity`, wenn nichts gematcht werden konnte:
 
@@ -853,7 +877,7 @@ strukturiertes JSON (snake_case, wie die REST-Objekte) zurück.
 | `create_project` | Projekt anlegen (nur `name` Pflicht) | `CreateProject` |
 | `list_absences` | Abwesenheiten auflisten | `ListAbsences` |
 | `create_absence` | Abwesenheit `start_date`..`end_date` anlegen | `CreateAbsence` |
-| `next_workday` | Nächsten Werktag ermitteln | `NextWorkday` |
+| `next_workday` | Nächsten Arbeitstag ermitteln | `NextWorkday` |
 | `parse_task` | Deutsche NL-Phrase in Datum/RRULE parsen (ohne anzulegen) | `nldate.Parse` |
 
 Fehler aus der Service-Schicht (z. B. Validierung, „not found") werden als
@@ -932,12 +956,11 @@ keine Auth, keine Filterung pro Event-Typ, kein Retry.
   Wer darauf hört, sollte das wissen — eine Angleichung an snake_case wäre
   ein Breaking Change für bestehende Empfänger.
 
----
+**Zustellung:** ein Versuch je Event, Timeout 10 s, asynchron auf der
+Bus-Goroutine — eine HTTP-Anfrage wartet also nie auf den Webhook. Fehler und
+Nicht-2xx-Antworten landen im Server-Log.
 
-## Noch nicht implementiert (bewusst aus dem MVP-Kern ausgenommen)
-
-- API-Authentifizierung (5.10) — Middleware-Slot frei; heute schützen nur
-  Token die Sonderrouten (`.ics`, `.html`, `/mcp`), der Rest von `/api/`
-  liegt hinter dem Reverse-Proxy-BasicAuth
-- Webhook-Ausbau: mehrere Ziele, Event-Filter, Signatur, Retry
-- Komplexere Filter & manuelle Sortierung (5.6/5.7)
+**Absicherung:** `/api/tasks`, `/api/projects`, `/api/absences`, `/api/audit`
+und `/api/parse` tragen keine eigene Authentifizierung — sie liegen hinter der
+BasicAuth des Reverse-Proxys. Token-geschützt und von dieser Auth ausgenommen
+sind nur die Sonderrouten `.ics`, `.html` und `/mcp` (siehe oben).
