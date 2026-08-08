@@ -810,7 +810,7 @@ function renderAbsences() {
 
   // Past absences are read-only (no edit button); the API already limits them
   // to the current year.
-  if (upcoming.length) appendAbsenceGroup(list, "Bevorstehend & aktuell", upcoming, "", today, true);
+  if (upcoming.length) appendAbsenceGroup(list, "Bevorstehend", upcoming, "", today, true);
   if (past.length) appendAbsenceGroup(list, "Vergangen", past, "completed-header", today, false);
 }
 
