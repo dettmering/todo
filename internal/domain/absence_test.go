@@ -317,3 +317,30 @@ func TestKnownWeekdays(t *testing.T) {
 		t.Fatalf("2026-06-15 is %v, expected Monday", wd)
 	}
 }
+
+func TestShareWindow(t *testing.T) {
+	tests := []struct {
+		name              string
+		today, start, end string
+	}{
+		// Every day of a week must yield the same window — that is the point of
+		// anchoring on Monday instead of on today.
+		{"monday", "2026-08-03", "2026-08-03", "2026-10-25"},
+		{"saturday", "2026-08-08", "2026-08-03", "2026-10-25"},
+		{"sunday", "2026-08-09", "2026-08-03", "2026-10-25"},
+		{"next monday moves it one week on", "2026-08-10", "2026-08-10", "2026-11-01"},
+		{"across the year boundary", "2026-12-31", "2026-12-28", "2027-03-21"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			start, end := ShareWindow(mustDate(t, tc.today))
+			if start.String() != tc.start || end.String() != tc.end {
+				t.Errorf("ShareWindow(%s) = %s..%s, want %s..%s", tc.today, start, end, tc.start, tc.end)
+			}
+			// The window is inclusive on both ends and exactly 12 weeks long.
+			if days := start.DaysUntil(end) + 1; days != ShareWindowWeeks*7 {
+				t.Errorf("window spans %d days, want %d", days, ShareWindowWeeks*7)
+			}
+		})
+	}
+}

@@ -803,6 +803,8 @@ function renderAbsences() {
   }
   // Upcoming/current (end today or later) sorted soonest-first; past below,
   // most-recent-first — mirroring the grouped layout of the "Demnächst" view.
+  // This is the maintenance view: it shows everything, including absences past
+  // the timeline's twelve-week window (the rail above simply omits those).
   const upcoming = state.absences.filter(a => a.end_date >= today).sort((a, b) => a.start_date.localeCompare(b.start_date));
   const past = state.absences.filter(a => a.end_date < today).sort((a, b) => b.start_date.localeCompare(a.start_date));
 

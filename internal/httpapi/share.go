@@ -30,7 +30,10 @@ func (h *Handler) handleAbsencesShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	today := domain.DateOf(time.Now())
-	upcoming := domain.UpcomingAbsences(all, today)
+	// Current and future absences, capped at the twelve-week window the timeline
+	// draws: what starts beyond it is left off the page entirely, list included.
+	_, windowEnd := domain.ShareWindow(today)
+	upcoming := domain.AbsencesInRange(domain.UpcomingAbsences(all, today), domain.LocalDate{}, windowEnd)
 	status := domain.CurrentAvailability(all, today)
 	// Zero while reachable — the page then omits the "Back on" line entirely.
 	backOn := domain.ReturnDate(all, today)
@@ -179,17 +182,15 @@ footer{max-width:32rem;margin:1rem auto 0;color:var(--muted);font-size:.8rem;tex
 // dividing the rail into calendar weeks, and month labels underneath. It
 // answers "when are the gaps?" at a glance, which a
 // list of ranges can't — the list below stays the readable source of truth,
-// so the rail is aria-hidden decoration. The window starts on the Monday of
-// the current week so it doesn't shift mid-week; spans are clipped to the
-// window (fully outside = omitted, they still appear in the list). No
-// absences = no rail.
+// so the rail is aria-hidden decoration. Rail and list share the window from
+// domain.ShareWindow, so both show the same absences; spans of running ones are
+// clipped at the left edge. No absences = no rail.
 func absenceTimelineHTML(absences []*domain.Absence, today domain.LocalDate) string {
 	if len(absences) == 0 {
 		return ""
 	}
-	const totalDays = 12 * 7
-	start := today.AddDays(-((int(today.Weekday()) + 6) % 7))
-	end := start.AddDays(totalDays - 1)
+	const totalDays = domain.ShareWindowWeeks * 7
+	start, end := domain.ShareWindow(today)
 	pos := func(d domain.LocalDate) float64 {
 		return float64(start.DaysUntil(d)) * 100 / totalDays
 	}

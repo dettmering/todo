@@ -618,9 +618,10 @@ Requests), sodass die sensiblen Felder gar nicht erst im Browser landen:
   - Das Fenster beginnt am **Montag der laufenden Woche** (nicht bei „heute"),
     damit die Leiste nicht mitten in der Woche weiterkriecht, und umfasst
     12 × 7 Tage.
-  - Balken werden am Fensterrand **abgeschnitten**; Abwesenheiten komplett
-    außerhalb des Fensters entfallen — in der Liste darunter stehen sie
-    weiterhin.
+  - Balken laufender Abwesenheiten werden am linken Fensterrand
+    **abgeschnitten**; was komplett außerhalb liegt, entfällt — in der Liste
+    darunter ebenso, Leiste und Liste zeigen dieselben Einträge
+    (`domain.ShareWindow`).
   - Monatslabel: der Monat des Fensterstarts plus jeder Monatserste; Labels,
     die näher als ~9 % am vorherigen liegen oder am rechten Rand kleben,
     entfallen statt sich zu überlappen.
@@ -640,7 +641,10 @@ Requests), sodass die sensiblen Felder gar nicht erst im Browser landen:
   reachable). Sie erscheint nur, wenn es auch Einträge gibt — der Leerzustand
   bleibt legendenfrei.
 - Nur **gegenwärtige und kommende** Zeiträume (`end_date >= heute`),
-  chronologisch sortiert. Vergangene Abwesenheiten erscheinen nicht.
+  chronologisch sortiert, und davon nur, was **innerhalb der 12 Wochen** der
+  Leiste beginnt. Vergangene Abwesenheiten erscheinen nicht, weiter entfernte
+  ebenso wenig — die Seite beantwortet „wann bist du in absehbarer Zeit weg",
+  nicht die Jahresplanung.
 - Die Fußzeile „Last updated" zeigt das **Alter der letzten
   Abwesenheits-Änderung** (jüngstes `updated_at` aller Abwesenheiten, gerechnet
   in der Server-Zeitzone `TZ`), nicht die Abrufzeit: „Last updated today /

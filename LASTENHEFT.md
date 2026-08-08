@@ -565,7 +565,7 @@ Ansichten sind umgesetzt:
 | Inbox       | `/inbox`             | Aufgaben des Standardprojekts                                |
 | Projekt     | `/projects/<slug>`   | Aufgaben eines Projekts                                      |
 | Aktivität   | `/activity`          | Aktivitätsprotokoll (siehe 4.9), nach Tag gruppiert          |
-| Abwesenheiten | `/absences`        | Abwesenheiten (siehe 4.10) als 12-Wochen-Zeitleiste + Liste, laufende/künftige oben, vergangene darunter |
+| Abwesenheiten | `/absences`        | Abwesenheiten (siehe 4.10) als 12-Wochen-Zeitleiste + vollständige Liste, laufende/künftige oben, vergangene darunter |
 
 Die gruppierten Ansichten rufen die API mit `scope=all` ab und wenden die
 Sichtbarkeitslogik clientseitig an. Aufgabendetails sind direkt verlinkbar
@@ -894,7 +894,8 @@ Terminlogik daran auszurichten.
   farbiger Balken je Abwesenheit auf einer Schiene mit Wochenstrichen,
   Monatslabels und einer Markierung für heute. Das Fenster beginnt am Montag
   der laufenden Woche, Balken werden an den Fensterrändern abgeschnitten,
-  Abwesenheiten außerhalb des Fensters entfallen (sie bleiben in der Liste).
+  Abwesenheiten außerhalb des Fensters entfallen (sie bleiben in der Liste —
+  die interne Ansicht dient der Pflege und zeigt alles).
   Ein Hover auf einer Listenzeile hebt den zugehörigen Balken hervor, sodass
   Leiste und Liste als eine Darstellung lesbar sind
 * Anlegen, Bearbeiten und Löschen laufen über einen Dialog
@@ -952,6 +953,10 @@ außerhalb der Anwendung. Alle drei sind nach demselben Muster token-geschützt
   Rückkehrdatum („Back in 4 days on Monday, 3 August 2026"), eine
   12-Wochen-Zeitleiste, die Liste der laufenden und künftigen Zeiträume, eine
   Legende und das Alter der letzten Änderung
+* **Zeitleiste und Liste teilen sich dasselbe 12-Wochen-Fenster** (Montag der
+  laufenden Woche + 12 Wochen): was später beginnt, erscheint weder als Balken
+  noch als Listenzeile. Die Seite beantwortet die absehbare Verfügbarkeit, sie
+  gibt keine Jahresvorausschau preis
 * der Token steht in der URL, also setzt die Seite `Referrer-Policy:
   no-referrer`, damit er nicht über den Referer abfließt
 

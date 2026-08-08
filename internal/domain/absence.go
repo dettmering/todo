@@ -138,6 +138,19 @@ func UpcomingAbsences(absences []*Absence, today LocalDate) []*Absence {
 	return out
 }
 
+// ShareWindowWeeks is the horizon the public share page shows — both the
+// timeline rail and the list below it cover the same span, so a reader can't
+// find an entry in one and miss it in the other.
+const ShareWindowWeeks = 12
+
+// ShareWindow returns the inclusive window [start, end] the share page covers:
+// the Monday of today's week plus ShareWindowWeeks weeks. Anchoring on Monday
+// (rather than on today) keeps the window from crawling forward mid-week.
+func ShareWindow(today LocalDate) (start, end LocalDate) {
+	start = today.AddDays(-((int(today.Weekday()) + 6) % 7))
+	return start, start.AddDays(ShareWindowWeeks*7 - 1)
+}
+
 // AbsencesInRange returns the absences that overlap the inclusive window
 // [from, to] — i.e. any absence touching the window, including ones that are
 // currently running (started before `from` and not yet ended). A zero `from`
