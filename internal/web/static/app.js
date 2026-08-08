@@ -1287,8 +1287,9 @@ function renderTasks(tasks, completedToday = []) {
       header.className = "group-header" + (group.past ? " past" : "") + (group.current ? " current" : "");
       const absBadges = (group.absences || []).map(a => {
         const typeLabel = ABSENCE_TYPE_LABEL[a.type] || a.type;
-        // Business trips show their destination inline, e.g. "Dienstreise → Hamburg".
-        const text = (a.type === "business_trip" && a.label) ? `${typeLabel} → ${a.label}` : typeLabel;
+        // The badge shows the label only ("Kreta"); the type is carried by the
+        // badge color, and spelled out in the tooltip.
+        const text = a.label || typeLabel;
         const title = a.label ? `${typeLabel} (${a.label})` : typeLabel;
         return `<span class="group-absence type-${escapeHTML(a.type)}" title="${escapeHTML(title)}">${escapeHTML(text)}</span>`;
       }).join("");

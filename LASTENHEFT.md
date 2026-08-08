@@ -573,7 +573,9 @@ Sichtbarkeitslogik clientseitig an. Aufgabendetails sind direkt verlinkbar
 
 In der Ansicht **Demnächst** trägt jeder Kalenderwochen-Gruppenkopf zusätzlich
 die **Abwesenheits-Badges** der Wochen, die von einer Abwesenheit berührt werden
-(eingefärbt nach Typ) — damit sichtbar wird, warum eine Woche dünn geplant ist.
+— damit sichtbar wird, warum eine Woche dünn geplant ist. Das Badge zeigt nur
+das Label der Abwesenheit (z. B. „Kreta"), der Typ steckt in der Einfärbung;
+ohne Label steht dort der Typname. Der Tooltip nennt Typ und Label im Klartext.
 
 ---
 
