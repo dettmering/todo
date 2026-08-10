@@ -726,7 +726,16 @@ const MONTH_SHORT = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "S
 // window starts on the Monday of the current week so it doesn't crawl
 // mid-week; spans are clipped to the window, absences fully outside it are
 // omitted (they stay in the list). Hovering a list row highlights its span.
-const TIMELINE_WEEKS = 12;
+//
+// !! This rail has a twin: absenceTimelineHTML in internal/httpapi/share.go
+// renders the same thing server-side for the public page, down to the class
+// names and the magic numbers (window start, pos(), the half-cell offset of
+// the today dot, the 9%/94% month-label rules). Go and JS share no code here —
+// the share page is a self-contained document that never loads app.js — so a
+// change to the geometry has to be made in both places or the two views drift
+// apart. What differs on purpose: colors there are the two anonymized states,
+// not the four absence types, and the rail carries no tooltips.
+const TIMELINE_WEEKS = 12; // == domain.ShareWindowWeeks (internal/domain/absence.go)
 
 function renderAbsenceTimeline(absences, today) {
   const box = document.getElementById("absence-timeline");

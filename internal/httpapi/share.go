@@ -198,6 +198,16 @@ func absencesHeading() string {
 // so the rail is aria-hidden decoration. Rail and list share the window from
 // domain.ShareWindow, so both show the same absences; spans of running ones are
 // clipped at the left edge. No absences = no rail.
+//
+// !! This rail has a twin: renderAbsenceTimeline in
+// internal/web/static/app.js draws the same geometry client-side for the
+// internal /absences view — same class names, same pos(), same half-cell
+// offset on the today dot, same 9%/94% month-label rules. Nothing is shared
+// across the language boundary (this page must stand alone, without app.js),
+// so geometry changes have to land in both or the two views drift apart.
+// Deliberately different here: the anonymized two-state coloring and the
+// absence of tooltips — that difference *is* the anonymization, don't
+// "unify" it away.
 func absenceTimelineHTML(absences []*domain.Absence, today domain.LocalDate) string {
 	if len(absences) == 0 {
 		return ""

@@ -1320,7 +1320,12 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   margin-bottom: 16px;
 }
 
-/* Zeitleiste: 12 Wochen als Schiene, Wochenraster als Ticks im Hintergrund. */
+/* Zeitleiste: 12 Wochen als Schiene, Wochenraster als Ticks im Hintergrund.
+   ACHTUNG: Dieselben .tl-*-Klassen gibt es ein zweites Mal als Inline-<style>
+   in internal/httpapi/share.go -- die Share-Seite ist ein eigenstaendiges
+   Dokument und laedt diese Datei nicht. Dort in rem statt px und mit eigenen
+   Farbtokens (--muted statt --text-muted). Aenderungen an der Geometrie hier
+   und dort nachziehen, sonst sehen die beiden Leisten unterschiedlich aus. */
 .timeline { margin: 0 0 20px; }
 .tl-cap {
   display: block;

@@ -141,6 +141,10 @@ func UpcomingAbsences(absences []*Absence, today LocalDate) []*Absence {
 // ShareWindowWeeks is the horizon the public share page shows — both the
 // timeline rail and the list below it cover the same span, so a reader can't
 // find an entry in one and miss it in the other.
+//
+// The frontend's own rail repeats this number as TIMELINE_WEEKS in
+// internal/web/static/app.js; it can't import from here. Change one, change
+// the other, or the two absence views cover different horizons.
 const ShareWindowWeeks = 12
 
 // ShareWindow returns the inclusive window [start, end] the share page covers:
