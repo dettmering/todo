@@ -363,6 +363,11 @@ das einzige Element im Produkt, das Zeit **räumlich** darstellt.
   Ein-Tages-Balken verschwindet.
 * `.tl-today`: ein Punkt in Textfarbe mit Ring in Hintergrundfarbe, mittig auf
   der heutigen Spalte.
+* `.tl-weeks`: Kalenderwochen oberhalb, `10px`, `--text-muted`,
+  `tabular-nums`, je Woche mittig über ihrer Zelle. Nackte ISO-Zahlen ohne
+  „KW" — die Gruppenköpfe der Ansicht „Demnächst" schreiben das Präfix aus,
+  auf der Schiene wäre es zwölfmal dasselbe Wort. Die laufende Woche (immer
+  die erste Zelle) trägt `.cur` und steht in `--text`, fett.
 * `.tl-months`: Monatskürzel unterhalb, `11px`, `--text-muted`. Labels, die
   näher als ~9 % beieinander liegen, werden weggelassen statt überlappt.
 * **Hover-Kopplung:** Ein Hover auf einer Listenzeile setzt `.hl` auf den

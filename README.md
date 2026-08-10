@@ -624,6 +624,9 @@ Requests), sodass die sensiblen Felder gar nicht erst im Browser landen:
     **abgeschnitten**; was komplett außerhalb liegt, entfällt — in der Liste
     darunter ebenso, Leiste und Liste zeigen dieselben Einträge
     (`domain.ShareWindow`).
+  - **Über** der Schiene stehen die **Kalenderwochen** (ISO 8601, nackte Zahl
+    ohne „KW"), je Woche mittig über ihrer Zelle. Die laufende Woche — immer
+    die erste Zelle — ist hervorgehoben.
   - Monatslabel: der Monat des Fensterstarts plus jeder Monatserste; Labels,
     die näher als ~9 % am vorherigen liegen oder am rechten Rand kleben,
     entfallen statt sich zu überlappen.

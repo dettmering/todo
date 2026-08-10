@@ -279,6 +279,67 @@ func TestBuildAbsencesSharePage_NoNowMarkerWhenAllFuture(t *testing.T) {
 	}
 }
 
+func TestBuildAbsencesSharePage_WeekNumbers(t *testing.T) {
+	// shareToday is Tuesday, 7 July 2026 — ISO week 28. The rail starts on that
+	// week's Monday, so the twelve labels run 28…39, the first one emphasized.
+	a := absence("absence_9", "vacation", "", date(2026, 8, 5), date(2026, 8, 9))
+	out := buildAbsencesSharePage([]*domain.Absence{a}, domain.StatusAvailable, "Till", shareToday, domain.LocalDate{}, shareUpdated)
+
+	weeks := between(t, out, `<div class="tl-weeks">`, `</div>`)
+	if !strings.HasPrefix(weeks, `<span class="cur" style="left:4.167%">28</span>`) {
+		t.Errorf("current week should lead the row, emphasized; got:\n%s", weeks)
+	}
+	for w := 28; w <= 39; w++ {
+		if !strings.Contains(weeks, fmt.Sprintf(">%d</span>", w)) {
+			t.Errorf("week %d missing from:\n%s", w, weeks)
+		}
+	}
+	if n := strings.Count(weeks, "<span"); n != domain.ShareWindowWeeks {
+		t.Errorf("got %d week labels, want %d", n, domain.ShareWindowWeeks)
+	}
+	// "KW" and friends stay out — the bare number over a calendar strip is
+	// unambiguous, and the page is otherwise English.
+	for _, unwanted := range []string{"KW", "CW", "Week", "week"} {
+		if strings.Contains(weeks, unwanted) {
+			t.Errorf("week row should carry bare numbers, found %q in:\n%s", unwanted, weeks)
+		}
+	}
+}
+
+// The year boundary is where a naive week counter breaks: the rail must run
+// 53 → 1 rather than 53 → 54.
+func TestBuildAbsencesSharePage_WeekNumbersWrapAtYearEnd(t *testing.T) {
+	dec := domain.LocalDate{Year: 2026, Month: time.December, Day: 28} // Monday, ISO week 53
+	a := absence("absence_10", "vacation", "", date(2027, 1, 4), date(2027, 1, 8))
+	out := buildAbsencesSharePage([]*domain.Absence{a}, domain.StatusAvailable, "Till", dec, domain.LocalDate{}, shareUpdated)
+
+	weeks := between(t, out, `<div class="tl-weeks">`, `</div>`)
+	for _, want := range []string{">53</span>", ">1</span>", ">11</span>"} {
+		if !strings.Contains(weeks, want) {
+			t.Errorf("expected %s in:\n%s", want, weeks)
+		}
+	}
+	if strings.Contains(weeks, ">54</span>") {
+		t.Errorf("week counter ran past the year boundary:\n%s", weeks)
+	}
+}
+
+// between returns the text of doc between the first occurrence of open and the
+// next occurrence of close after it.
+func between(t *testing.T, doc, open, close string) string {
+	t.Helper()
+	i := strings.Index(doc, open)
+	if i < 0 {
+		t.Fatalf("marker %q not found in:\n%s", open, doc)
+	}
+	rest := doc[i+len(open):]
+	j := strings.Index(rest, close)
+	if j < 0 {
+		t.Fatalf("marker %q not found after %q in:\n%s", close, open, doc)
+	}
+	return rest[:j]
+}
+
 func TestFormatWeekdayDate(t *testing.T) {
 	cases := []struct {
 		name string

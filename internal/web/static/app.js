@@ -769,8 +769,20 @@ function renderAbsenceTimeline(absences, today) {
     last = p;
   }
 
+  // ISO week numbers above the rail, centered over their cell — the same weeks
+  // the "Demnächst" headers name (isoWeek), but bare: over a calendar strip two
+  // digits can't mean anything else, and twelve "KW" would be twelve times the
+  // same word. The current week is always the first cell (the window starts on
+  // its Monday) and is emphasized to anchor the reading.
+  let weeks = "";
+  for (let i = 0; i < TIMELINE_WEEKS; i++) {
+    weeks += `<span${i === 0 ? ` class="cur"` : ""} style="left:${((i + 0.5) * 100 / TIMELINE_WEEKS).toFixed(3)}%">` +
+      `${isoWeek(addDaysISO(start, i * 7)).week}</span>`;
+  }
+
   box.innerHTML = `<section class="timeline">` +
     `<span class="tl-cap">Nächste ${TIMELINE_WEEKS} Wochen</span>` +
+    `<div class="tl-weeks">${weeks}</div>` +
     `<div class="tl-track">${spans}</div>` +
     `<div class="tl-months">${months}</div></section>`;
 }

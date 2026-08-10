@@ -892,7 +892,10 @@ Terminlogik daran auszurichten.
 * der aktuell laufende Eintrag ist hervorgehoben
 * über der Liste steht eine **Zeitleiste über die nächsten 12 Wochen**: ein
   farbiger Balken je Abwesenheit auf einer Schiene mit Wochenstrichen,
-  Monatslabels und einer Markierung für heute. Das Fenster beginnt am Montag
+  Kalenderwochen darüber, Monatslabels darunter und einer Markierung für
+  heute. Die Wochenzahlen sind ISO-8601 und stehen ohne Präfix „KW" (über
+  einer Kalenderschiene ist die Zahl eindeutig); die laufende Woche ist
+  hervorgehoben. Das Fenster beginnt am Montag
   der laufenden Woche, Balken werden an den Fensterrändern abgeschnitten,
   Abwesenheiten außerhalb des Fensters entfallen (sie bleiben in der Liste —
   die interne Ansicht dient der Pflege und zeigt alles).

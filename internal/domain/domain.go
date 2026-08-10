@@ -81,6 +81,14 @@ func (d LocalDate) Weekday() time.Weekday {
 	return time.Date(d.Year, d.Month, d.Day, 0, 0, 0, 0, time.UTC).Weekday()
 }
 
+// ISOWeek returns the ISO 8601 calendar week d falls in (1–53). The year the
+// week belongs to is deliberately dropped: callers render the bare number next
+// to dates that already carry the year.
+func (d LocalDate) ISOWeek() int {
+	_, w := time.Date(d.Year, d.Month, d.Day, 0, 0, 0, 0, time.UTC).ISOWeek()
+	return w
+}
+
 // IsWeekend reports whether d falls on a Saturday or Sunday.
 func (d LocalDate) IsWeekend() bool {
 	wd := d.Weekday()

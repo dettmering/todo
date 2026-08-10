@@ -1331,6 +1331,25 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   text-transform: uppercase;
   color: var(--text-muted);
 }
+/* Kalenderwochen über der Schiene, je Zelle mittig. */
+.tl-weeks {
+  position: relative;
+  height: 14px;
+  margin-bottom: 5px;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.tl-weeks span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+}
+.tl-weeks span.cur {
+  color: var(--text);
+  font-weight: 600;
+}
 .tl-track {
   position: relative;
   height: 10px;

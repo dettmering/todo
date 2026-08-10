@@ -142,6 +142,9 @@ h2{margin:1.5rem 0 .6rem;padding-top:1.1rem;border-top:1px solid var(--line);fon
 .status.away{color:var(--away);background:var(--awaybg)}
 .status.trip{color:var(--trip);background:var(--tripbg)}
 .timeline{margin:1.1rem 0 1.3rem}
+.tl-weeks{position:relative;height:.95rem;margin-bottom:.3rem;font-size:.65rem;line-height:1;color:var(--muted);font-variant-numeric:tabular-nums}
+.tl-weeks span{position:absolute;top:0;transform:translateX(-50%)}
+.tl-weeks span.cur{color:var(--fg);font-weight:600}
 .tl-track{position:relative;height:.5rem;border-radius:999px;background-color:var(--track);background-image:repeating-linear-gradient(to right,transparent 0,transparent calc(100%/12 - 1px),var(--tick) calc(100%/12 - 1px),var(--tick) calc(100%/12))}
 .tl-span{position:absolute;top:0;bottom:0;border-radius:999px;min-width:.5rem}
 .tl-span.away{background:var(--away)}
@@ -205,7 +208,21 @@ func absenceTimelineHTML(absences []*domain.Absence, today domain.LocalDate) str
 		return float64(start.DaysUntil(d)) * 100 / totalDays
 	}
 	var b strings.Builder
-	b.WriteString(`<section class="timeline" aria-hidden="true"><div class="tl-track">`)
+	b.WriteString(`<section class="timeline" aria-hidden="true">`)
+	// ISO week numbers above the rail, centered over their cell — the bare
+	// number, since "week" is what a two-digit label over a calendar strip can
+	// only mean. The current week (always the first cell, the window starts on
+	// its Monday) is emphasized to anchor the reading.
+	b.WriteString(`<div class="tl-weeks">`)
+	for i := 0; i < domain.ShareWindowWeeks; i++ {
+		cls := ""
+		if i == 0 {
+			cls = ` class="cur"`
+		}
+		fmt.Fprintf(&b, `<span%s style="left:%.3f%%">%d</span>`,
+			cls, (float64(i)+0.5)*100/domain.ShareWindowWeeks, start.AddDays(i*7).ISOWeek())
+	}
+	b.WriteString(`</div><div class="tl-track">`)
 	for _, a := range absences {
 		s, e := a.Start, a.End
 		if end.Before(s) || e.Before(start) {
