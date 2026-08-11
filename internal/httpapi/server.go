@@ -56,6 +56,7 @@ func (h *Handler) routes() {
 	h.mux.HandleFunc("GET /api/absences", h.handleListAbsences)
 	h.mux.HandleFunc("GET /api/absences.ics", h.handleAbsencesICS)
 	h.mux.HandleFunc("GET /api/absences.html", h.handleAbsencesShare)
+	h.mux.HandleFunc("GET /api/share-links", h.handleShareLinks)
 	h.mux.HandleFunc("POST /api/absences", h.handleCreateAbsence)
 	h.mux.HandleFunc("GET /api/absences/{id}", h.handleGetAbsence)
 	h.mux.HandleFunc("PATCH /api/absences/{id}", h.handlePatchAbsence)

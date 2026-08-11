@@ -5,6 +5,7 @@ import (
 	"html"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -51,6 +52,33 @@ func (h *Handler) handleAbsencesShare(w http.ResponseWriter, r *http.Request) {
 	// links nowhere today, but that's one edit away from being untrue.
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	_, _ = io.WriteString(w, buildAbsencesSharePage(upcoming, status, h.shareName, today, backOn, lastUpdated))
+}
+
+// shareLinksResponse carries the ready-to-use URLs of the two token-guarded
+// absence routes. A field is omitted when its token is unset — the route then
+// 404s anyway, so there is no link to offer.
+type shareLinksResponse struct {
+	ShareURL string `json:"share_url,omitempty"`
+	ICalURL  string `json:"ical_url,omitempty"`
+}
+
+// handleShareLinks hands the tokenized share URLs to the internal UI, so its
+// absences view can link to the share page and the iCal feed without the tokens
+// being duplicated into the frontend (they only ever live in the environment).
+//
+// Unlike the two routes it describes, this one carries the tokens in its
+// *response* and must therefore stay behind the reverse-proxy auth — it is a
+// plain /api/ route for exactly that reason.
+func (h *Handler) handleShareLinks(w http.ResponseWriter, r *http.Request) {
+	var resp shareLinksResponse
+	if h.shareToken != "" {
+		resp.ShareURL = "/api/absences.html?token=" + url.QueryEscape(h.shareToken)
+	}
+	if h.icalToken != "" {
+		resp.ICalURL = "/api/absences.ics?token=" + url.QueryEscape(h.icalToken)
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	writeJSON(w, http.StatusOK, resp)
 }
 
 // availabilityPhrase builds the prominent current-status sentence, e.g.

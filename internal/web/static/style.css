@@ -1317,8 +1317,16 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
 .absences-toolbar {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 16px;
 }
+/* "Teilen" ist ein <a>, sieht aber aus wie .td-btn — Link-Defaults abräumen. */
+.absences-toolbar a.td-btn { text-decoration: none; }
+/* Der iCal-Button tauscht beim Kopieren kurz seine Beschriftung ("Kopiert!").
+   Die Mindestbreite hält die Toolbar dabei ruhig — sie ist rechtsbündig,
+   sonst würde alles daneben springen. */
+#ical-copy-btn { min-width: 76px; text-align: center; }
 
 /* Zeitleiste: 12 Wochen als Schiene, Wochenraster als Ticks im Hintergrund.
    ACHTUNG: Dieselben .tl-*-Klassen gibt es ein zweites Mal als Inline-<style>

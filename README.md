@@ -118,6 +118,7 @@ Alle Fehler liefern `{"error": "<text>"}` als Body. Status-Codes:
 | `PATCH` | `/api/absences/{id}` | Abwesenheit teilaktualisieren |
 | `DELETE` | `/api/absences/{id}` | Abwesenheit löschen (hart) |
 | `GET` | `/api/next-workday` | Nächsten Arbeitstag berechnen |
+| `GET` | `/api/share-links` | Fertige Token-URLs für Share-Seite und iCal-Feed (für die interne UI) |
 | `POST` | `/api/parse` | NL-Datums-/Wiederholungs-Eingabe parsen |
 
 ---
@@ -672,6 +673,35 @@ curl 'http://localhost:8080/api/absences.html?token=DEINGEHEIMNIS'
 `SHARE_TOKEN` ist bewusst getrennt von `ICAL_TOKEN`: Der geteilte Weblink schaltet
 so nicht den vollständigen iCal-Feed (mit Labels und Typen) frei und ist separat
 widerrufbar.
+
+#### `GET /api/share-links`
+
+Liefert die **fertigen Token-URLs** der beiden öffentlichen Abwesenheits-Routen,
+damit die interne UI sie in der Abwesenheiten-Ansicht anbieten kann, ohne die
+Tokens im Frontend zu duplizieren — die leben weiterhin nur in der Umgebung.
+„Teilen" öffnet die Share-Seite in einem neuen Tab, „iCal" kopiert die
+absolute Feed-URL in die Zwischenablage (ein Kalender-Client will den Link,
+keine heruntergeladene `.ics`-Datei).
+
+```json
+{
+  "share_url": "/api/absences.html?token=DEINGEHEIMNIS",
+  "ical_url": "/api/absences.ics?token=DEINKALENDERTOKEN"
+}
+```
+
+| Feld | Bedingung |
+| --- | --- |
+| `share_url` | nur wenn `SHARE_TOKEN` gesetzt ist |
+| `ical_url` | nur wenn `ICAL_TOKEN` gesetzt ist |
+
+Ein Feld **fehlt komplett**, wenn der zugehörige Token nicht gesetzt ist (die
+Route ist dann ohnehin `404`); ohne beide Tokens ist die Antwort `{}`. Die
+Antwort trägt `Cache-Control: no-store`.
+
+Achtung beim Reverse-Proxy: Anders als `/api/absences.ics` und
+`/api/absences.html` gibt diese Route die Tokens *heraus* und muss deshalb
+**hinter der Auth bleiben** — sie also nicht von der BasicAuth ausnehmen.
 
 #### `POST /api/absences`
 

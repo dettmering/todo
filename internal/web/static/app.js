@@ -75,6 +75,7 @@ const api = {
     return fetch(`/api/absences/${id}`, { method: "DELETE" }).then(jsonOrError);
   },
   async nextWorkday() { return fetch("/api/next-workday").then(jsonOrError); },
+  async shareLinks() { return fetch("/api/share-links").then(jsonOrError); },
 };
 
 // Recurrence presets — value is the canonical RRULE string posted to the API.
@@ -165,6 +166,7 @@ function projectById(id) { return state.projects.find(p => p.id === id); }
 const state = {
   projects: [],
   absences: [], // loaded on demand when the absences view is open
+  shareLinks: null, // { share_url?, ical_url? } from /api/share-links, fetched once
   view: { kind: "today" }, // or { kind: "project", id }, { kind: "upcoming" }, { kind: "activity" }, { kind: "absences" }
   openCounts: {}, // project_id -> number of open tasks
   activity: { from: null, to: null }, // ISO date range for the activity view
@@ -555,6 +557,7 @@ async function refresh() {
     state.absences = await api.listAbsences();
     setAbsencesViewVisible(true);
     renderAbsences();
+    await renderShareLinks();
     return;
   }
 
@@ -812,6 +815,63 @@ function setAbsencesViewVisible(visible) {
   }
 }
 
+// "Teilen" (Share-Seite) und "iCal" (Feed) in der Abwesenheits-Toolbar. Die
+// Tokens leben ausschließlich auf dem Server; /api/share-links liefert die
+// fertigen URLs und lässt ein Feld weg, wenn der zugehörige Token nicht gesetzt
+// ist — dann ist die Route ohnehin 404 und der Button bleibt versteckt.
+//
+// "Teilen" öffnet die Seite (<a>), "iCal" kopiert nur die Abo-URL (<button>):
+// Ein Kalender-Client will den Link, nicht die heruntergeladene .ics-Datei.
+async function renderShareLinks() {
+  const share = document.getElementById("share-link");
+  const ical = document.getElementById("ical-copy-btn");
+  if (!share || !ical) return;
+  if (!state.shareLinks) {
+    // Fehlschlag (alter Server, Netzwerk) => keine Links, aber die Ansicht bleibt nutzbar.
+    state.shareLinks = await api.shareLinks().catch(() => ({}));
+  }
+  const shareURL = state.shareLinks.share_url;
+  if (shareURL) share.href = shareURL;
+  else share.removeAttribute("href");
+  share.classList.toggle("hidden", !shareURL);
+  ical.classList.toggle("hidden", !state.shareLinks.ical_url);
+}
+
+// Absolute URL des iCal-Feeds — Kalender-Clients brauchen sie mit Host, der
+// Pfad aus /api/share-links reicht dort nicht.
+function icalFeedURL() {
+  const rel = state.shareLinks && state.shareLinks.ical_url;
+  return rel ? new URL(rel, location.href).href : "";
+}
+
+// In die Zwischenablage schreiben. navigator.clipboard gibt es nur im Secure
+// Context (https oder localhost) — im LAN über http fällt es auf das alte
+// execCommand("copy") über ein temporäres Textarea zurück.
+async function copyToClipboard(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.setAttribute("readonly", "");
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  const ok = document.execCommand("copy");
+  document.body.removeChild(ta);
+  if (!ok) throw new Error("copy failed");
+}
+
+// Klick-Feedback direkt am Button: Beschriftung kurz austauschen, danach zurück.
+let icalCopyTimer = null;
+function flashICalButton(btn, text) {
+  clearTimeout(icalCopyTimer);
+  btn.textContent = text;
+  icalCopyTimer = setTimeout(() => { btn.textContent = "iCal"; }, 1600);
+}
+
 function renderAbsences() {
   const list = document.getElementById("absence-list");
   if (!list) return;
@@ -917,6 +977,21 @@ function wireAbsenceDialog() {
   const dlg = document.getElementById("absence-dialog");
   if (!dlg) return;
   document.getElementById("add-absence-btn").addEventListener("click", () => openAbsenceDialog(null));
+
+  const icalBtn = document.getElementById("ical-copy-btn");
+  if (icalBtn) {
+    icalBtn.addEventListener("click", async () => {
+      const url = icalFeedURL();
+      if (!url) return;
+      try {
+        await copyToClipboard(url);
+        flashICalButton(icalBtn, "Kopiert!");
+      } catch {
+        flashICalButton(icalBtn, "Fehlgeschlagen");
+      }
+    });
+  }
+
   document.getElementById("ad-cancel").addEventListener("click", () => dlg.close("cancel"));
 
   document.getElementById("ad-save").addEventListener("click", async (e) => {

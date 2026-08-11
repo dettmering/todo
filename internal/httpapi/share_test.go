@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -409,6 +410,51 @@ func TestHandleAbsencesShare_BadToken(t *testing.T) {
 
 			if rec.Code != http.StatusUnauthorized {
 				t.Errorf("status = %d, want 401", rec.Code)
+			}
+		})
+	}
+}
+
+func TestHandleShareLinks(t *testing.T) {
+	cases := []struct {
+		name      string
+		share     string
+		ical      string
+		wantShare string
+		wantICal  string
+	}{
+		{"both", "s3cret", "cal token", "/api/absences.html?token=s3cret", "/api/absences.ics?token=cal+token"},
+		{"share only", "s3cret", "", "/api/absences.html?token=s3cret", ""},
+		{"ical only", "", "cal", "", "/api/absences.ics?token=cal"},
+		{"none", "", "", "", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			h := &Handler{shareToken: c.share, icalToken: c.ical}
+			rec := httptest.NewRecorder()
+
+			h.handleShareLinks(rec, httptest.NewRequest(http.MethodGet, "/api/share-links", nil))
+
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d, want 200", rec.Code)
+			}
+			var got shareLinksResponse
+			if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+				t.Fatalf("decode: %v (body %s)", err, rec.Body.String())
+			}
+			if got.ShareURL != c.wantShare {
+				t.Errorf("share_url = %q, want %q", got.ShareURL, c.wantShare)
+			}
+			if got.ICalURL != c.wantICal {
+				t.Errorf("ical_url = %q, want %q", got.ICalURL, c.wantICal)
+			}
+			// A disabled route must not leave an empty key behind that the frontend
+			// could mistake for a usable link.
+			if c.wantShare == "" && strings.Contains(rec.Body.String(), "share_url") {
+				t.Errorf("share_url should be omitted, got %s", rec.Body.String())
+			}
+			if c.wantICal == "" && strings.Contains(rec.Body.String(), "ical_url") {
+				t.Errorf("ical_url should be omitted, got %s", rec.Body.String())
 			}
 		})
 	}
