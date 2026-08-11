@@ -49,6 +49,36 @@ Weitere Event-Subscriber werden über `bus.Subscribe(handler)` in
 
 Flags: `-addr` (Default `:8080`), `-db` (Default `./todo.db`).
 
+### Security-Header
+
+`httpapi.SecurityHeaders` umschließt in `cmd/server/main.go` den **Root-Mux**,
+nicht nur `/api/` — SPA-Shell, `/static/`, API, MCP-Endpunkt und Share-Seite
+bekommen dieselbe Basis, damit keine neue Route sie vergessen kann. Jede Antwort
+trägt:
+
+| Header | Wert |
+| --- | --- |
+| `Content-Security-Policy` | `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'` |
+| `X-Content-Type-Options` | `nosniff` |
+| `Referrer-Policy` | `no-referrer` |
+
+Zum Verständnis der beiden Lockerungen:
+
+- **`style-src 'unsafe-inline'`** — die Abwesenheits-Zeitleiste positioniert ihre
+  Balken über `style="left:…%"` (`renderAbsenceTimeline` in `app.js`), und die
+  Share-Seite trägt ihr Stylesheet inline, weil sie als einzelnes Dokument für
+  sich stehen muss.
+- **`img-src data:`** — der Checkbox-Haken in `style.css` ist ein `data:`-SVG.
+
+`script-src` kommt bewusst **ohne** `'unsafe-inline'` aus: das Frontend hat weder
+Inline-`<script>` noch `on*=`-Attribute. `TestStaticAssetsHaveNoInlineScript`
+(`internal/web/web_test.go`) hält das fest — wer ein Inline-Handler-Attribut
+ergänzt, bekommt einen roten Test statt eines stumm toten Buttons im Browser.
+
+Header werden **vor** dem Handler gesetzt, ein Handler kann also verschärfen;
+die Share-Seite tut das für `Referrer-Policy`, weil ihr Token in der URL steht.
+Kein HSTS — TLS endet am Reverse-Proxy, der weiß, ob HTTPS im Spiel ist.
+
 ## REST-API
 
 Die API ist unter dem Präfix `/api/` erreichbar, akzeptiert und liefert JSON

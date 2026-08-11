@@ -92,8 +92,10 @@ func main() {
 	})
 
 	srv := &http.Server{
-		Addr:              *addr,
-		Handler:           root,
+		Addr: *addr,
+		// Wrapped at the root so the SPA shell, /static/, the API and the share
+		// page all get the same baseline headers — see httpapi.SecurityHeaders.
+		Handler:           httpapi.SecurityHeaders(root),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
