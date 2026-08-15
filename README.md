@@ -198,6 +198,8 @@ Body:
 | `visible_from` | string | | `""` | ISO-Datum **oder** deutsche NL-Phrase |
 | `deadline` | string | | `""` | ISO-Datum **oder** deutsche NL-Phrase |
 | `recurrence_rule` | string | | `""` | RRULE-Subset, siehe [Wiederholungen](#wiederholungen) |
+| `recurrence_mode` | string | | `"fixed"` | `fixed` oder `after_completion`, siehe [Wiederholungen](#wiederholungen); nur mit `recurrence_rule` wirksam |
+| `recurrence_anchor` | string | | `visible_from` | Serientermin bei `fixed`; ISO-Datum oder deutsche NL-Phrase |
 
 Antwort: `201 Created`, das vollständige Task-Objekt.
 
@@ -225,7 +227,8 @@ unverändert. **Ein explizit gesetzter Leerstring** (z. B. `"deadline": ""`)
 löscht das Datum.
 
 Akzeptierte Felder: `title`, `description`, `project_id`, `priority`,
-`visible_from`, `deadline`, `recurrence_rule`. Selbe Validierungen wie bei
+`visible_from`, `deadline`, `recurrence_rule`, `recurrence_mode`,
+`recurrence_anchor`. Selbe Validierungen wie bei
 `POST`.
 
 ```bash
@@ -250,10 +253,20 @@ Aufruf liefert den Task unverändert).
 
 **Wenn der Task eine `recurrence_rule` hat**, wird automatisch eine neue offene
 Folge-Instanz angelegt. Sie erbt Titel, Beschreibung, Projekt, Priorität,
-Recurrence und die Deadline-Spanne, ihr `visible_from` ist die nächste
-Regel-Belegung nach dem alten `visible_from` (auf heute hochgerollt, wenn die
-alte Instanz überfällig war). Die abgeschlossene Instanz bleibt erhalten; die
-neue erscheint in einer separaten Antwort/Event-Sequenz.
+Recurrence (Regel **und** Modus) und die Deadline-Spanne. Woher ihr
+`visible_from` kommt, entscheidet `recurrence_mode`:
+
+- **`fixed`** (Default): nächste Regel-Belegung nach dem **`recurrence_anchor`**
+  (nicht nach `visible_from`!), auf heute hochgerollt, wenn die alte Instanz
+  überfällig war. Verpasste Termine werden übersprungen, das Raster bleibt
+  erhalten — ein Geburtstag am 15.08. liegt auch dann wieder auf dem 15.08.,
+  wenn er am 17.08. abgehakt wird.
+- **`after_completion`**: ein Regelschritt ab dem **Abhak-Tag**. Das Intervall
+  startet also bei jedem Erledigen neu — „Kaffeemaschine alle 4 Wochen
+  reinigen", am 17.08. abgehakt, erscheint wieder am 14.09.
+
+Die abgeschlossene Instanz bleibt erhalten; die neue erscheint in einer
+separaten Antwort/Event-Sequenz.
 
 Antwort: `200 OK`, das **abgeschlossene** Task-Objekt. (Die neu erzeugte
 Folge-Instanz wird nicht mitgeliefert — sie taucht beim nächsten `GET
@@ -281,6 +294,8 @@ Soft-Delete: `status = "deleted"`. Antwort: `204 No Content`.
   "visible_from": "2026-05-23",
   "deadline": "2026-05-27",
   "recurrence_rule": "FREQ=YEARLY;BYMONTH=5;BYMONTHDAY=27",
+  "recurrence_mode": "fixed",
+  "recurrence_anchor": "2026-05-27",
   "recurrence_label": "jährlich am 27.05.",
   "created_at": "2026-05-22T18:21:04Z",
   "updated_at": "2026-05-22T18:21:04Z",
@@ -298,7 +313,13 @@ Soft-Delete: `status = "deleted"`. Antwort: `204 No Content`.
 ```
 
 - `recurrence_label` ist server-generiert (deutsche, menschenlesbare Form
-  der `recurrence_rule`) und nur lesbar.
+  der `recurrence_rule`) und nur lesbar. Bei `recurrence_mode
+  = "after_completion"` endet es auf „ab Erledigung".
+- `recurrence_mode` wird nur zusammen mit einer `recurrence_rule` gespeichert;
+  ohne Regel ist es leer und wird weggelassen.
+- `recurrence_anchor` ist der **Serientermin** und existiert nur bei
+  `recurrence_mode = "fixed"`. Bei `after_completion` ist er immer leer, weil
+  dort jede Erledigung neu ankert.
 - `visible_from` und `deadline` sind weggelassen, wenn nicht gesetzt
   (`omitempty`).
 - `comments` ist **immer** vorhanden (leeres Array, wenn es keine gibt) und
@@ -860,6 +881,49 @@ Beispiele:
 Beim Senden ist auch die Kurzform aus dem NL-Parser zulässig — `POST /api/parse`
 liefert die kanonische RRULE-Form zurück, die du dann in `recurrence_rule`
 einsetzen kannst.
+
+#### Bezugspunkt: `recurrence_mode`
+
+Die Regel sagt, *wie weit* der nächste Termin entfernt liegt; `recurrence_mode`
+sagt, *wovon aus* gerechnet wird.
+
+| Modus | Anker | Verwenden für |
+| --- | --- | --- |
+| `fixed` (Default) | geplantes `visible_from` | Termine mit festem Datum: Geburtstage, Miete, Quartalsabschluss |
+| `after_completion` | Tag des Abhakens | Intervall-Aufgaben: Kaffeemaschine reinigen, Filter wechseln, Rasen mähen |
+
+Beispiel — beide am **17.08.2026** abgehakt:
+
+| `visible_from` | Regel | Modus | nächste Instanz |
+| --- | --- | --- | --- |
+| `2026-08-15` | `FREQ=YEARLY` | `fixed` | `2027-08-15` |
+| `2026-07-20` | `FREQ=WEEKLY;INTERVAL=4` | `after_completion` | `2026-09-14` |
+
+#### Serientermin vs. Startdatum
+
+Bei `fixed` sind **zwei** Daten im Spiel, und die Trennung ist der Punkt:
+
+| Feld | Bedeutung | Wer ändert es |
+| --- | --- | --- |
+| `visible_from` | wann diese *eine* Instanz auftaucht | Verschieben („auf Mittwoch"), Quick-Buttons, Drag |
+| `recurrence_anchor` | wo die *Serie* im Kalender liegt | nur explizit |
+
+Ein `PATCH` auf `visible_from` lässt `recurrence_anchor` unangetastet. Damit
+bleibt „Geburtstag am 1.8., dieses Jahr auf Mittwoch den 19.8. verschoben, dort
+abgehakt" eine Serie am **1.8.** — der nächste Termin ist der 01.08.2027, nicht
+der 19.08.2027. Wer die Serie wirklich verlegen will, patcht
+`recurrence_anchor` explizit.
+
+Beim Anlegen wird `recurrence_anchor` aus `visible_from` übernommen, wenn es
+nicht mitgeschickt wird. Die Deadline-Spanne wird ebenfalls gegen den
+Serientermin gerechnet, nicht gegen ein verschobenes `visible_from`.
+
+`after_completion` erlaubt **nur `FREQ` und `INTERVAL`**. Kalender-Anker
+(`BYDAY`, `BYMONTHDAY`, `BYMONTH`) werden mit `400` abgelehnt: „jeden Montag,
+gerechnet ab dem Abhaken" hat keine sinnvolle Lesart.
+
+Bestandsdaten und Clients, die das Feld nicht senden, verhalten sich unverändert
+wie `fixed`.
 
 ---
 

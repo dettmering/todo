@@ -15,14 +15,16 @@ import (
 type TaskRepo struct{ db *sql.DB }
 
 const taskCols = `id, title, description, project_id, status, priority,
-	visible_from, deadline, recurrence_rule, created_at, updated_at, completed_at`
+	visible_from, deadline, recurrence_rule, recurrence_mode, recurrence_anchor,
+	created_at, updated_at, completed_at`
 
 func (r *TaskRepo) Create(ctx context.Context, t *domain.Task) error {
 	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO tasks (`+taskCols+`)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		t.ID, t.Title, t.Description, t.ProjectID, string(t.Status), int(t.Priority),
-		t.VisibleFrom.String(), t.Deadline.String(), t.RecurrenceRule,
+		t.VisibleFrom.String(), t.Deadline.String(), t.RecurrenceRule, string(t.RecurrenceMode),
+		t.RecurrenceAnchor.String(),
 		timeString(t.CreatedAt), timeString(t.UpdatedAt), nullableTime(t.CompletedAt),
 	)
 	return err
@@ -41,11 +43,12 @@ func (r *TaskRepo) Update(ctx context.Context, t *domain.Task) error {
 	res, err := r.db.ExecContext(ctx,
 		`UPDATE tasks
 		   SET title = ?, description = ?, project_id = ?, status = ?, priority = ?,
-		       visible_from = ?, deadline = ?, recurrence_rule = ?, updated_at = ?, completed_at = ?
+		       visible_from = ?, deadline = ?, recurrence_rule = ?, recurrence_mode = ?,
+		       recurrence_anchor = ?, updated_at = ?, completed_at = ?
 		 WHERE id = ?`,
 		t.Title, t.Description, t.ProjectID, string(t.Status), int(t.Priority),
-		t.VisibleFrom.String(), t.Deadline.String(), t.RecurrenceRule,
-		timeString(t.UpdatedAt), nullableTime(t.CompletedAt), t.ID,
+		t.VisibleFrom.String(), t.Deadline.String(), t.RecurrenceRule, string(t.RecurrenceMode),
+		t.RecurrenceAnchor.String(), timeString(t.UpdatedAt), nullableTime(t.CompletedAt), t.ID,
 	)
 	if err != nil {
 		return err
@@ -165,27 +168,33 @@ func (r *TaskRepo) Delete(ctx context.Context, id string) error {
 
 func scanTask(s rowScanner) (*domain.Task, error) {
 	var (
-		t                                                domain.Task
-		status                                           string
-		priority                                         int
-		visibleFrom, deadline                            string
-		createdAt, updatedAt                             string
-		completedAt                                      sql.NullString
+		t                     domain.Task
+		status                string
+		priority              int
+		visibleFrom, deadline string
+		recurrenceMode        string
+		recurrenceAnchor      string
+		createdAt, updatedAt  string
+		completedAt           sql.NullString
 	)
 	if err := s.Scan(
 		&t.ID, &t.Title, &t.Description, &t.ProjectID, &status, &priority,
-		&visibleFrom, &deadline, &t.RecurrenceRule,
+		&visibleFrom, &deadline, &t.RecurrenceRule, &recurrenceMode, &recurrenceAnchor,
 		&createdAt, &updatedAt, &completedAt,
 	); err != nil {
 		return nil, err
 	}
 	t.Status = domain.TaskStatus(status)
 	t.Priority = domain.Priority(priority)
+	t.RecurrenceMode = domain.RecurrenceMode(recurrenceMode)
 	var err error
 	if t.VisibleFrom, err = domain.ParseDate(visibleFrom); err != nil {
 		return nil, err
 	}
 	if t.Deadline, err = domain.ParseDate(deadline); err != nil {
+		return nil, err
+	}
+	if t.RecurrenceAnchor, err = domain.ParseDate(recurrenceAnchor); err != nil {
 		return nil, err
 	}
 	if t.CreatedAt, err = parseTime(createdAt); err != nil {

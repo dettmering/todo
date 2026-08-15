@@ -550,7 +550,11 @@ body {
   text-align: center;
   font-size: 14px;
 }
-.hidden { display: none; }
+/* Utility class: must beat any component rule that sets display, regardless of
+   source order. .td-field and .td-field-control both declare display:flex at
+   the same specificity but appear later in this file, which silently defeated
+   a plain `display: none` on elements carrying both classes. */
+.hidden { display: none !important; }
 
 /* ---------- Dialogs ---------- */
 dialog {
@@ -972,6 +976,44 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
 .td-prio.p2.selected { border-color: var(--p2); background: rgba(235,137,9,0.08); }
 .td-prio.p3.selected { border-color: var(--p3); background: rgba(36,111,224,0.08); }
 .td-prio.p4.selected { border-color: var(--p4); background: rgba(179,179,179,0.12); }
+
+/* Recurrence anchor: fixed date vs. restart-on-completion. The wrapper is a
+   plain block, not a .td-field-control — that class is a flex row and would lay
+   the two mode buttons out next to whatever else sits in the field. */
+.td-recur-mode-wrap {
+  margin-top: 6px;
+}
+.td-segmented {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+.td-seg {
+  flex: 1;
+  padding: 6px 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--main-bg);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+.td-seg:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--text);
+}
+.td-seg.is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.td-seg:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 
 .td-weekday-buttons {
   display: flex;

@@ -104,6 +104,13 @@ var migrations = []migrationStep{
 		created_at  TEXT NOT NULL,
 		updated_at  TEXT NOT NULL
 	);`},
+	// Existing rows default to 'fixed', which reproduces the pre-mode behaviour.
+	{14, `ALTER TABLE tasks ADD COLUMN recurrence_mode TEXT NOT NULL DEFAULT 'fixed';`},
+	{15, `ALTER TABLE tasks ADD COLUMN recurrence_anchor TEXT NOT NULL DEFAULT '';`},
+	// Seed the series date of existing recurring tasks from visible_from, which
+	// is what they anchored on before the column existed.
+	{16, `UPDATE tasks SET recurrence_anchor = visible_from
+	      WHERE recurrence_rule != '' AND recurrence_anchor = '';`},
 }
 
 func (s *Store) migrate() error {

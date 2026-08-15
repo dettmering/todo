@@ -139,6 +139,83 @@ function setRecurrenceControls(selectId, customWrapId, customId, rule) {
   }
 }
 
+// --- Recurrence mode (Lastenheft 4.6) ---------------------------------------
+// "fixed" keeps a task on its planned date (a birthday stays on its day even if
+// ticked off late); "after_completion" restarts the interval on the day it is
+// actually done (clean the coffee machine every 4 weeks).
+const RECUR_FIXED = "fixed";
+const RECUR_AFTER_DONE = "after_completion";
+
+// Mirrors recurrence.Rule.HasCalendarAnchor on the server: rules pinned to a
+// weekday or day of month have no coherent "ab Erledigung" reading, so the
+// backend rejects that combination and we grey the option out instead.
+function ruleHasCalendarAnchor(rule) {
+  return /(^|;)\s*BY(DAY|MONTHDAY|MONTH)\s*=/i.test(rule || "");
+}
+
+function currentRecurrenceMode() {
+  const el = document.getElementById("td-recur-mode");
+  return (el && el.dataset.mode) || RECUR_FIXED;
+}
+
+// The series date lives in its own date field, deliberately separate from the
+// task's start date: postponing one occurrence must not move the series.
+function currentRecurrenceAnchor() {
+  const el = document.getElementById("td-recur-anchor");
+  return (el && el.value) || "";
+}
+
+function setRecurrenceAnchor(iso) {
+  const el = document.getElementById("td-recur-anchor");
+  if (el) el.value = iso || "";
+}
+
+function setRecurrenceMode(mode) {
+  const group = document.getElementById("td-recur-mode");
+  if (!group) return;
+  group.dataset.mode = mode === RECUR_AFTER_DONE ? RECUR_AFTER_DONE : RECUR_FIXED;
+  for (const btn of group.querySelectorAll(".td-seg")) {
+    const on = btn.dataset.mode === group.dataset.mode;
+    btn.classList.toggle("is-active", on);
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+  }
+}
+
+// Shows the mode switch and the series-date field only for recurring tasks, and
+// disables "ab Erledigung" for calendar-anchored rules.
+function syncRecurrenceModeUI() {
+  const wrap = document.getElementById("td-recur-mode-wrap");
+  const group = document.getElementById("td-recur-mode");
+  const anchorField = document.getElementById("td-recur-anchor-field");
+  if (!wrap || !group || !anchorField) return;
+
+  const rule = readRecurrence("td-recurrence", "td-recur-custom");
+  wrap.classList.toggle("hidden", !rule);
+  if (!rule) {
+    anchorField.classList.add("hidden");
+    return;
+  }
+
+  const anchored = ruleHasCalendarAnchor(rule);
+  const afterBtn = group.querySelector('[data-mode="after_completion"]');
+  afterBtn.disabled = anchored;
+  afterBtn.title = anchored
+    ? "Nur bei einfachen Intervallen möglich — nicht bei festem Wochentag oder Monatstag."
+    : "";
+  // A rule with a weekday/monthday anchor can only be fixed; snap back so the
+  // UI never shows a state the server would reject.
+  if (anchored && currentRecurrenceMode() === RECUR_AFTER_DONE) setRecurrenceMode(RECUR_FIXED);
+
+  // Only "Fester Termin" has a series date — "Ab Erledigung" re-anchors on every
+  // completion, so there is nothing stable to edit.
+  const fixed = currentRecurrenceMode() === RECUR_FIXED;
+  anchorField.classList.toggle("hidden", !fixed);
+  // A task that has just become recurring inherits its start date as the series date.
+  if (fixed && !currentRecurrenceAnchor()) {
+    setRecurrenceAnchor(document.getElementById("td-visible-from").value || "");
+  }
+}
+
 const PROJECT_COLOR_PRESETS = [
   { name: "Tomate",    hex: "#db4c3f" },
   { name: "Orange",    hex: "#eb8909" },
@@ -1867,6 +1944,9 @@ function openTaskDialogInternal(t) {
   document.getElementById("td-deadline").value = isoToDE(t.deadline);
   clearDateHint("td-deadline");
   setRecurrenceControls("td-recurrence", "td-recur-custom-wrap", "td-recur-custom", t.recurrence_rule || "");
+  setRecurrenceMode(t.recurrence_mode || RECUR_FIXED);
+  setRecurrenceAnchor(t.recurrence_anchor || t.visible_from || "");
+  syncRecurrenceModeUI();
   document.getElementById("td-error").classList.add("hidden");
   renderTaskDialogBreadcrumb(t.project_id);
   updateTaskDialogCheckbox(t.priority);
@@ -1980,6 +2060,8 @@ function wireTaskDialog() {
       visible_from: document.getElementById("td-visible-from").value || "",
       deadline: document.getElementById("td-deadline").value || "",
       recurrence_rule: readRecurrence("td-recurrence", "td-recur-custom"),
+      recurrence_mode: currentRecurrenceMode(),
+      recurrence_anchor: currentRecurrenceAnchor(),
     };
     try {
       await api.patchTask(id, body);
@@ -2079,6 +2161,16 @@ function wireTaskDialog() {
   // Toggle visibility of the custom-RRULE inputs when the user picks "custom".
   document.getElementById("td-recurrence").addEventListener("change", (e) => {
     document.getElementById("td-recur-custom-wrap").classList.toggle("hidden", e.target.value !== "custom");
+    syncRecurrenceModeUI();
+  });
+  // A hand-typed rule can introduce (or drop) a BYDAY anchor, which decides
+  // whether "ab Erledigung" is available at all.
+  document.getElementById("td-recur-custom").addEventListener("input", syncRecurrenceModeUI);
+  document.getElementById("td-recur-mode").addEventListener("click", (e) => {
+    const btn = e.target.closest(".td-seg");
+    if (!btn || btn.disabled) return;
+    setRecurrenceMode(btn.dataset.mode);
+    syncRecurrenceModeUI();
   });
   // Comments: submit on form submit (button) or Ctrl/Cmd+Enter in the textarea.
   const commentForm = document.getElementById("td-comment-form");

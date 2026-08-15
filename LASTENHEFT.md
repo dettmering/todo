@@ -238,6 +238,31 @@ Eine Aufgabe kann eine Wiederholungsregel besitzen, z. B.:
 
 Beim Abschließen einer wiederkehrenden Aufgabe wird automatisch eine neue Instanz oder ein neuer Termin erzeugt.
 
+### Bezugspunkt der Wiederholung
+
+Es gibt zwei Arten wiederkehrender Aufgaben, die sich darin unterscheiden,
+wovon aus der nächste Termin berechnet wird. Die Aufgabe muss zwischen beiden
+wählen lassen (`recurrence_mode`):
+
+* **Fester Termin** (`fixed`, Default) — der nächste Termin ergibt sich aus dem
+  **Serientermin** (`recurrence_anchor`), einem vom Erscheinungsdatum
+  getrennten Feld. Verspätetes Abhaken verschiebt die Serie nicht; verpasste
+  Termine werden übersprungen. Für kalendarisch gebundene Aufgaben:
+  Geburtstage, Miete, Quartalsabschluss.
+* **Ab Erledigung** (`after_completion`) — der nächste Termin ergibt sich aus
+  dem Tag des Abhakens; das Intervall startet bei jeder Erledigung neu. Für
+  Wartungsintervalle: Kaffeemaschine reinigen, Filter wechseln.
+
+Serientermin und Erscheinungsdatum müssen getrennt bleiben: Das Verschieben
+einer einzelnen Instanz („dieses Jahr erst am Mittwoch") darf die Serie **nicht**
+mitverschieben. Ein Geburtstag am 1.8., der auf den 19.8. verschoben und dort
+abgehakt wird, muss im Folgejahr wieder am 1.8. erscheinen. Das Verlegen der
+Serie selbst muss als eigene, ausdrückliche Handlung möglich sein.
+
+„Ab Erledigung" ist auf Regeln ohne Kalender-Anker beschränkt (nur `FREQ` und
+`INTERVAL`); „jeden Montag, gerechnet ab dem Abhaken" hat keine sinnvolle
+Lesart und wird abgelehnt.
+
 ### Umsetzungsmodell
 
 Zwei Modelle waren möglich: dieselbe Aufgabe auf das nächste Erscheinungsdatum
@@ -287,7 +312,9 @@ werden **strukturiert** gesetzt, nicht aus freiem Text erkannt:
 
 * im Frontend über ein Auswahlfeld mit Presets (Täglich, Werktäglich,
   Wöchentlich, Alle 2 Wochen, Monatlich, Alle 3 Monate, Jährlich, eigene RRULE)
-* über die API direkt als RRULE-String im Feld `recurrence_rule`
+  sowie einen Umschalter für den Bezugspunkt (Fester Termin / Ab Erledigung)
+* über die API direkt als RRULE-String im Feld `recurrence_rule`, der
+  Bezugspunkt in `recurrence_mode`
 
 Siehe Abschnitt 4.6 für den unterstützten RRULE-Umfang.
 

@@ -161,6 +161,14 @@ func (r Rule) Canonical() string {
 	return strings.Join(parts, ";")
 }
 
+// HasCalendarAnchor reports whether the rule pins occurrences to specific
+// calendar positions (weekday, day of month, month). Such rules are meaningless
+// in RecurAfterDone mode — "every Monday, starting when you tick it off" has no
+// coherent reading — so the service rejects the combination.
+func (r Rule) HasCalendarAnchor() bool {
+	return len(r.ByDay) > 0 || r.ByMonthDay != 0 || r.ByMonth != 0
+}
+
 // Next returns the smallest date strictly after `after` that matches the rule.
 // It also rolls forward so the returned date is on or after `notBefore` —
 // completing a recurring task long after its visible_from shouldn't spawn an
@@ -283,8 +291,21 @@ func toTime(d domain.LocalDate) time.Time {
 }
 
 // HumanLabel returns a short German label describing the rule, e.g. "Täglich",
-// "Jeden Montag", "Alle 2 Wochen". Empty string for the zero rule.
-func HumanLabel(s string) string {
+// "Jeden Montag", "Alle 2 Wochen". Empty string for the zero rule. In
+// RecurAfterDone mode the interval restarts on completion, which the label
+// spells out ("Alle 4 Wochen ab Erledigung").
+func HumanLabel(s string, mode domain.RecurrenceMode) string {
+	base := baseLabel(s)
+	if base == "" {
+		return ""
+	}
+	if mode == domain.RecurAfterDone {
+		return base + " ab Erledigung"
+	}
+	return base
+}
+
+func baseLabel(s string) string {
 	r, err := Parse(s)
 	if err != nil || r.Freq == "" {
 		return ""

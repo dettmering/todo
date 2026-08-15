@@ -148,37 +148,41 @@ func (s *server) build() *mcp.Server {
 const timeFormat = time.RFC3339
 
 type taskOut struct {
-	ID              string `json:"id"`
-	Title           string `json:"title"`
-	Description     string `json:"description,omitempty"`
-	ProjectID       string `json:"project_id"`
-	ProjectName     string `json:"project_name,omitempty"`
-	Status          string `json:"status"`
-	Priority        int    `json:"priority"`
-	VisibleFrom     string `json:"visible_from,omitempty"`
-	Deadline        string `json:"deadline,omitempty"`
-	RecurrenceRule  string `json:"recurrence_rule,omitempty"`
-	RecurrenceLabel string `json:"recurrence_label,omitempty"`
-	CreatedAt       string `json:"created_at"`
-	UpdatedAt       string `json:"updated_at"`
-	CompletedAt     string `json:"completed_at,omitempty"`
+	ID               string `json:"id"`
+	Title            string `json:"title"`
+	Description      string `json:"description,omitempty"`
+	ProjectID        string `json:"project_id"`
+	ProjectName      string `json:"project_name,omitempty"`
+	Status           string `json:"status"`
+	Priority         int    `json:"priority"`
+	VisibleFrom      string `json:"visible_from,omitempty"`
+	Deadline         string `json:"deadline,omitempty"`
+	RecurrenceRule   string `json:"recurrence_rule,omitempty"`
+	RecurrenceMode   string `json:"recurrence_mode,omitempty"`
+	RecurrenceAnchor string `json:"recurrence_anchor,omitempty"`
+	RecurrenceLabel  string `json:"recurrence_label,omitempty"`
+	CreatedAt        string `json:"created_at"`
+	UpdatedAt        string `json:"updated_at"`
+	CompletedAt      string `json:"completed_at,omitempty"`
 }
 
 func toTaskOut(t *domain.Task, projectName string) taskOut {
 	o := taskOut{
-		ID:              t.ID,
-		Title:           t.Title,
-		Description:     t.Description,
-		ProjectID:       t.ProjectID,
-		ProjectName:     projectName,
-		Status:          string(t.Status),
-		Priority:        int(t.Priority),
-		VisibleFrom:     t.VisibleFrom.String(),
-		Deadline:        t.Deadline.String(),
-		RecurrenceRule:  t.RecurrenceRule,
-		RecurrenceLabel: recurrence.HumanLabel(t.RecurrenceRule),
-		CreatedAt:       t.CreatedAt.Format(timeFormat),
-		UpdatedAt:       t.UpdatedAt.Format(timeFormat),
+		ID:               t.ID,
+		Title:            t.Title,
+		Description:      t.Description,
+		ProjectID:        t.ProjectID,
+		ProjectName:      projectName,
+		Status:           string(t.Status),
+		Priority:         int(t.Priority),
+		VisibleFrom:      t.VisibleFrom.String(),
+		Deadline:         t.Deadline.String(),
+		RecurrenceRule:   t.RecurrenceRule,
+		RecurrenceMode:   string(t.RecurrenceMode),
+		RecurrenceAnchor: t.RecurrenceAnchor.String(),
+		RecurrenceLabel:  recurrence.HumanLabel(t.RecurrenceRule, t.RecurrenceMode),
+		CreatedAt:        t.CreatedAt.Format(timeFormat),
+		UpdatedAt:        t.UpdatedAt.Format(timeFormat),
 	}
 	if t.CompletedAt != nil {
 		o.CompletedAt = t.CompletedAt.Format(timeFormat)
@@ -295,13 +299,15 @@ func (s *server) getTask(ctx context.Context, _ *mcp.CallToolRequest, in taskIDI
 }
 
 type createTaskInput struct {
-	Title          string `json:"title" jsonschema:"the task title (required)"`
-	Description    string `json:"description,omitempty"`
-	ProjectID      string `json:"project_id,omitempty" jsonschema:"target project id; defaults to inbox"`
-	Priority       int    `json:"priority,omitempty" jsonschema:"1 (highest) to 4 (lowest); defaults to 4"`
-	VisibleFrom    string `json:"visible_from,omitempty" jsonschema:"ISO date or German phrase; when the task starts appearing"`
-	Deadline       string `json:"deadline,omitempty" jsonschema:"ISO date or German phrase; when the task is due"`
-	RecurrenceRule string `json:"recurrence_rule,omitempty" jsonschema:"RRULE, e.g. FREQ=WEEKLY;BYDAY=MO"`
+	Title            string `json:"title" jsonschema:"the task title (required)"`
+	Description      string `json:"description,omitempty"`
+	ProjectID        string `json:"project_id,omitempty" jsonschema:"target project id; defaults to inbox"`
+	Priority         int    `json:"priority,omitempty" jsonschema:"1 (highest) to 4 (lowest); defaults to 4"`
+	VisibleFrom      string `json:"visible_from,omitempty" jsonschema:"ISO date or German phrase; when the task starts appearing"`
+	Deadline         string `json:"deadline,omitempty" jsonschema:"ISO date or German phrase; when the task is due"`
+	RecurrenceRule   string `json:"recurrence_rule,omitempty" jsonschema:"RRULE, e.g. FREQ=WEEKLY;BYDAY=MO"`
+	RecurrenceAnchor string `json:"recurrence_anchor,omitempty" jsonschema:"series date a fixed-mode recurrence counts from; postponing visible_from does not move it"`
+	RecurrenceMode   string `json:"recurrence_mode,omitempty" jsonschema:"fixed (default: keeps the planned date) or after_completion (interval restarts when ticked off; only FREQ+INTERVAL allowed)"`
 }
 
 func (s *server) createTask(ctx context.Context, _ *mcp.CallToolRequest, in createTaskInput) (*mcp.CallToolResult, taskOut, error) {
@@ -313,14 +319,20 @@ func (s *server) createTask(ctx context.Context, _ *mcp.CallToolRequest, in crea
 	if err != nil {
 		return nil, taskOut{}, err
 	}
+	anchor, err := parseDateInput(in.RecurrenceAnchor)
+	if err != nil {
+		return nil, taskOut{}, err
+	}
 	t, err := s.svc.CreateTask(ctx, service.TaskInput{
-		Title:          in.Title,
-		Description:    in.Description,
-		ProjectID:      in.ProjectID,
-		Priority:       domain.Priority(in.Priority),
-		VisibleFrom:    vf,
-		Deadline:       dl,
-		RecurrenceRule: in.RecurrenceRule,
+		Title:            in.Title,
+		Description:      in.Description,
+		ProjectID:        in.ProjectID,
+		Priority:         domain.Priority(in.Priority),
+		VisibleFrom:      vf,
+		Deadline:         dl,
+		RecurrenceRule:   in.RecurrenceRule,
+		RecurrenceMode:   domain.RecurrenceMode(in.RecurrenceMode),
+		RecurrenceAnchor: anchor,
 	})
 	if err != nil {
 		return nil, taskOut{}, err
@@ -329,14 +341,16 @@ func (s *server) createTask(ctx context.Context, _ *mcp.CallToolRequest, in crea
 }
 
 type updateTaskInput struct {
-	ID             string  `json:"id" jsonschema:"the task id"`
-	Title          *string `json:"title,omitempty"`
-	Description    *string `json:"description,omitempty"`
-	ProjectID      *string `json:"project_id,omitempty"`
-	Priority       *int    `json:"priority,omitempty" jsonschema:"1 (highest) to 4 (lowest)"`
-	VisibleFrom    *string `json:"visible_from,omitempty" jsonschema:"ISO date or German phrase; empty string clears it"`
-	Deadline       *string `json:"deadline,omitempty" jsonschema:"ISO date or German phrase; empty string clears it"`
-	RecurrenceRule *string `json:"recurrence_rule,omitempty"`
+	ID               string  `json:"id" jsonschema:"the task id"`
+	Title            *string `json:"title,omitempty"`
+	Description      *string `json:"description,omitempty"`
+	ProjectID        *string `json:"project_id,omitempty"`
+	Priority         *int    `json:"priority,omitempty" jsonschema:"1 (highest) to 4 (lowest)"`
+	VisibleFrom      *string `json:"visible_from,omitempty" jsonschema:"ISO date or German phrase; empty string clears it"`
+	Deadline         *string `json:"deadline,omitempty" jsonschema:"ISO date or German phrase; empty string clears it"`
+	RecurrenceRule   *string `json:"recurrence_rule,omitempty"`
+	RecurrenceAnchor *string `json:"recurrence_anchor,omitempty" jsonschema:"series date a fixed-mode recurrence counts from; postponing visible_from does not move it"`
+	RecurrenceMode   *string `json:"recurrence_mode,omitempty" jsonschema:"fixed (default: keeps the planned date) or after_completion (interval restarts when ticked off; only FREQ+INTERVAL allowed)"`
 }
 
 func (s *server) updateTask(ctx context.Context, _ *mcp.CallToolRequest, in updateTaskInput) (*mcp.CallToolResult, taskOut, error) {
@@ -345,6 +359,17 @@ func (s *server) updateTask(ctx context.Context, _ *mcp.CallToolRequest, in upda
 		Description:    in.Description,
 		ProjectID:      in.ProjectID,
 		RecurrenceRule: in.RecurrenceRule,
+	}
+	if in.RecurrenceMode != nil {
+		m := domain.RecurrenceMode(*in.RecurrenceMode)
+		patch.RecurrenceMode = &m
+	}
+	if in.RecurrenceAnchor != nil {
+		d, err := parseDateInput(*in.RecurrenceAnchor)
+		if err != nil {
+			return nil, taskOut{}, err
+		}
+		patch.RecurrenceAnchor = &d
 	}
 	if in.Priority != nil {
 		p := domain.Priority(*in.Priority)

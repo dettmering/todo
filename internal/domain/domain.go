@@ -106,6 +106,24 @@ func ParseDate(s string) (LocalDate, error) {
 	return DateOf(t), nil
 }
 
+// RecurrenceMode selects the anchor a recurring task's follow-up instance is
+// computed from (Lastenheft 4.6).
+type RecurrenceMode string
+
+const (
+	// RecurFixed anchors on the planned date: a birthday stays on its day no
+	// matter how late it is ticked off. This is the default and the behaviour
+	// of every task created before the mode existed.
+	RecurFixed RecurrenceMode = "fixed"
+	// RecurAfterDone anchors on the completion day: "clean the coffee machine
+	// every 4 weeks" restarts its interval whenever it is actually done.
+	RecurAfterDone RecurrenceMode = "after_completion"
+)
+
+func (m RecurrenceMode) Valid() bool {
+	return m == RecurFixed || m == RecurAfterDone
+}
+
 // Task is the central aggregate of the application.
 type Task struct {
 	ID             string
@@ -114,12 +132,18 @@ type Task struct {
 	ProjectID      string
 	Status         TaskStatus
 	Priority       Priority
-	VisibleFrom    LocalDate // when the task starts appearing in the list
-	Deadline       LocalDate // when it must be done
-	RecurrenceRule string    // RRULE-compatible, empty if not recurring
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
-	CompletedAt    *time.Time
+	VisibleFrom    LocalDate      // when the task starts appearing in the list
+	Deadline       LocalDate      // when it must be done
+	RecurrenceRule string         // RRULE-compatible, empty if not recurring
+	RecurrenceMode RecurrenceMode // anchor for the next instance; empty == RecurFixed
+	// RecurrenceAnchor is the series date a RecurFixed task computes its next
+	// occurrence from. It is deliberately separate from VisibleFrom: postponing
+	// a single occurrence ("verschieb den Geburtstag auf Mittwoch, dann hake
+	// ich ab") must not drag the whole series along. Only set for RecurFixed.
+	RecurrenceAnchor LocalDate
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	CompletedAt      *time.Time
 }
 
 // VisibleOn reports whether the task should appear in the standard list on the given date.

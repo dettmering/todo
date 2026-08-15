@@ -66,17 +66,56 @@ func TestParseRejects(t *testing.T) {
 
 func TestHumanLabel(t *testing.T) {
 	cases := map[string]string{
-		"FREQ=DAILY":                          "Täglich",
-		"FREQ=DAILY;INTERVAL=3":               "Alle 3 Tage",
-		"FREQ=WEEKLY;BYDAY=MO":                "Jeden Montag",
-		"FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR":    "Jeden Werktag",
-		"FREQ=WEEKLY;INTERVAL=2":              "Alle 2 Wochen",
-		"FREQ=MONTHLY;BYMONTHDAY=1":           "Am 1. jedes Monats",
-		"FREQ=YEARLY;BYMONTH=1;BYMONTHDAY=1":  "Jährlich am 1. Januar",
+		"FREQ=DAILY":                         "Täglich",
+		"FREQ=DAILY;INTERVAL=3":              "Alle 3 Tage",
+		"FREQ=WEEKLY;BYDAY=MO":               "Jeden Montag",
+		"FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR":   "Jeden Werktag",
+		"FREQ=WEEKLY;INTERVAL=2":             "Alle 2 Wochen",
+		"FREQ=MONTHLY;BYMONTHDAY=1":          "Am 1. jedes Monats",
+		"FREQ=YEARLY;BYMONTH=1;BYMONTHDAY=1": "Jährlich am 1. Januar",
 	}
 	for rule, want := range cases {
-		if got := HumanLabel(rule); got != want {
+		if got := HumanLabel(rule, domain.RecurFixed); got != want {
 			t.Errorf("%s: got %q want %q", rule, got, want)
+		}
+	}
+	// An empty mode is the legacy encoding of "fixed" and must read the same.
+	if got := HumanLabel("FREQ=DAILY", ""); got != "Täglich" {
+		t.Errorf("empty mode: got %q want %q", got, "Täglich")
+	}
+	// RecurAfterDone spells out that the interval restarts on completion.
+	afterDone := map[string]string{
+		"FREQ=WEEKLY;INTERVAL=4": "Alle 4 Wochen ab Erledigung",
+		"FREQ=MONTHLY":           "Monatlich ab Erledigung",
+	}
+	for rule, want := range afterDone {
+		if got := HumanLabel(rule, domain.RecurAfterDone); got != want {
+			t.Errorf("%s: got %q want %q", rule, got, want)
+		}
+	}
+	// No rule means no label, whatever the mode says.
+	if got := HumanLabel("", domain.RecurAfterDone); got != "" {
+		t.Errorf("empty rule: got %q want %q", got, "")
+	}
+}
+
+func TestHasCalendarAnchor(t *testing.T) {
+	cases := map[string]bool{
+		"FREQ=DAILY":                false,
+		"FREQ=WEEKLY;INTERVAL=4":    false,
+		"FREQ=MONTHLY":              false,
+		"FREQ=YEARLY":               false,
+		"FREQ=WEEKLY;BYDAY=MO":      true,
+		"FREQ=MONTHLY;BYMONTHDAY=1": true,
+		"FREQ=YEARLY;BYMONTH=1":     true,
+	}
+	for rule, want := range cases {
+		r, err := Parse(rule)
+		if err != nil {
+			t.Fatalf("Parse(%q): %v", rule, err)
+		}
+		if got := r.HasCalendarAnchor(); got != want {
+			t.Errorf("%s: got %v want %v", rule, got, want)
 		}
 	}
 }

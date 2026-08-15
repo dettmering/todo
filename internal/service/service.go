@@ -58,13 +58,57 @@ func newID(prefix string) string {
 // ---------- Tasks ----------
 
 type TaskInput struct {
-	Title          string
-	Description    string
-	ProjectID      string
-	Priority       domain.Priority
-	VisibleFrom    domain.LocalDate
-	Deadline       domain.LocalDate
-	RecurrenceRule string
+	Title            string
+	Description      string
+	ProjectID        string
+	Priority         domain.Priority
+	VisibleFrom      domain.LocalDate
+	Deadline         domain.LocalDate
+	RecurrenceRule   string
+	RecurrenceMode   domain.RecurrenceMode
+	RecurrenceAnchor domain.LocalDate
+}
+
+// recurrenceFields bundles the three fields that only make sense together.
+type recurrenceFields struct {
+	Rule   string
+	Mode   domain.RecurrenceMode
+	Anchor domain.LocalDate
+}
+
+// normalizeRecurrence validates rule, mode and series anchor as one unit. An
+// empty rule clears the other two — a one-off task has no series to speak of —
+// and an empty mode means RecurFixed, which keeps pre-existing API clients
+// working unchanged. fallbackAnchor seeds the series date when a task becomes
+// recurring without one being given (normally the task's visible_from).
+func normalizeRecurrence(in recurrenceFields, fallbackAnchor domain.LocalDate) (recurrenceFields, error) {
+	if in.Rule == "" {
+		return recurrenceFields{}, nil
+	}
+	parsed, err := recurrence.Parse(in.Rule)
+	if err != nil {
+		return recurrenceFields{}, fmt.Errorf("%w: recurrence_rule: %s", ErrValidation, err.Error())
+	}
+	if in.Mode == "" {
+		in.Mode = domain.RecurFixed
+	}
+	if !in.Mode.Valid() {
+		return recurrenceFields{}, fmt.Errorf("%w: recurrence_mode must be %q or %q",
+			ErrValidation, domain.RecurFixed, domain.RecurAfterDone)
+	}
+	if in.Mode == domain.RecurAfterDone && parsed.HasCalendarAnchor() {
+		return recurrenceFields{}, fmt.Errorf("%w: recurrence_mode %q allows only FREQ and INTERVAL, not BYDAY/BYMONTHDAY/BYMONTH",
+			ErrValidation, domain.RecurAfterDone)
+	}
+	out := recurrenceFields{Rule: parsed.Canonical(), Mode: in.Mode, Anchor: in.Anchor}
+	if in.Mode == domain.RecurAfterDone {
+		// This mode anchors on the completion day, so a stored series date
+		// would only be misleading.
+		out.Anchor = domain.LocalDate{}
+	} else if out.Anchor.IsZero() {
+		out.Anchor = fallbackAnchor
+	}
+	return out, nil
 }
 
 func (s *Service) CreateTask(ctx context.Context, in TaskInput) (*domain.Task, error) {
@@ -84,27 +128,28 @@ func (s *Service) CreateTask(ctx context.Context, in TaskInput) (*domain.Task, e
 	if !in.Priority.Valid() {
 		return nil, fmt.Errorf("%w: priority must be 1..4", ErrValidation)
 	}
-	if in.RecurrenceRule != "" {
-		r, err := recurrence.Parse(in.RecurrenceRule)
-		if err != nil {
-			return nil, fmt.Errorf("%w: recurrence_rule: %s", ErrValidation, err.Error())
-		}
-		in.RecurrenceRule = r.Canonical()
+	rec, err := normalizeRecurrence(recurrenceFields{
+		Rule: in.RecurrenceRule, Mode: in.RecurrenceMode, Anchor: in.RecurrenceAnchor,
+	}, in.VisibleFrom)
+	if err != nil {
+		return nil, err
 	}
 
 	now := s.clock()
 	t := &domain.Task{
-		ID:             newID("task"),
-		Title:          in.Title,
-		Description:    in.Description,
-		ProjectID:      in.ProjectID,
-		Status:         domain.StatusOpen,
-		Priority:       in.Priority,
-		VisibleFrom:    in.VisibleFrom,
-		Deadline:       in.Deadline,
-		RecurrenceRule: in.RecurrenceRule,
-		CreatedAt:      now,
-		UpdatedAt:      now,
+		ID:               newID("task"),
+		Title:            in.Title,
+		Description:      in.Description,
+		ProjectID:        in.ProjectID,
+		Status:           domain.StatusOpen,
+		Priority:         in.Priority,
+		VisibleFrom:      in.VisibleFrom,
+		Deadline:         in.Deadline,
+		RecurrenceRule:   rec.Rule,
+		RecurrenceMode:   rec.Mode,
+		RecurrenceAnchor: rec.Anchor,
+		CreatedAt:        now,
+		UpdatedAt:        now,
 	}
 	if err := s.tasks.Create(ctx, t); err != nil {
 		return nil, err
@@ -116,13 +161,15 @@ func (s *Service) CreateTask(ctx context.Context, in TaskInput) (*domain.Task, e
 
 // TaskPatch carries optional updates; nil pointer = leave field unchanged.
 type TaskPatch struct {
-	Title          *string
-	Description    *string
-	ProjectID      *string
-	Priority       *domain.Priority
-	VisibleFrom    *domain.LocalDate
-	Deadline       *domain.LocalDate
-	RecurrenceRule *string
+	Title            *string
+	Description      *string
+	ProjectID        *string
+	Priority         *domain.Priority
+	VisibleFrom      *domain.LocalDate
+	Deadline         *domain.LocalDate
+	RecurrenceRule   *string
+	RecurrenceMode   *domain.RecurrenceMode
+	RecurrenceAnchor *domain.LocalDate
 }
 
 func (s *Service) UpdateTask(ctx context.Context, id string, p TaskPatch) (*domain.Task, error) {
@@ -163,16 +210,30 @@ func (s *Service) UpdateTask(ctx context.Context, id string, p TaskPatch) (*doma
 	if p.Deadline != nil {
 		t.Deadline = *p.Deadline
 	}
-	if p.RecurrenceRule != nil {
-		rule := *p.RecurrenceRule
-		if rule != "" {
-			parsed, err := recurrence.Parse(rule)
-			if err != nil {
-				return nil, fmt.Errorf("%w: recurrence_rule: %s", ErrValidation, err.Error())
-			}
-			rule = parsed.Canonical()
+	// Rule, mode and series anchor are validated as one unit even when only one
+	// of them is patched — switching an existing "jeden Montag" task to "ab
+	// Erledigung" has to fail just as loudly as submitting both at once.
+	//
+	// Note what is deliberately absent: patching VisibleFrom does *not* touch
+	// RecurrenceAnchor. Postponing one occurrence ("Geburtstag auf Mittwoch")
+	// must leave the series where it is; moving the series is an explicit act
+	// via RecurrenceAnchor.
+	if p.RecurrenceRule != nil || p.RecurrenceMode != nil || p.RecurrenceAnchor != nil {
+		cur := recurrenceFields{Rule: t.RecurrenceRule, Mode: t.RecurrenceMode, Anchor: t.RecurrenceAnchor}
+		if p.RecurrenceRule != nil {
+			cur.Rule = *p.RecurrenceRule
 		}
-		t.RecurrenceRule = rule
+		if p.RecurrenceMode != nil {
+			cur.Mode = *p.RecurrenceMode
+		}
+		if p.RecurrenceAnchor != nil {
+			cur.Anchor = *p.RecurrenceAnchor
+		}
+		rec, err := normalizeRecurrence(cur, t.VisibleFrom)
+		if err != nil {
+			return nil, err
+		}
+		t.RecurrenceRule, t.RecurrenceMode, t.RecurrenceAnchor = rec.Rule, rec.Mode, rec.Anchor
 	}
 	now := s.clock()
 	t.UpdatedAt = now
@@ -271,19 +332,36 @@ func (s *Service) spawnNextInstance(ctx context.Context, prev *domain.Task, now 
 		return nil, err
 	}
 	today := domain.DateOf(now)
-	nextVisible, err := rule.Next(prev.VisibleFrom, today)
+	var nextVisible, window domain.LocalDate
+	if prev.RecurrenceMode == domain.RecurAfterDone {
+		// The interval restarts now: anchor on the completion day and take a
+		// single step. No roll-forward — today is already "now", so the result
+		// can never be in the past.
+		window = prev.VisibleFrom
+		nextVisible, err = rule.Next(today, domain.LocalDate{})
+	} else {
+		// Fixed mode steps from the series anchor, never from visible_from:
+		// the latter may have been dragged around to postpone this one
+		// occurrence, which must not move the series. Missed occurrences are
+		// skipped so the result is not already in the past.
+		window = prev.RecurrenceAnchor
+		if window.IsZero() {
+			window = prev.VisibleFrom // pre-anchor rows and API clients that omit it
+		}
+		nextVisible, err = rule.Next(window, today)
+	}
 	if err != nil {
 		return nil, err
 	}
-	// Deadline rolls forward by the same delta as visible_from, so a task
-	// "appear Mon, due Fri" recurring weekly stays a 4-day window.
+	// Deadline rolls forward by the same delta as the date it was planned
+	// against, so a task "appear Mon, due Fri" recurring weekly stays a 4-day
+	// window even if this occurrence was postponed.
 	var nextDeadline domain.LocalDate
 	if !prev.Deadline.IsZero() {
-		base := prev.VisibleFrom
-		if base.IsZero() {
-			base = today
+		if window.IsZero() {
+			window = today
 		}
-		nextDeadline = shiftDeadline(prev.Deadline, base, nextVisible)
+		nextDeadline = shiftDeadline(prev.Deadline, window, nextVisible)
 	}
 	t := &domain.Task{
 		ID:             newID("task"),
@@ -295,13 +373,26 @@ func (s *Service) spawnNextInstance(ctx context.Context, prev *domain.Task, now 
 		VisibleFrom:    nextVisible,
 		Deadline:       nextDeadline,
 		RecurrenceRule: prev.RecurrenceRule,
-		CreatedAt:      now,
-		UpdatedAt:      now,
+		RecurrenceMode: prev.RecurrenceMode,
+		// The new occurrence starts life un-postponed, so its series date and
+		// its visible_from coincide again.
+		RecurrenceAnchor: anchorFor(prev.RecurrenceMode, nextVisible),
+		CreatedAt:        now,
+		UpdatedAt:        now,
 	}
 	if err := s.tasks.Create(ctx, t); err != nil {
 		return nil, err
 	}
 	return t, nil
+}
+
+// anchorFor returns the series date to store for a freshly spawned occurrence.
+// RecurAfterDone tasks re-anchor on every completion and keep none.
+func anchorFor(mode domain.RecurrenceMode, next domain.LocalDate) domain.LocalDate {
+	if mode == domain.RecurAfterDone {
+		return domain.LocalDate{}
+	}
+	return next
 }
 
 func shiftDeadline(deadline, fromBase, toBase domain.LocalDate) domain.LocalDate {

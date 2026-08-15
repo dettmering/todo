@@ -62,13 +62,15 @@ func parseDateInput(s string) (domain.LocalDate, error) {
 }
 
 type taskCreateReq struct {
-	Title          string `json:"title"`
-	Description    string `json:"description"`
-	ProjectID      string `json:"project_id"`
-	Priority       int    `json:"priority"`
-	VisibleFrom    string `json:"visible_from"`
-	Deadline       string `json:"deadline"`
-	RecurrenceRule string `json:"recurrence_rule"`
+	Title            string `json:"title"`
+	Description      string `json:"description"`
+	ProjectID        string `json:"project_id"`
+	Priority         int    `json:"priority"`
+	VisibleFrom      string `json:"visible_from"`
+	Deadline         string `json:"deadline"`
+	RecurrenceRule   string `json:"recurrence_rule"`
+	RecurrenceMode   string `json:"recurrence_mode"`
+	RecurrenceAnchor string `json:"recurrence_anchor"`
 }
 
 // parseDateRangeParams reads a date-range from the given query parameter
@@ -242,14 +244,21 @@ func (h *Handler) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, errorResp{Error: "deadline: " + err.Error()})
 		return
 	}
+	anchor, err := parseDateInput(req.RecurrenceAnchor)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResp{Error: "recurrence_anchor: " + err.Error()})
+		return
+	}
 	in := service.TaskInput{
-		Title:          req.Title,
-		Description:    req.Description,
-		ProjectID:      req.ProjectID,
-		Priority:       domain.Priority(req.Priority),
-		VisibleFrom:    vf,
-		Deadline:       dl,
-		RecurrenceRule: req.RecurrenceRule,
+		Title:            req.Title,
+		Description:      req.Description,
+		ProjectID:        req.ProjectID,
+		Priority:         domain.Priority(req.Priority),
+		VisibleFrom:      vf,
+		Deadline:         dl,
+		RecurrenceRule:   req.RecurrenceRule,
+		RecurrenceMode:   domain.RecurrenceMode(req.RecurrenceMode),
+		RecurrenceAnchor: anchor,
 	}
 	t, err := h.svc.CreateTask(r.Context(), in)
 	if err != nil {
@@ -270,13 +279,15 @@ func (h *Handler) handleGetTask(w http.ResponseWriter, r *http.Request) {
 }
 
 type taskPatchReq struct {
-	Title          *string `json:"title"`
-	Description    *string `json:"description"`
-	ProjectID      *string `json:"project_id"`
-	Priority       *int    `json:"priority"`
-	VisibleFrom    *string `json:"visible_from"`
-	Deadline       *string `json:"deadline"`
-	RecurrenceRule *string `json:"recurrence_rule"`
+	Title            *string `json:"title"`
+	Description      *string `json:"description"`
+	ProjectID        *string `json:"project_id"`
+	Priority         *int    `json:"priority"`
+	VisibleFrom      *string `json:"visible_from"`
+	Deadline         *string `json:"deadline"`
+	RecurrenceRule   *string `json:"recurrence_rule"`
+	RecurrenceMode   *string `json:"recurrence_mode"`
+	RecurrenceAnchor *string `json:"recurrence_anchor"`
 }
 
 func (h *Handler) handlePatchTask(w http.ResponseWriter, r *http.Request) {
@@ -291,6 +302,18 @@ func (h *Handler) handlePatchTask(w http.ResponseWriter, r *http.Request) {
 		Description:    req.Description,
 		ProjectID:      req.ProjectID,
 		RecurrenceRule: req.RecurrenceRule,
+	}
+	if req.RecurrenceMode != nil {
+		m := domain.RecurrenceMode(*req.RecurrenceMode)
+		patch.RecurrenceMode = &m
+	}
+	if req.RecurrenceAnchor != nil {
+		d, err := parseDateInput(*req.RecurrenceAnchor)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, errorResp{Error: "recurrence_anchor: " + err.Error()})
+			return
+		}
+		patch.RecurrenceAnchor = &d
 	}
 	if req.Priority != nil {
 		p := domain.Priority(*req.Priority)

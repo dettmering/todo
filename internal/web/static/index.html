@@ -264,6 +264,19 @@
           <div class="td-field-control td-recur-custom hidden" id="td-recur-custom-wrap">
             <input type="text" id="td-recur-custom" placeholder="FREQ=WEEKLY;BYDAY=MO" />
           </div>
+          <div class="td-recur-mode-wrap hidden" id="td-recur-mode-wrap">
+            <div class="td-segmented" id="td-recur-mode" role="group" aria-label="Bezugspunkt der Wiederholung">
+              <button type="button" class="td-seg" data-mode="fixed" aria-pressed="true">Fester Termin</button>
+              <button type="button" class="td-seg" data-mode="after_completion" aria-pressed="false">Ab Erledigung</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="td-field td-field-extra hidden" id="td-recur-anchor-field">
+          <div class="td-field-label">Serientermin</div>
+          <div class="td-field-control">
+            <input type="date" id="td-recur-anchor" autocomplete="off" />
+          </div>
         </div>
 
         <button type="button" class="td-mobile-more" id="td-more-toggle" aria-expanded="false">Weitere Details</button>
