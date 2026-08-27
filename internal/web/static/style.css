@@ -1272,16 +1272,23 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
 .td-quick svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-muted); }
 .td-quick:hover svg { color: var(--accent); }
 
+/* Drei Schaltflaechen in einer 320px-Spalte: "Loeschen | Abbrechen |
+   Speichern" braucht rund 300px und passte vor der groesseren Typografie
+   gerade noch. Statt die Knoepfe enger zu stellen -- was beim naechsten
+   laengeren Wort wieder bricht -- darf die Reihe umbrechen: dann steht
+   "Loeschen" allein oben und das Paar rechts darunter. Solange es passt,
+   bleibt alles in einer Zeile. */
 .td-sidebar-actions {
   margin-top: auto;
   padding-top: 12px;
   border-top: 1px solid var(--border-strong);
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px 8px;
 }
-.td-sidebar-buttons { display: flex; gap: 6px; }
+.td-sidebar-buttons { display: flex; gap: 6px; margin-left: auto; }
 /* Pillen: alles, was gedrückt wird. Flächen und Felder behalten ihre Kante. */
 .td-btn {
   font-size: 14px;
