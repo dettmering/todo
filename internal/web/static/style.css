@@ -738,7 +738,13 @@ dialog {
   background: var(--main-bg);
 }
 dialog::backdrop { background: rgba(21, 23, 28, 0.42); }
-dialog form { padding: 20px 24px; display: flex; flex-direction: column; gap: 12px; }
+/* Nur die kleinen Dialoge (Projekt, Abwesenheit) sind *ein* Formular und
+   tragen deshalb hier ihren Innenabstand. Das Aufgaben-Modal hat sein eigenes
+   Layout und enthaelt lediglich das Kommentarformular -- unscoped hat diese
+   Regel dem 24px links und rechts verpasst, wodurch das Eingabefeld schmaler
+   stand als der Text darueber. Die Mobil-Regel weiter unten war schon so
+   geschrieben. */
+dialog:not(.task-modal) form { padding: 20px 24px; display: flex; flex-direction: column; gap: 12px; }
 dialog h2 { margin: 0 0 4px; font-size: 18px; font-weight: 600; letter-spacing: -0.018em; color: var(--text); }
 /* Feldrubriken sind Marginalien, nicht Fließtext. */
 dialog label {
