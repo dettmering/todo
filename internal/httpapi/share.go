@@ -153,23 +153,23 @@ func buildAbsencesSharePage(absences []*domain.Absence, status domain.Availabili
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Availability</title>
-<!-- IBM Plex kommt von Google Fonts, wie in der App auch. Hier war es schon
-     immer zwingend: diese Seite ist die einzige, die jemand von aussen
-     aufruft, und /static liegt hinter der BasicAuth des Reverse Proxy --
-     selbst ausgelieferte Schriften kaemen als 401 zurueck und die Seite
-     stuende in einer Systemschrift. Faellt Google Fonts aus, greift der
-     Fallback-Stack unten. -->
+<!-- Inter und JetBrains Mono von Google Fonts, dieselben Schnitte wie in der
+     App. Hier war der fremde Host schon immer zwingend: diese Seite ist die
+     einzige, die jemand von aussen aufruft, und /static liegt hinter der
+     BasicAuth des Reverse Proxy -- selbst ausgelieferte Schriften kaemen als
+     401 zurueck und die Seite stuende in einer Systemschrift. Faellt Google
+     Fonts aus, greift der Fallback-Stack unten. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono&amp;display=swap">
 <style>
 /* Die Share-Seite ist ein Dokument, kein Fenster in die App: ein Blatt Papier
    auf dem Grund der Druckerei. Sie folgt aber der Systemeinstellung wie die
    App auch: im Dunkelmodus wechselt der ganze Satz an Tokens, nicht nur der
    Grund. */
 :root{
---sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
---mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,monospace;
+--sans:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+--mono:"JetBrains Mono",ui-monospace,SFMono-Regular,monospace;
 --bg:#fbfaf7;--paper:#fff;--edge:rgba(21,23,28,.16);--shade:rgba(21,23,28,.13);
 --fg:#15171c;--muted:#666c76;--faint:#8a9099;--line:rgba(21,23,28,.12);
 --track:#f3f1ec;--tick:rgba(21,23,28,.22);--offpaper:#8a9099;
@@ -191,8 +191,9 @@ outline:1px solid var(--edge);outline-offset:-1px;box-shadow:0 1px 2px var(--sha
    Status darunter. */
 h1{margin:0;font-family:var(--mono);font-size:.688rem;font-weight:400;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
 h2{margin:2rem 0 .7rem;padding-top:1.1rem;border-top:1px solid var(--line);font-family:var(--mono);font-size:.688rem;font-weight:400;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
-.status{display:flex;align-items:center;gap:.7rem;font-size:clamp(1.35rem,4.5vw,1.7rem);font-weight:600;letter-spacing:-.022em;line-height:1.15;margin:0 0 .5rem}
-.status::before{content:"";width:.62rem;height:.62rem;border-radius:50%;background:currentColor;flex:none}
+/* Kein Statuspunkt davor: die Zeile ist selbst schon in der Statusfarbe
+   gesetzt, der Punkt sagte dasselbe ein zweites Mal. */
+.status{font-size:clamp(1.35rem,4.5vw,1.7rem);font-weight:600;letter-spacing:-.022em;line-height:1.15;margin:0 0 .5rem}
 .status.available{color:var(--ok)}
 .status.away{color:var(--away)}
 .status.trip{color:var(--trip)}
