@@ -67,9 +67,13 @@ auf die man schaut.
 | --- | --- | --- | --- |
 | Tusche (Titel, Aufgabentitel) | `--text` | `#15171c` | `#e8e9ec` |
 | Graphit (Fließtext, Nav idle) | `--text-secondary` | `#666c76` | `#9aa1ab` |
-| Marginalie (Daten, Zähler, Rubriken) | `--text-muted` | `#8a9099` | `#7b838e` |
+| Marginalie (Daten, Zähler, Rubriken) | `--text-muted` | `#767d87` | `#8d95a0` |
 | Haarstrich | `--border` | `rgba(21,23,28,.12)` | `rgba(232,233,236,.14)` |
 | Kräftiger Strich (Rubrikzeile, Feldrand) | `--border-strong` | `rgba(21,23,28,.22)` | `rgba(232,233,236,.26)` |
+
+`--text-muted` trägt die Datums- und Zählerzeilen und muss deshalb die
+WCAG-Schwelle halten: `#767d87` liegt bei 4,6:1 auf Papier. Ein blasserer Wert
+sieht auf einem Screenshot ruhiger aus und ist im Betrieb nicht mehr lesbar.
 
 Linien sind **Alphawerte, keine Hex-Grautöne**. Dadurch stimmen sie über
 Papier, Grund und Sidebar hinweg, ohne dass es drei Strichfarben braucht.
@@ -169,17 +173,24 @@ damit gerendertes Markdown keinen synthetischen Fettschnitt erzeugt.
 
 | Rolle | Wert | Verwendung |
 | --- | --- | --- |
-| Body | Sans 400 / `14px` / `1.5` / `--text-secondary` | alles Gelesene |
-| Seitentitel (H1) | Sans 600 / `28px` / `-0.022em` | Ansichtsüberschrift |
+| Body | Sans 400 / `15px` / `1.55` / `--text-secondary` | alles Gelesene |
+| Seitentitel (H1) | Sans 600 / `30px` / `-0.022em` | Ansichtsüberschrift |
 | Dialogtitel (H2) | Sans 600 / `18px` / `-0.018em` | |
-| Aufgabentitel im Modal | Sans 600 / `21px` / `-0.018em` | |
-| Aufgabentitel in der Liste | Sans 400 / `14px` / `1.45` / `--text` | |
-| **Marginalie** | Mono 400 / `11px` / `0.13em` / versal / `--text-muted` | Rubriken, Feldrubriken, Zähler, Rubrikzeilen |
-| **Ablesewert** | Mono 400 / `11px` / `0.04–0.07em` / `tabular-nums` | Daten, Uhrzeiten, Zeiträume, Kalenderwochen |
+| Aufgabentitel im Modal | Sans 600 / `22px` / `-0.018em` | |
+| Aufgabentitel in der Liste | Sans 400 / `15px` / `1.45` / `--text` | |
+| **Rubrikzeile** | Mono / `13px` / `0.06em` / versal; Rubrik 700, Rest 400 | Wochen-, Tages- und Abschnittsköpfe (7.1) |
+| **Marginalie** | Mono 400 / `12px` / `0.09em` / versal / `--text-muted` | Feldrubriken, Abschnittsköpfe der Sidebar, Hinweise |
+| **Ablesewert** | Mono 400 / `12px` / `0.01–0.03em` / gemischt / `tabular-nums` | Daten, Uhrzeiten, Zeiträume, Zähler |
 
-Die Utility-Klassen `.mono` und `.eyebrow` in `style.css` fassen die letzten
-beiden Zeilen zusammen; Komponenten dürfen die Werte auch direkt setzen, wenn
-sie zusätzlich etwas anderes brauchen.
+Die Utility-Klassen `.mono` und `.eyebrow` in `style.css` fassen Marginalie und
+Ablesewert zusammen; Komponenten dürfen die Werte auch direkt setzen, wenn sie
+zusätzlich etwas anderes brauchen.
+
+**Versalien nur für Rubriken, nicht für Werte.** Eine Rubrik ist ein kurzes,
+festes Wort und darf ihre Wortform verlieren — bei einem Wert liest man genau
+sie: `Mittwoch` ist auf einen Blick erfassbar, `MITTWOCH` muss man
+buchstabieren. Ablesewerte stehen deshalb gemischt und nur leicht gesperrt;
+die Zugehörigkeit zur Nebenschrift tragen Mono und `--text-muted`.
 
 **Faustregel für die Entscheidung Sans/Mono:** Steht dort ein Wort, das jemand
 frei gewählt hat (Aufgabentitel, Projektname, Abwesenheitslabel wie „Kreta")?
@@ -270,11 +281,13 @@ md2pdf den druckenden Bereich eines Blattes bemaßt.
 * Aufbau als Flexzeile mit expliziter `order`: Registermarke (0), Label (1),
   Zeitraum (2), **Leiter** `::after` (3), Abwesenheits-Badges (4), Zähler (5).
   Der Leiter ist ein `flex: 1 1 auto` hohes 1-px-Element — kein Markup nötig.
-* Grundzustand: Mono 11 px versal, Label in `--text`, Rest in `--text-muted`,
-  Unterlinie `--border-strong`.
+* Grundzustand: Mono 13 px versal, `0.06em`; die Rubrik selbst in **700** und
+  `--text`, Zeitraum und Zähler in 400 und `--text-muted`; Unterlinie
+  `--border-strong`. Der Fettschnitt liegt nur auf der Rubrik — läge er auf
+  der ganzen Zeile, würde sie bei dieser Größe zur Wand.
 * **`.current` (laufende Woche):** Label, Zeitraum und Zähler in `--accent`,
   Unterlinie und Leiter in `--accent-line`, plus eine **Registermarke** —
-  ein 7 × 7 px großes gefülltes Quadrat vor dem Label.
+  ein 8 × 8 px großes gefülltes Quadrat vor dem Label.
   **Genau eine Registermarke pro Bildschirm.** Sie ist die einzige Stelle,
   an der die Oberfläche laut wird; sie zweimal zu vergeben, macht sie
   wertlos. In der Ansicht „Heute" gibt es keine Gruppenköpfe — dort ist die
@@ -307,9 +320,11 @@ md2pdf den druckenden Bereich eines Blattes bemaßt.
 
 * **Checkbox:** Hohlkreis 18 × 18 px, Rand = Prioritätsfarbe, Innenfläche
   10 %-Tint (2.4). Hover blendet ein halbtransparentes Häkchen ein.
-* **Titel:** Sans 14 px / `1.45` in `--text`.
-* **Datumszeile:** Mono 11 px, **versal**, `0.07em` gesperrt, `tabular-nums`,
-  Farbe nach 2.5. Das ist der Faden, der alle Ansichten zusammenhält.
+* **Titel:** Sans 15 px / `1.45` in `--text`.
+* **Datumszeile:** Mono 12 px, **gemischt** (nicht versal), `0.01em`,
+  `tabular-nums`, Farbe nach 2.5. Das ist der Faden, der alle Ansichten
+  zusammenhält — und die Stelle, an der Versalien am meisten gekostet haben
+  (siehe 3.1).
 * **Projekttag** rechtsbündig in Sans (ein Projektname ist ein Wort, kein
   Ablesewert), in der Projektansicht ausgeblendet.
 * Trennlinie `1px solid var(--border)`, Mindesthöhe `40px`.
@@ -358,10 +373,10 @@ md2pdf den druckenden Bereich eines Blattes bemaßt.
 ### 7.8 Abwesenheitszeile
 
 * Layout `[Typ-Badge] [Label] [Zeitraum + Meta] [Edit] [Delete]`.
-* Typ-Badge: Pille in den Tokens aus 2.6, **Sans** 11 px / 500 (der Typ ist
-  ein Wort).
-* Zeitraum in Mono 12 px, Metazeile („12 TAGE · BEGINNT IN EINER WOCHE") in
-  Mono 11 px versal.
+* Typ-Badge: Pille in den Tokens aus 2.6, **Sans** 12 px / 500 (der Typ ist
+  ein Wort). Die Spalte ist 132 px breit, damit „Dienstreise" nicht umbricht.
+* Zeitraum in Mono 13 px, Metazeile („12 Tage · beginnt in einer Woche") in
+  Mono 12 px, gemischt.
 * Die laufende Abwesenheit liegt auf `--hover` mit `--radius` — neutral, nicht
   im Akzent: sie ist eine Ortsmarke, kein Signal.
 
@@ -375,7 +390,7 @@ direkte Entsprechung zum Blatt Papier in md2pdf.
   `--border-strong` mit zwölf gleich breiten Feldern.
 * `.tl-span`: ein Balken je Abwesenheit in der `-fg`-Variante der Typfarbe.
 * `.tl-today`: Punkt in `--accent` mit Ring in `--main-bg`.
-* `.tl-weeks` / `.tl-months`: Mono 10 px, `tabular-nums`; die laufende Woche
+* `.tl-weeks` / `.tl-months`: Mono 11 px, `tabular-nums`; die laufende Woche
   trägt `.cur` und steht in `--accent` / 700. Monatskürzel versal.
 * Hover auf einer Listenzeile hebt den zugehörigen Balken (`scaleY(1.6)`).
 
