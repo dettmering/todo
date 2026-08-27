@@ -354,7 +354,7 @@ strong, b { font-weight: 600; }
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   padding: 11px 14px;
-  margin: 20px 0 4px;
+  margin: 20px 0 18px;
   background: var(--surface);
   transition: border-color 0.15s ease, background 0.15s ease;
 }
@@ -503,7 +503,7 @@ strong, b { font-weight: 600; }
   border-bottom: 1px solid var(--border-strong);
   cursor: default;
 }
-.group-header:first-child { padding-top: 2px; }
+.group-header:first-child { padding-top: 4px; }
 .group-header > span:first-of-type { order: 1; flex: none; }
 .group-header::after {
   content: "";
