@@ -1044,10 +1044,11 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
 .td-description-input:focus { border-color: var(--accent); }
 
 /* ---------- Comments ---------- */
+/* Kein Strich oberhalb der Rubrik: die Rubrik traegt ihren eigenen darunter
+   (siehe .td-comments-header) und zwei Haarstriche im Abstand von zwei
+   Zeilen sind einer zu viel. Getrennt wird jetzt ueber die Luft. */
 .td-comments {
-  margin-top: 24px;
-  border-top: 1px solid var(--border);
-  padding-top: 18px;
+  margin-top: 34px;
 }
 .td-comments-header {
   font-family: var(--font-mono);
