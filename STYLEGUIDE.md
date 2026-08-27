@@ -32,11 +32,12 @@ Kopf von `internal/web/static/style.css`.
    (heute fällig, laufende Woche, aktive Auswahl, Marke).
    Schnittmarken-Rot heißt „überfällig / löschen". Priorität ist **keine
    Ampel, sondern Farbdichte**: Rot, Ocker, Graphit, blass.
-3. **Flächen sind kantig, Marken sind rund.** Was man *drückt* oder was etwas
-   *benennt*, ist eine Pille (`--radius-pill`). Was etwas *trägt* oder
-   *aufnimmt* — Karte, Dialog, Eingabefeld, Menü —, hat eine Kante
-   (`--radius`, 4 px). Kreise bleiben Kreise: Checkbox, Projektpunkt,
-   Farbwähler.
+3. **Bedienelemente sind kantig, Marken sind rund.** Alles, was man *drückt*
+   oder was etwas *aufnimmt* — Schaltfläche, Karte, Dialog, Eingabefeld,
+   Menü, Nav-Zeile —, teilt sich eine Kante (`--radius`, 4 px). Eine Pille
+   (`--radius-pill`) ist nur, was etwas **benennt** und selbst keine Aktion
+   ist: Abwesenheits-Badge, Kürzel im Quick-Add, Balken der Zeitleiste.
+   Kreise bleiben Kreise: Checkbox, Projektpunkt, Farbwähler.
 
 ---
 
@@ -250,14 +251,22 @@ folgt, nicht zu dem, was davor stand.
 
 | Element | Radius |
 | --- | --- |
-| Karte, Dialog, Eingabefeld, Textarea, Select, Menü, Codeblock | `var(--radius)` = `4px` |
-| **Jeder Button**, Chip, Badge, Pille, Nav-Item, Icon-Button, Zeitleistenbalken | `var(--radius-pill)` = `999px` |
-| Checkbox, Projektpunkt, Farbwähler, „Heute"-Punkt | `50%` |
+| **Jede Schaltfläche**, Nav-Zeile, Icon-Button, Karte, Dialog, Eingabefeld, Textarea, Select, Menü, Codeblock | `var(--radius)` = `4px` |
+| Abwesenheits-Badge, Kürzel im Quick-Add, Schiene und Balken der Zeitleiste | `var(--radius-pill)` = `999px` |
+| Checkbox, Projektpunkt, Farbwähler | `50%` |
+| „Heute" auf der Zeitleiste | Quadrat, um 45° gedreht (7.9) |
 
-Die Trennung ist die dritte Grundregel aus §1 und der auffälligste Unterschied
-zur Vorgängerfassung, die alles zwischen 4 und 12 px gerundet hat. Sie ist
-funktional: Wenn ein Element rund ist, kann man es drücken oder es benennt
-etwas.
+Die Trennung ist die dritte Grundregel aus §1: rund ist, was etwas *benennt*,
+kantig ist, was man *bedient*.
+
+**Korrigiert.** Die erste Fassung hatte es umgekehrt — Pillen für alles
+Drückbare, Kanten für alles Tragende. Das las sich als Regel gut und ist an
+einer konkreten Stelle gescheitert: die Aktionszeile im Aufgaben-Modal
+(„Löschen | Abbrechen | Speichern") braucht in Pillenform rund 300 px und
+hatte 284. Pillen kosten waagerechte Polsterung, die eine 320-px-Spalte nicht
+hat. Dazu kam, dass eine Pille neben einem 4-px-Eingabefeld im selben Feld
+steht und sich nicht auf dessen Raster einlässt. Beides zusammen war teurer
+als die Merkregel wert war.
 
 Schatten sind zurückhaltend und nur an zwei Stellen:
 

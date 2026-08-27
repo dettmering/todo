@@ -10,9 +10,11 @@
       fällig, laufende Woche, aktive Auswahl, Marke). Schnittmarken-Rot heißt
       „überfällig / löschen". Priorität ist keine Ampel, sondern Farbdichte:
       Rot, Ocker, Graphit, blass.
-   3. Flächen sind kantig (--radius, 4px), Marken sind rund (--radius-pill).
-      Was man drückt oder was etwas benennt, ist eine Pille; was etwas trägt
-      oder aufnimmt, hat eine Kante. Kreise bleiben Kreise (Checkbox, Punkt).
+   3. Bedienelemente sind kantig (--radius, 4px), Marken sind rund
+      (--radius-pill). Was man drückt oder was etwas aufnimmt, teilt sich eine
+      Kante -- Schaltflächen sitzen damit im selben Raster wie die Eingabe-
+      felder daneben. Rund ist nur, was etwas *benennt*: Badges, Kürzel im
+      Quick-Add, Abwesenheitstypen. Kreise bleiben Kreise (Checkbox, Punkt).
 */
 
 /* Die Schnitte kommen ueber Google Fonts (Link im <head> von index.html),
@@ -189,7 +191,7 @@ strong, b { font-weight: 600; }
   align-items: center;
   gap: 10px;
   padding: 6px 10px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius);
   text-decoration: none;
   color: var(--text-secondary);
   font-size: 15px;
@@ -270,7 +272,7 @@ strong, b { font-weight: 600; }
   font-size: 14px;
   width: 22px;
   height: 22px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -464,7 +466,7 @@ strong, b { font-weight: 600; }
   align-items: center;
   gap: 8px;
   padding: 6px 10px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius);
   cursor: pointer;
   font-size: 14px;
   color: var(--text);
@@ -770,8 +772,8 @@ dialog .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 dialog menu { display: flex; gap: 8px; justify-content: flex-end; margin: 8px 0 0; padding: 0; }
 dialog menu button {
   font-size: 14px;
-  padding: 7px 18px;
-  border-radius: var(--radius-pill);
+  padding: 7px 14px;
+  border-radius: var(--radius);
   border: 1px solid var(--border-strong);
   background: var(--main-bg);
   color: var(--text);
@@ -895,7 +897,7 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
   cursor: pointer;
   width: 30px;
   height: 30px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1117,7 +1119,9 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
 .td-sidebar {
   background: var(--surface);
   border-left: 1px solid var(--border-strong);
-  padding: 18px 18px 14px;
+  /* 16 statt 18 -- auf der 4er-Skala, und die zwei Pixel je Seite sind
+     genau der Puffer, den die Aktionszeile unten braucht. */
+  padding: 16px 16px 14px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -1168,7 +1172,7 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
   font-weight: 700;
   padding: 6px 0;
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius);
   background: var(--main-bg);
   cursor: pointer;
   letter-spacing: 0.06em;
@@ -1201,7 +1205,7 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
   flex: 1;
   padding: 6px 0;
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius);
   background: var(--main-bg);
   color: var(--text-secondary);
   font-family: var(--font-sans);
@@ -1233,7 +1237,7 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
   padding: 6px 0;
   border: 1px solid var(--border);
   background: transparent;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius);
   cursor: pointer;
   color: var(--text-secondary);
   font-family: var(--font-mono);
@@ -1261,7 +1265,7 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
   padding: 6px 10px;
   border: 0;
   background: transparent;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius);
   cursor: pointer;
   color: var(--text-secondary);
   font-size: 14px;
@@ -1289,11 +1293,13 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
   gap: 10px 8px;
 }
 .td-sidebar-buttons { display: flex; gap: 6px; margin-left: auto; }
-/* Pillen: alles, was gedrückt wird. Flächen und Felder behalten ihre Kante. */
+/* Schaltflächen teilen sich Kante und Höhe mit den Eingabefeldern daneben.
+   Die waagerechte Polsterung ist knapp gehalten, damit die Aktionszeile
+   "Löschen | Abbrechen | Speichern" in die 320px-Spalte des Modals passt. */
 .td-btn {
   font-size: 14px;
-  padding: 7px 16px;
-  border-radius: var(--radius-pill);
+  padding: 7px 13px;
+  border-radius: var(--radius);
   border: 1px solid var(--border-strong);
   background: var(--main-bg);
   color: var(--text);
@@ -1315,8 +1321,8 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
   cursor: pointer;
   font-size: 14px;
   font-family: var(--font-sans);
-  padding: 4px 10px;
-  border-radius: var(--radius-pill);
+  padding: 4px 6px;
+  border-radius: var(--radius);
 }
 .td-link-danger:hover { background: var(--danger-bg); }
 
@@ -1350,7 +1356,7 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
   border: 1px solid var(--border-strong);
   color: var(--text-secondary);
   padding: 6px 12px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius);
   cursor: pointer;
   font-family: var(--font-sans);
   font-size: 14px;
@@ -1464,7 +1470,7 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
     border: 0;
     background: transparent;
     color: var(--text-secondary);
-    border-radius: var(--radius-pill);
+    border-radius: var(--radius);
     cursor: pointer;
   }
   .menu-toggle:hover { background: var(--hover); }
