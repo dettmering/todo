@@ -154,45 +154,66 @@ func buildAbsencesSharePage(absences []*domain.Absence, status domain.Availabili
 <meta name="robots" content="noindex, nofollow">
 <title>Availability</title>
 <style>
-:root{color-scheme:light dark;--bg:#faf9f7;--card:#fff;--fg:#202020;--muted:#808080;--line:#eee;--track:#f4f4f2;--tick:#d0d0cc;--away:#eb5757;--awaybg:#fdecec;--trip:#4073ff;--tripbg:#eaf0ff;--ok:#2fa36b;--okbg:#e7f6ee}
-@media (prefers-color-scheme:dark){:root{--bg:#1a1a1a;--card:#242424;--fg:#e8e8e8;--muted:#8a8a8a;--line:#333;--track:#2d2d2d;--tick:#4d4d4d;--away:#ff7a7a;--awaybg:#3a2626;--trip:#7aa0ff;--tripbg:#232d47;--ok:#5cd39b;--okbg:#1e3a2c}}
+/* Die Share-Seite ist ein Dokument, kein Fenster in die App: ein Blatt Papier
+   auf dem Grund der Druckerei. Deshalb bleibt das Blatt auch im Dunkelmodus
+   Papier — nur der Grund darunter wird dunkel. Schriften kommen aus /static,
+   dieselben wie in der App. */
+@font-face{font-family:"Plex Sans";src:url("/static/fonts/plex-sans-400.woff2") format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:"Plex Sans";src:url("/static/fonts/plex-sans-600.woff2") format("woff2");font-weight:600;font-display:swap}
+@font-face{font-family:"Plex Mono";src:url("/static/fonts/plex-mono-400.woff2") format("woff2");font-weight:400;font-display:swap}
+:root{
+--sans:"Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+--mono:"Plex Mono",ui-monospace,SFMono-Regular,monospace;
+--bg:#fbfaf7;--paper:#fff;--edge:rgba(21,23,28,.16);--shade:rgba(21,23,28,.13);
+--fg:#15171c;--muted:#666c76;--faint:#8a9099;--line:rgba(21,23,28,.12);
+--track:#f3f1ec;--tick:rgba(21,23,28,.22);--offpaper:#8a9099;
+--away:#b5342a;--awaybg:#f7e4e2;--trip:#3a4fa0;--tripbg:#e5e8f4;--ok:#0b6e88;--okbg:#e1edf0}
+/* Nur der Grund wechselt. Alles auf dem Blatt bleibt, wie es gedruckt waere;
+   die Fusszeile steht daneben und braucht deshalb einen eigenen Wert. */
+@media (prefers-color-scheme:dark){:root{
+--bg:#12151a;--paper:#e9e7e1;--edge:rgba(0,0,0,.5);--shade:rgba(0,0,0,.55);--offpaper:#9aa1ab}}
 *{box-sizing:border-box}
-body{margin:0;padding:2rem 1rem;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-main{max-width:32rem;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.5rem 1.75rem}
-.head{margin-bottom:.85rem}
-h1{margin:0;font-size:1.4rem}
-h2{margin:1.5rem 0 .6rem;padding-top:1.1rem;border-top:1px solid var(--line);font-size:1.15rem;font-weight:600}
-.status{display:flex;align-items:center;gap:.6rem;font-size:1.15rem;font-weight:600;padding:.9rem 1.1rem;border-radius:10px;margin:0 0 .75rem}
-.back{margin:0 0 1rem;padding:0 .15rem;color:var(--muted);font-size:.95rem}
-.back strong{color:var(--fg);font-weight:600;font-variant-numeric:tabular-nums}
-.status::before{content:"";width:.7rem;height:.7rem;border-radius:50%;background:currentColor;flex:none}
-.status.available{color:var(--ok);background:var(--okbg)}
-.status.away{color:var(--away);background:var(--awaybg)}
-.status.trip{color:var(--trip);background:var(--tripbg)}
-.timeline{margin:1.1rem 0 1.3rem}
-.tl-weeks{position:relative;height:.95rem;margin-bottom:.3rem;font-size:.65rem;line-height:1;color:var(--muted);font-variant-numeric:tabular-nums}
+body{margin:0;padding:clamp(1.5rem,5vw,3.5rem) 1rem 3rem;background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased}
+main{max-width:32rem;margin:0 auto;background:var(--paper);border-radius:4px;padding:clamp(1.35rem,4vw,2rem) clamp(1.15rem,4vw,2rem);
+outline:1px solid var(--edge);outline-offset:-1px;box-shadow:0 1px 2px var(--shade),0 12px 30px -14px var(--shade)}
+.head{margin-bottom:.35rem}
+/* Die Überschrift ist die Rubrik, nicht die Nachricht — die Nachricht ist der
+   Status darunter. */
+h1{margin:0;font-family:var(--mono);font-size:.688rem;font-weight:400;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+h2{margin:2rem 0 .7rem;padding-top:1.1rem;border-top:1px solid var(--line);font-family:var(--mono);font-size:.688rem;font-weight:400;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.status{display:flex;align-items:center;gap:.7rem;font-size:clamp(1.35rem,4.5vw,1.7rem);font-weight:600;letter-spacing:-.022em;line-height:1.15;margin:0 0 .5rem}
+.status::before{content:"";width:.62rem;height:.62rem;border-radius:50%;background:currentColor;flex:none}
+.status.available{color:var(--ok)}
+.status.away{color:var(--away)}
+.status.trip{color:var(--trip)}
+.back{margin:0;color:var(--muted);font-family:var(--mono);font-size:.75rem;letter-spacing:.05em;font-variant-numeric:tabular-nums}
+.back strong{color:var(--fg);font-weight:400}
+/* Die Schiene ist das einzige Bild auf der Seite und darf das auch sein. */
+.timeline{margin:1.5rem 0 0}
+.tl-weeks{position:relative;height:.95rem;margin-bottom:.35rem;font-family:var(--mono);font-size:.625rem;letter-spacing:.04em;line-height:1;color:var(--faint);font-variant-numeric:tabular-nums}
 .tl-weeks span{position:absolute;top:0;transform:translateX(-50%)}
-.tl-weeks span.cur{color:var(--fg);font-weight:600}
+.tl-weeks span.cur{color:var(--ok);font-weight:400}
 .tl-track{position:relative;height:.5rem;border-radius:999px;background-color:var(--track);background-image:repeating-linear-gradient(to right,transparent 0,transparent calc(100%/12 - 1px),var(--tick) calc(100%/12 - 1px),var(--tick) calc(100%/12))}
 .tl-span{position:absolute;top:0;bottom:0;border-radius:999px;min-width:.5rem}
 .tl-span.away{background:var(--away)}
 .tl-span.trip{background:var(--trip)}
-.tl-today{position:absolute;top:50%;width:.7rem;height:.7rem;border-radius:50%;background:var(--fg);box-shadow:0 0 0 2px var(--card);transform:translate(-50%,-50%)}
-.tl-months{position:relative;height:1rem;margin-top:.5rem;font-size:.7rem;color:var(--muted)}
+.tl-today{position:absolute;top:50%;width:.7rem;height:.7rem;border-radius:50%;background:var(--ok);box-shadow:0 0 0 2px var(--paper);transform:translate(-50%,-50%)}
+.tl-months{position:relative;height:1rem;margin-top:.55rem;font-family:var(--mono);font-size:.625rem;letter-spacing:.11em;text-transform:uppercase;color:var(--faint)}
 .tl-months span{position:absolute;top:0}
-.list{list-style:none;margin:0;padding:0}
-.list li{display:flex;align-items:center;gap:.55rem;padding:.5rem 0}
+.list{list-style:none;margin:1.25rem 0 0;padding:0}
+.list li{display:flex;align-items:center;gap:.55rem;padding:.55rem 0;border-bottom:1px solid var(--line)}
+.list li:last-child{border-bottom:0}
 .list li .badge{margin-left:auto}
-.range{font-variant-numeric:tabular-nums}
-.now{flex:none;white-space:nowrap;font-size:.68rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);padding:.05rem .4rem;border-radius:999px}
-.badge{flex:none;white-space:nowrap;font-size:.8rem;font-weight:600;padding:.15rem .6rem;border-radius:999px}
+.range{font-family:var(--mono);font-size:.8rem;letter-spacing:.04em;font-variant-numeric:tabular-nums}
+.now{flex:none;white-space:nowrap;font-family:var(--mono);font-size:.625rem;font-weight:400;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);border:1px solid var(--tick);padding:.1rem .5rem;border-radius:999px}
+.badge{flex:none;white-space:nowrap;font-size:.75rem;font-weight:500;padding:.15rem .65rem;border-radius:999px}
 .badge.away{color:var(--away);background:var(--awaybg)}
 .badge.trip{color:var(--trip);background:var(--tripbg)}
 .empty{color:var(--muted)}
-.legend{display:grid;grid-template-columns:auto 1fr;gap:.45rem .7rem;align-items:center;margin:1.1rem 0 0;padding-top:.9rem;border-top:1px solid var(--line);color:var(--muted);font-size:.8rem}
+.legend{display:grid;grid-template-columns:auto 1fr;gap:.45rem .75rem;align-items:center;margin:1.35rem 0 0;padding-top:1rem;border-top:1px solid var(--line);color:var(--muted);font-size:.8rem}
 .legend dt,.legend dd{margin:0}
-footer{max-width:32rem;margin:1rem auto 0;color:var(--muted);font-size:.8rem;text-align:center}
-@media (max-width:430px){main{padding:1.25rem 1.15rem}}
+footer{max-width:32rem;margin:1.1rem auto 0;color:var(--offpaper);font-family:var(--mono);font-size:.625rem;letter-spacing:.11em;text-transform:uppercase;text-align:center}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>

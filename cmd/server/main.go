@@ -7,6 +7,7 @@ import (
 	"flag"
 	"io/fs"
 	"log/slog"
+	"mime"
 	"net/http"
 	"os"
 	"os/signal"
@@ -57,6 +58,14 @@ func main() {
 	shareName := os.Getenv("SHARE_NAME")
 	if shareToken != "" {
 		slog.Info("absence share page enabled", "path", "/api/absences.html")
+	}
+
+	// Das Frontend liefert seine Schriften selbst aus. Go kennt .woff2 nicht
+	// von Haus aus und leitet den Typ sonst aus /etc/mime.types ab - die es im
+	// scratch-Image nicht gibt, worauf der Sniffer application/octet-stream
+	// liefert. Einmal fest eintragen, dann stimmt der Header ueberall.
+	if err := mime.AddExtensionType(".woff2", "font/woff2"); err != nil {
+		slog.Warn("registering woff2 mime type failed", "err", err)
 	}
 
 	webFS := web.Static()

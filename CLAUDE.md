@@ -106,14 +106,20 @@ These choices look unremarkable but are easy to break:
 ## Frontend conventions
 
 - **No build step.** `internal/web/static/{index.html, style.css, app.js}`
-  are embedded via `go:embed` in `internal/web/web.go`. Edit and rebuild.
+  plus the six WOFF2 subsets in `static/fonts/` are embedded via `go:embed`
+  (`all:static`) in `internal/web/web.go`. Edit and rebuild. `main.go`
+  registers the `.woff2` MIME type explicitly — the scratch image has no
+  `/etc/mime.types` to derive it from.
 - **Icons are inline SVG strings** in `app.js` (object `ICON`). Lucide
   stroke style, `currentColor`. The "Heute" sidebar icon is generated
   dynamically with the current day number (`todayIconSVG`).
-- **CSS tokens live in `:root` of `style.css`** and intentionally mirror
-  the Moonstone theme of a well-known task manager. **`STYLEGUIDE.md` is
-  authoritative** for the mapping between our variables and its design tokens — read it
-  before adding new colors or components.
+- **CSS tokens live in `:root` of `style.css`.** The design is a
+  reinterpretation of the md2pdf web UI (`../md2pdf/src/webui.js`): IBM Plex
+  Sans for prose, IBM Plex Mono for everything read off a scale, a pressroom
+  palette with exactly two signal colors, and one rule for rounding —
+  surfaces get `--radius` (4px), anything you press or that labels something
+  gets `--radius-pill`. **`STYLEGUIDE.md` is authoritative** — read it before
+  adding a color, a font role, a radius, or a component.
 - **Quick-add defaults are derived from the current view**
   (`defaultProjectForView` in `app.js`): in a project view → that project,
   otherwise → Inbox; `visible_from` is auto-set to today; priority resets

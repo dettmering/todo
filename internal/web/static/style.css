@@ -1,89 +1,162 @@
-/* Salbei-Akzent auf neutralen Graustufen (siehe STYLEGUIDE.md).
-   Der Akzent liegt bewusst im Teal-Korridor: >=30 Grad Abstand sowohl zum
-   Gruen von --due-today als auch zum Blau von --p3/--due-future, damit die
-   Markenfarbe mit keiner Signalfarbe verwechselbar ist. Die Neutraltoene
-   sind ungetoent - ein warmer Stich stuende dem Salbei komplementaer
-   gegenueber und wirkte schlammig. */
+/* Pressroom — die Oberfläche von md2pdf, übersetzt auf eine Aufgabenliste.
+   Maßgeblich ist STYLEGUIDE.md; hier steht nur, was die Datei trägt.
+
+   Drei Regeln:
+
+   1. Zwei Schriften, zwei Aufgaben. IBM Plex Sans setzt alles, was man liest.
+      IBM Plex Mono setzt alles, was man *abliest* — Zahlen, Daten, Kürzel,
+      Marginalien; immer klein, versal, gesperrt, mit Tabellenziffern.
+   2. Zwei Signalfarben, sonst Graustufen. Prozess-Cyan heißt „jetzt" (heute
+      fällig, laufende Woche, aktive Auswahl, Marke). Schnittmarken-Rot heißt
+      „überfällig / löschen". Priorität ist keine Ampel, sondern Farbdichte:
+      Rot, Ocker, Graphit, blass.
+   3. Flächen sind kantig (--radius, 4px), Marken sind rund (--radius-pill).
+      Was man drückt oder was etwas benennt, ist eine Pille; was etwas trägt
+      oder aufnimmt, hat eine Kante. Kreise bleiben Kreise (Checkbox, Punkt).
+*/
+
+@font-face { font-family: "Plex Sans"; src: url("/static/fonts/plex-sans-400.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Plex Sans"; src: url("/static/fonts/plex-sans-400i.woff2") format("woff2"); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: "Plex Sans"; src: url("/static/fonts/plex-sans-500.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "Plex Sans"; src: url("/static/fonts/plex-sans-600.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: "Plex Mono"; src: url("/static/fonts/plex-mono-400.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Plex Mono"; src: url("/static/fonts/plex-mono-700.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
+
 :root {
-  --sidebar-bg: #fafafa;
-  --sidebar-text: #202020;
-  --sidebar-muted: #666666;
-  --accent: #2f7d6e;
-  --accent-hover: #27675a;
-  --accent-soft: #e8f5f3;
+  --font-sans: "Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Plex Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Flächen: der Inhalt liegt auf Papier, alles andere auf dem Grund. */
   --main-bg: #ffffff;
-  --surface: #fafafa;
-  --text: #202020;
-  --text-secondary: #4d4d4d;
-  --text-muted: #666666;
-  --border: #ebebeb;
-  --border-strong: #e5e5e5;
-  --hover: #f2f2f2;
-  --p1: #d1453b;
-  --p2: #eb8909;
-  --p3: #246fe0;
-  --p4: #b3b3b3;
-  --overdue: #d1453b;
-  --due-today: #058527;
-  --due-tomorrow: #ad6200;
-  --due-future: #246fe0;
-  --danger-bg: #fde7e5;
-  --deadline-color: #a8650a;
-  --date-sep: #d0d0d0;
-  --shadow-dialog: rgba(0,0,0,0.18);
-  --shadow-menu: rgba(0,0,0,0.12);
-  --absence-vacation-bg: #e6f4ea;      --absence-vacation-fg: #1c7a3f;
-  --absence-holiday-bg: #f3eafc;       --absence-holiday-fg: #7b3fb8;
-  --absence-business_trip-bg: #e7effc; --absence-business_trip-fg: #1f5fc0;
-  --absence-sick-bg: #fde7e5;          --absence-sick-fg: #c0392b;
+  --surface: #fbfaf7;
+  --sidebar-bg: #f3f1ec;
+  --sidebar-text: #15171c;
+  --sidebar-muted: #8a9099;
+  --hover: rgba(21, 23, 28, 0.05);
+
+  /* Schrift */
+  --text: #15171c;
+  --text-secondary: #666c76;
+  --text-muted: #8a9099;
+
+  /* Linien — Haarstriche, keine Kästen. */
+  --border: rgba(21, 23, 28, 0.12);
+  --border-strong: rgba(21, 23, 28, 0.22);
+  --date-sep: rgba(21, 23, 28, 0.22);
+
+  /* Prozessfarbe: „jetzt". */
+  --accent: #0b6e88;
+  --accent-hover: #095a6f;
+  --accent-line: #0e88a6;
+  --accent-soft: #e1edf0;
+  --accent-wash: rgba(14, 136, 166, 0.09);
+  --on-accent: #ffffff;
+
+  /* Priorität als Farbdichte, nicht als Ampel. */
+  --p1: #b5342a;
+  --p2: #a2620f;
+  --p3: #5b6472;
+  --p4: #a9aeb6;
+
+  /* Fälligkeit benutzt dieselbe Leiter plus die beiden Signalfarben. */
+  --overdue: #b5342a;
+  --due-today: #0b6e88;
+  --due-tomorrow: #a2620f;
+  --due-future: #666c76;
+  --deadline-color: #a2620f;
+
+  --danger-bg: #f7e4e2;
+  --shadow-dialog: rgba(21, 23, 28, 0.22);
+  --shadow-menu: rgba(21, 23, 28, 0.14);
+
+  --radius: 4px;
+  --radius-pill: 999px;
+
+  /* Abwesenheiten sind eine Kategorienskala, keine Rangfolge — vier
+     gedämpfte Farbtöne im selben Register wie der Rest. */
+  --absence-vacation-bg: #e4efe8;      --absence-vacation-fg: #2c7351;
+  --absence-holiday-bg: #ebe6f4;       --absence-holiday-fg: #6a4ca8;
+  --absence-business_trip-bg: #e5e8f4; --absence-business_trip-fg: #3a4fa0;
+  --absence-sick-bg: #f7e4e2;          --absence-sick-fg: #b5342a;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --sidebar-bg: #1e1e1e;
-    --sidebar-text: #e8e8e8;
-    --sidebar-muted: #888888;
-    --accent: #429485;
-    --accent-hover: #377c6e;
-    --accent-soft: #1d2d2a;
-    --main-bg: #1a1a1a;
-    --surface: #252525;
-    --text: #e8e8e8;
-    --text-secondary: #b3b3b3;
-    --text-muted: #888888;
-    --border: #333333;
-    --border-strong: #3d3d3d;
-    --hover: #2e2e2e;
-    --p1: #e05549;
-    --p2: #f5a623;
-    --p3: #4b8df8;
-    --p4: #737373;
-    --overdue: #e05549;
-    --due-today: #2da94f;
-    --due-tomorrow: #d4881a;
-    --due-future: #4b8df8;
-    --danger-bg: #3d2120;
-    --deadline-color: #d4881a;
-    --date-sep: #4a4a4a;
-    --shadow-dialog: rgba(0,0,0,0.5);
-    --shadow-menu: rgba(0,0,0,0.4);
+    --main-bg: #12151a;
+    --surface: #191d23;
+    --sidebar-bg: #0e1116;
+    --sidebar-text: #e8e9ec;
+    --sidebar-muted: #7b838e;
+    --hover: rgba(232, 233, 236, 0.07);
+
+    --text: #e8e9ec;
+    --text-secondary: #9aa1ab;
+    --text-muted: #7b838e;
+
+    --border: rgba(232, 233, 236, 0.14);
+    --border-strong: rgba(232, 233, 236, 0.26);
+    --date-sep: rgba(232, 233, 236, 0.26);
+
+    --accent: #56c5e2;
+    --accent-hover: #7ad4ec;
+    --accent-line: #3fb4d4;
+    --accent-soft: #16323c;
+    --accent-wash: rgba(63, 180, 212, 0.11);
+    --on-accent: #10141a;
+
+    --p1: #e86a5e;
+    --p2: #d79a4a;
+    --p3: #98a1ae;
+    --p4: #5c646f;
+
+    --overdue: #e86a5e;
+    --due-today: #56c5e2;
+    --due-tomorrow: #d79a4a;
+    --due-future: #9aa1ab;
+    --deadline-color: #d79a4a;
+
+    --danger-bg: #3a201d;
+    --shadow-dialog: rgba(0, 0, 0, 0.55);
+    --shadow-menu: rgba(0, 0, 0, 0.45);
+
     --absence-vacation-bg: #16321f;      --absence-vacation-fg: #6ecb8c;
-    --absence-holiday-bg: #2c2038;       --absence-holiday-fg: #c79aeb;
-    --absence-business_trip-bg: #1a2942; --absence-business_trip-fg: #7cabf5;
-    --absence-sick-bg: #3d2120;          --absence-sick-fg: #eb8279;
+    --absence-holiday-bg: #251f36;       --absence-holiday-fg: #b49ae8;
+    --absence-business_trip-bg: #1b2340; --absence-business_trip-fg: #8b9ce8;
+    --absence-sick-bg: #3a201d;          --absence-sick-fg: #e86a5e;
   }
 }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; height: 100%; color-scheme: light dark; }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", system-ui, sans-serif;
+  font-family: var(--font-sans);
   color: var(--text-secondary);
   background: var(--main-bg);
   font-size: 14px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Ein Fettgrad, nicht zwei: die Datei kennt nur 400/500/600, `700` würde der
+   Browser sonst künstlich schrägstellen bzw. verfetten. */
+strong, b { font-weight: 600; }
+
+/* Die Marginalien-Schrift. Alles, was abgelesen und nicht gelesen wird, trägt
+   diese Klasse oder erbt ihre Werte: Zahlen, Daten, Kürzel, Rubriken. */
+.mono, .eyebrow {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.eyebrow {
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .app {
   display: grid;
@@ -104,8 +177,9 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-weight: 700;
-  font-size: 17px;
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: -0.012em;
   color: var(--accent);
 }
 .logo svg { width: 22px; height: 22px; }
@@ -115,8 +189,8 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 8px;
-  border-radius: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-pill);
   text-decoration: none;
   color: var(--text-secondary);
   font-size: 14px;
@@ -165,11 +239,13 @@ body {
 }
 .nav-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nav-count, .project-count {
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   margin-left: auto;
-  padding-left: 6px;
+  padding-left: 8px;
 }
 
 .sidebar-section { margin-top: 8px; }
@@ -177,13 +253,16 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 8px 4px;
-  font-size: 14px;
-  color: var(--text-secondary);
-  font-weight: 500;
-  border-radius: 6px;
+  padding: 6px 10px 5px;
+  margin-bottom: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
 }
-.sidebar-section-header:hover { background: var(--hover); }
 .icon-btn {
   background: transparent;
   border: 0;
@@ -192,7 +271,7 @@ body {
   font-size: 14px;
   width: 22px;
   height: 22px;
-  border-radius: 4px;
+  border-radius: var(--radius-pill);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -233,25 +312,56 @@ body {
 .menu-toggle { display: none; }
 .sidebar-backdrop { display: none; }
 .td-mobile-more { display: none; }
-.main-header h1 {
-  font-size: 26px;
-  font-weight: 700;
-  margin: 0 0 4px;
-  color: var(--text);
-  letter-spacing: -0.02em;
+.main-header {
+  border-bottom: 1px solid var(--border-strong);
+  padding-bottom: 10px;
 }
-.main-meta { color: var(--text-muted); font-size: 14px; }
+.main-header h1 {
+  font-size: 28px;
+  font-weight: 600;
+  margin: 0 0 6px;
+  color: var(--text);
+  letter-spacing: -0.022em;
+  line-height: 1.15;
+}
+/* Die Kopfzeile liest sich wie die Messwertzeile über dem Satzspiegel in
+   md2pdf: Sans für die Überschrift, Mono für alles, was daran gemessen wird. */
+.main-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+/* "Heute" hat keine Gruppenköpfe — der laufende Bereich ist die ganze Seite.
+   Also steht die Registermarke hier oben, und zwar auch hier nur einmal. */
+.main-header.is-now { border-bottom-color: var(--accent-line); }
+.main-header.is-now .main-meta { color: var(--accent); }
+.main-header.is-now .main-meta::before {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  background: var(--accent-line);
+}
 
 /* ---------- Quick add ---------- */
 .quick-add {
   border: 1px solid var(--border-strong);
-  border-radius: 10px;
-  padding: 10px 14px;
-  margin-bottom: 24px;
-  background: var(--main-bg);
-  transition: border-color 0.15s ease;
+  border-radius: var(--radius);
+  padding: 11px 14px;
+  margin: 20px 0 4px;
+  background: var(--surface);
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
-.quick-add:focus-within { border-color: var(--accent); }
+.quick-add:focus-within {
+  border-color: var(--accent);
+  background: var(--main-bg);
+}
 .quick-add input[type="text"] {
   width: 100%;
   border: 0;
@@ -265,17 +375,29 @@ body {
   color: var(--text-muted);
 }
 .field { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
-.date-hint { font-size: 11px; color: var(--text-muted); margin-left: 4px; min-width: 6em; }
+.date-hint {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  margin-left: 4px;
+  min-width: 6em;
+}
 .date-hint.bad { color: var(--overdue); }
 
 /* Warning when a task date lands inside an absence (quick-add + task dialog). */
 .qa-absence-hint {
   margin: 6px 2px 0;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
   color: var(--p1);
 }
 .absence-warn {
+  font-family: var(--font-mono);
   font-size: 11px;
+  letter-spacing: 0.04em;
   color: var(--p1);
 }
 .date-item.recur-label { color: var(--text-muted); }
@@ -294,7 +416,7 @@ body {
   background: transparent;
 }
 .quick-add-input-wrap input[type="text"]::selection {
-  background: rgba(36, 111, 224, 0.25);
+  background: var(--accent-soft);
   color: transparent;
 }
 .qa-overlay {
@@ -311,12 +433,12 @@ body {
   z-index: 0;
 }
 .qa-mark {
-  border-radius: 3px;
+  border-radius: var(--radius-pill);
   padding: 0 3px;
   margin: 0 -1px;
 }
-.qa-mark-date { background: #db4c3f; color: #fff; }
-.qa-mark-project { background: #246fe0; color: #fff; }
+.qa-mark-date { background: var(--accent); color: var(--on-accent); }
+.qa-mark-project { background: var(--text); color: var(--main-bg); }
 .qa-mark-prio1 { background: var(--p1); color: #fff; }
 .qa-mark-prio2 { background: var(--p2); color: #fff; }
 .qa-mark-prio3 { background: var(--p3); color: #fff; }
@@ -333,7 +455,7 @@ body {
   overflow-y: auto;
   background: var(--main-bg);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius);
   box-shadow: 0 8px 24px var(--shadow-menu);
   z-index: 20;
   padding: 4px;
@@ -343,7 +465,7 @@ body {
   align-items: center;
   gap: 8px;
   padding: 6px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   font-size: 13px;
   color: var(--text);
@@ -361,37 +483,57 @@ body {
 /* ---------- Task list ---------- */
 .task-list { list-style: none; margin: 0; padding: 0; }
 
+/* Die Rubrikzeile ist die Maßlinie über dem Satzspiegel: links die Rubrik,
+   rechts am Rand die Zahl, dazwischen ein ausgezogener Haarstrich. Die
+   laufende Woche bekommt zusätzlich die Registermarke und die Prozessfarbe —
+   dieselbe Geste, mit der md2pdf den druckenden Bereich markiert. Sie ist die
+   einzige Stelle, an der diese Ansicht laut wird. */
 .group-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 10px;
-  padding: 20px 0 8px;
-  font-size: 14px;
-  font-weight: 700;
+  padding: 30px 0 7px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
   color: var(--text);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-strong);
   cursor: default;
-  letter-spacing: -0.005em;
 }
-.group-header:first-child { padding-top: 0; }
+.group-header:first-child { padding-top: 2px; }
+.group-header > span:first-of-type { order: 1; flex: none; }
+.group-header::after {
+  content: "";
+  order: 3;
+  flex: 1 1 auto;
+  min-width: 16px;
+  height: 1px;
+  background: var(--border);
+}
+.group-header .group-range { order: 2; color: var(--text-muted); }
+.group-header .group-absences { order: 4; }
+.group-header .group-count { order: 5; color: var(--text-muted); }
+
 .group-header.past { color: var(--overdue); border-bottom-color: var(--overdue); }
+.group-header.past::after { background: var(--overdue); opacity: 0.4; }
 .group-header.past .group-range,
 .group-header.past .group-count { color: var(--overdue); }
-.group-header.current { color: var(--due-future); border-bottom-color: var(--due-future); }
+
+.group-header.current { color: var(--accent); border-bottom-color: var(--accent-line); }
+.group-header.current::after { background: var(--accent-line); opacity: 0.45; }
 .group-header.current .group-range,
-.group-header.current .group-count { color: var(--due-future); }
-.group-header .group-range {
-  font-size: 13px;
-  font-weight: 400;
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-}
-.group-header .group-count {
-  font-size: 13px;
-  font-weight: 400;
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-  margin-left: auto;
+.group-header.current .group-count { color: var(--accent); }
+/* Registermarke — steht nur an der laufenden Woche, nirgends sonst. */
+.group-header.current::before {
+  content: "";
+  order: 0;
+  flex: none;
+  width: 7px;
+  height: 7px;
+  background: var(--accent-line);
 }
 .group-header .group-absences {
   display: inline-flex;
@@ -400,10 +542,13 @@ body {
   gap: 6px;
 }
 .group-header .group-absence {
+  font-family: var(--font-sans);
   font-size: 11px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 999px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  padding: 2px 9px;
+  border-radius: var(--radius-pill);
   white-space: nowrap;
   background: var(--surface);
   color: var(--text-secondary);
@@ -437,9 +582,9 @@ body {
   background: transparent;
   transition: background 0.1s;
 }
-.task .checkbox.p1 { border-color: var(--p1); background: rgba(209,69,59,0.08); }
-.task .checkbox.p2 { border-color: var(--p2); background: rgba(235,137,9,0.08); }
-.task .checkbox.p3 { border-color: var(--p3); background: rgba(36,111,224,0.08); }
+.task .checkbox.p1 { border-color: var(--p1); background: color-mix(in srgb, var(--p1) 10%, transparent); }
+.task .checkbox.p2 { border-color: var(--p2); background: color-mix(in srgb, var(--p2) 10%, transparent); }
+.task .checkbox.p3 { border-color: var(--p3); background: color-mix(in srgb, var(--p3) 10%, transparent); }
 .task .checkbox.p4 { border-color: var(--p4); }
 .task .checkbox::after {
   content: "";
@@ -468,7 +613,7 @@ body {
 .task.completed .checkbox.checked.p2 { background: var(--p2); border-color: var(--p2); }
 .task.completed .checkbox.checked.p3 { background: var(--p3); border-color: var(--p3); }
 .task.completed .checkbox.checked.p4 { background: var(--p4); border-color: var(--p4); }
-.task.completed .checkbox.checked::after { color: #fff; }
+.task.completed .checkbox.checked::after { color: var(--main-bg); }
 
 .group-header.completed-header { color: var(--text-muted); border-bottom-color: var(--border); }
 .group-header.completed-header .group-count { color: var(--text-muted); }
@@ -477,7 +622,7 @@ body {
 .task .title {
   font-size: 14px;
   color: var(--text);
-  line-height: 21px;
+  line-height: 1.45;
   word-break: break-word;
 }
 .task .title .recur {
@@ -500,13 +645,19 @@ body {
   word-break: break-word;
 }
 
+/* Alles, was abgelesen wird — Datum, Frist, Zähler — steht in Mono, versal
+   und gesperrt. Das ist der Faden, der die Ansichten zusammenhält. */
 .task .dates {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin-top: 2px;
-  font-size: 12px;
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
   color: var(--text-muted);
 }
 .task .date-item {
@@ -518,7 +669,7 @@ body {
 .task .date-item.due-today { color: var(--due-today); }
 .task .date-item.due-tomorrow { color: var(--due-tomorrow); }
 .task .date-item.due-future { color: var(--due-future); }
-.task .date-item.overdue { color: var(--overdue); font-weight: 500; }
+.task .date-item.overdue { color: var(--overdue); font-weight: 700; }
 .task .date-item.deadline { color: var(--deadline-color); }
 .task .date-item.comment-count { color: var(--text-muted); }
 .task .date-item.comment-count svg { width: 13px; height: 13px; }
@@ -526,6 +677,7 @@ body {
 
 .task .task-project {
   font-size: 12px;
+  font-family: var(--font-sans);
   color: var(--text-muted);
   margin-left: auto;
   padding-left: 12px;
@@ -546,9 +698,12 @@ body {
 
 .empty {
   color: var(--text-muted);
-  padding: 48px 0;
+  padding: 64px 0;
   text-align: center;
-  font-size: 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
 }
 /* Utility class: must beat any component rule that sets display, regardless of
    source order. .td-field and .td-field-control both declare display:flex at
@@ -558,28 +713,41 @@ body {
 
 /* ---------- Dialogs ---------- */
 dialog {
-  border: 0;
-  border-radius: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   padding: 0;
   box-shadow: 0 16px 48px var(--shadow-dialog);
   min-width: 460px;
   color: var(--text);
   background: var(--main-bg);
 }
-dialog::backdrop { background: rgba(0,0,0,0.4); }
+dialog::backdrop { background: rgba(21, 23, 28, 0.42); }
 dialog form { padding: 20px 24px; display: flex; flex-direction: column; gap: 12px; }
-dialog h2 { margin: 0 0 4px; font-size: 18px; font-weight: 700; }
-dialog label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-muted); }
+dialog h2 { margin: 0 0 4px; font-size: 18px; font-weight: 600; letter-spacing: -0.018em; color: var(--text); }
+/* Feldrubriken sind Marginalien, nicht Fließtext. */
+dialog label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+dialog label input, dialog label select { letter-spacing: normal; text-transform: none; }
 dialog input, dialog textarea, dialog select {
   font-size: 14px;
   padding: 8px 10px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius);
   color: var(--text);
   background: var(--main-bg);
-  font-family: inherit;
+  font-family: var(--font-sans);
   transition: border-color 0.15s;
 }
+/* Datumsfelder sind Ablesewerte, auch im Dialog (Styleguide 3.1). */
+dialog input[type="date"] { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 dialog input:focus, dialog textarea:focus, dialog select:focus {
   outline: 0;
   border-color: var(--accent);
@@ -588,19 +756,19 @@ dialog .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 dialog menu { display: flex; gap: 8px; justify-content: flex-end; margin: 8px 0 0; padding: 0; }
 dialog menu button {
   font-size: 13px;
-  padding: 7px 16px;
-  border-radius: 6px;
+  padding: 7px 18px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--border-strong);
   background: var(--main-bg);
   color: var(--text);
   cursor: pointer;
   font-weight: 500;
-  font-family: inherit;
+  font-family: var(--font-sans);
 }
 dialog menu button:hover { background: var(--hover); }
 dialog menu button[value="default"] {
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
   border-color: var(--accent);
 }
 dialog menu button[value="default"]:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
@@ -616,9 +784,12 @@ dialog menu button.danger:hover {
 }
 
 .dialog-label {
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
   color: var(--text-muted);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   display: block;
 }
 .color-swatches {
@@ -643,13 +814,14 @@ dialog menu button.danger:hover {
 }
 .color-swatches .swatch:hover { transform: scale(1.12); }
 .field.hex { flex-direction: row; align-items: center; gap: 8px; }
-.field.hex input { width: 110px; font-family: ui-monospace, SFMono-Regular, monospace; }
+.field.hex { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--text-muted); }
+.field.hex input { width: 110px; font-family: var(--font-mono); letter-spacing: 0.04em; text-transform: none; }
 .dialog-error {
   margin: 0;
   padding: 8px 12px;
   background: var(--danger-bg);
   color: var(--p1);
-  border-radius: 6px;
+  border-radius: var(--radius);
   font-size: 12px;
 }
 
@@ -659,11 +831,11 @@ dialog.task-modal {
   width: min(960px, 92vw);
   max-width: 960px;
   height: min(720px, 88vh);
-  border-radius: 12px;
+  border-radius: var(--radius);
   overflow: hidden;
   background: var(--main-bg);
 }
-dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
+dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
 
 .td-layout {
   display: grid;
@@ -678,7 +850,7 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   align-items: center;
   justify-content: space-between;
   padding: 10px 16px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-strong);
   background: var(--surface);
 }
 .td-breadcrumb {
@@ -709,7 +881,7 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   cursor: pointer;
   width: 30px;
   height: 30px;
-  border-radius: 6px;
+  border-radius: var(--radius-pill);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -753,23 +925,23 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   transition: opacity 0.1s;
 }
 .td-title-row .checkbox:hover::after { opacity: 0.5; }
-.td-title-row .checkbox.p1 { border-color: var(--p1); background: rgba(209,69,59,0.08); color: var(--p1); }
-.td-title-row .checkbox.p2 { border-color: var(--p2); background: rgba(235,137,9,0.08); color: var(--p2); }
-.td-title-row .checkbox.p3 { border-color: var(--p3); background: rgba(36,111,224,0.08); color: var(--p3); }
+.td-title-row .checkbox.p1 { border-color: var(--p1); background: color-mix(in srgb, var(--p1) 10%, transparent); color: var(--p1); }
+.td-title-row .checkbox.p2 { border-color: var(--p2); background: color-mix(in srgb, var(--p2) 10%, transparent); color: var(--p2); }
+.td-title-row .checkbox.p3 { border-color: var(--p3); background: color-mix(in srgb, var(--p3) 10%, transparent); color: var(--p3); }
 .td-title-row .checkbox.p4 { border-color: var(--p4); color: var(--p4); }
 
 .td-title {
   flex: 1;
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 21px;
+  font-weight: 600;
   color: var(--text);
   border: 0;
   outline: 0;
   background: transparent;
   resize: none;
   padding: 4px 0;
-  font-family: inherit;
-  letter-spacing: -0.01em;
+  font-family: var(--font-sans);
+  letter-spacing: -0.018em;
   line-height: 1.3;
   overflow: hidden;
 }
@@ -785,7 +957,7 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   overflow-wrap: anywhere;
   min-height: 24px;
   padding: 6px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   cursor: text;
   border: 1px solid transparent;
 }
@@ -800,7 +972,7 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
 .td-description-rendered h2,
 .td-description-rendered h3 {
   margin: 0.6em 0 0.3em;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text);
   letter-spacing: -0.01em;
 }
@@ -809,20 +981,24 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
 .td-description-rendered h3 { font-size: 14px; }
 .td-description-rendered ul, .td-description-rendered ol { padding-left: 22px; }
 .td-description-rendered code {
-  background: var(--hover);
+  background: var(--surface);
+  border: 1px solid var(--border);
   padding: 1px 5px;
-  border-radius: 4px;
-  font-family: ui-monospace, SFMono-Regular, monospace;
-  font-size: 12.5px;
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 12px;
 }
 .td-description-rendered pre {
-  background: var(--hover);
-  padding: 8px 10px;
-  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 9px 11px;
+  border-radius: var(--radius);
   overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
 }
-.td-description-rendered pre code { background: transparent; padding: 0; }
-.td-description-rendered a { color: var(--p3); }
+.td-description-rendered pre code { background: transparent; border: 0; padding: 0; }
+.td-description-rendered a { color: var(--accent); }
 .td-description-rendered blockquote {
   border-left: 3px solid var(--border-strong);
   margin: 6px 0;
@@ -833,10 +1009,10 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   width: 100%;
   font-size: 14px;
   color: var(--text);
-  font-family: inherit;
+  font-family: var(--font-sans);
   line-height: 1.55;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 6px 8px;
   outline: 0;
   resize: vertical;
@@ -852,20 +1028,24 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   padding-top: 18px;
 }
 .td-comments-header {
-  font-size: 13px;
-  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
   color: var(--text-muted);
-  margin-bottom: 10px;
+  padding-bottom: 6px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
 }
 .td-comment-form { margin-bottom: 18px; }
 .td-comment-input {
   width: 100%;
   font-size: 14px;
   color: var(--text);
-  font-family: inherit;
+  font-family: var(--font-sans);
   line-height: 1.55;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 8px 10px;
   outline: 0;
   resize: vertical;
@@ -881,7 +1061,13 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   gap: 12px;
   margin-top: 8px;
 }
-.td-comment-hint { font-size: 12px; color: var(--text-muted); }
+.td-comment-hint {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
 
 .td-comment-list {
   list-style: none;
@@ -893,14 +1079,17 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
 }
 .td-comment {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   padding: 10px 12px;
   background: var(--surface);
 }
 .td-comment-meta {
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
   color: var(--text-muted);
-  margin-bottom: 4px;
+  margin-bottom: 5px;
 }
 .td-comment-body {
   font-size: 14px;
@@ -913,7 +1102,7 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
 
 .td-sidebar {
   background: var(--surface);
-  border-left: 1px solid var(--border);
+  border-left: 1px solid var(--border-strong);
   padding: 18px 18px 14px;
   overflow-y: auto;
   display: flex;
@@ -922,9 +1111,12 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
 }
 .td-field { display: flex; flex-direction: column; gap: 6px; }
 .td-field-label {
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
   color: var(--text-muted);
-  font-weight: 500;
 }
 .td-field-control {
   display: flex;
@@ -938,13 +1130,14 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   font-size: 13px;
   padding: 7px 9px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius);
   color: var(--text);
   background: var(--main-bg);
-  font-family: inherit;
+  font-family: var(--font-sans);
   outline: 0;
   transition: border-color 0.15s;
 }
+.td-field-control input[type="date"] { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .td-field-control select:focus,
 .td-field-control input[type="text"]:focus,
 .td-field-control input[type="date"]:focus { border-color: var(--accent); }
@@ -956,26 +1149,28 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
 }
 .td-prio {
   flex: 1;
-  font-size: 12px;
-  font-weight: 600;
-  font-family: inherit;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
   padding: 6px 0;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-pill);
   background: var(--main-bg);
   cursor: pointer;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.1em;
 }
 .td-prio.p1 { color: var(--p1); }
 .td-prio.p2 { color: var(--p2); }
 .td-prio.p3 { color: var(--p3); }
-.td-prio.p4 { color: var(--p4); }
+/* Als Schaltflächenbeschriftung muss P4 lesbar bleiben; blass ist es überall
+   dort, wo es als Fläche auftritt (Haken, Punkt). */
+.td-prio.p4 { color: var(--text-secondary); }
 .td-prio:hover { background: var(--hover); }
 .td-prio.selected { border-width: 2px; padding: 5px 0; }
-.td-prio.p1.selected { border-color: var(--p1); background: rgba(209,69,59,0.08); }
-.td-prio.p2.selected { border-color: var(--p2); background: rgba(235,137,9,0.08); }
-.td-prio.p3.selected { border-color: var(--p3); background: rgba(36,111,224,0.08); }
-.td-prio.p4.selected { border-color: var(--p4); background: rgba(179,179,179,0.12); }
+.td-prio.p1.selected { border-color: var(--p1); background: color-mix(in srgb, var(--p1) 10%, transparent); }
+.td-prio.p2.selected { border-color: var(--p2); background: color-mix(in srgb, var(--p2) 10%, transparent); }
+.td-prio.p3.selected { border-color: var(--p3); background: color-mix(in srgb, var(--p3) 10%, transparent); }
+.td-prio.p4.selected { border-color: var(--p4); background: color-mix(in srgb, var(--p4) 16%, transparent); }
 
 /* Recurrence anchor: fixed date vs. restart-on-completion. The wrapper is a
    plain block, not a .td-field-control — that class is a flex row and would lay
@@ -992,13 +1187,12 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   flex: 1;
   padding: 6px 0;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-pill);
   background: var(--main-bg);
   color: var(--text-secondary);
+  font-family: var(--font-sans);
   font-size: 12px;
-  font-weight: 600;
-  font-family: inherit;
-  letter-spacing: 0.02em;
+  font-weight: 500;
   cursor: pointer;
 }
 .td-seg:hover:not(:disabled) {
@@ -1025,11 +1219,13 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   padding: 6px 0;
   border: 1px solid var(--border);
   background: transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   color: var(--text-secondary);
-  font-size: 13px;
-  font-family: inherit;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   text-align: center;
 }
 .td-weekday:hover {
@@ -1048,14 +1244,14 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 8px;
+  padding: 6px 10px;
   border: 0;
   background: transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   color: var(--text-secondary);
   font-size: 13px;
-  font-family: inherit;
+  font-family: var(--font-sans);
   text-align: left;
 }
 .td-quick:hover { background: var(--hover); color: var(--text); }
@@ -1065,28 +1261,29 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
 .td-sidebar-actions {
   margin-top: auto;
   padding-top: 12px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--border-strong);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
 .td-sidebar-buttons { display: flex; gap: 6px; }
+/* Pillen: alles, was gedrückt wird. Flächen und Felder behalten ihre Kante. */
 .td-btn {
   font-size: 13px;
-  padding: 7px 14px;
-  border-radius: 6px;
+  padding: 7px 16px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--border-strong);
   background: var(--main-bg);
   color: var(--text);
   cursor: pointer;
   font-weight: 500;
-  font-family: inherit;
+  font-family: var(--font-sans);
 }
 .td-btn:hover { background: var(--hover); }
 .td-btn-primary {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   border-color: var(--accent);
 }
 .td-btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
@@ -1096,9 +1293,9 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   color: var(--p1);
   cursor: pointer;
   font-size: 13px;
-  font-family: inherit;
-  padding: 4px 6px;
-  border-radius: 6px;
+  font-family: var(--font-sans);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
 }
 .td-link-danger:hover { background: var(--danger-bg); }
 
@@ -1111,26 +1308,30 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   margin-bottom: 16px;
 }
 .activity-date {
-  font-family: inherit;
-  font-size: 14px;
-  padding: 6px 8px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  padding: 6px 9px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: var(--main-bg);
   color: var(--text);
 }
 .activity-sep {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
   color: var(--text-muted);
-  font-size: 13px;
 }
 .activity-nav, .activity-today {
   background: transparent;
   border: 1px solid var(--border-strong);
   color: var(--text-secondary);
-  padding: 6px 10px;
-  border-radius: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
-  font-family: inherit;
+  font-family: var(--font-sans);
   font-size: 13px;
   display: inline-flex;
   align-items: center;
@@ -1145,21 +1346,33 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   display: flex;
   flex-direction: column;
 }
+/* Dieselbe Maßlinie wie über einer Aufgabengruppe — der Tag ist hier die
+   Rubrik, die Zahl steht wieder am rechten Rand. */
 .activity-day {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 14px 0 6px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  border-bottom: 1px solid var(--border);
+  align-items: center;
+  gap: 10px;
+  padding: 22px 0 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  border-bottom: 1px solid var(--border-strong);
   margin-bottom: 4px;
 }
+.activity-day::after {
+  content: "";
+  flex: 1 1 auto;
+  min-width: 16px;
+  height: 1px;
+  background: var(--border);
+}
 .activity-day-count {
-  margin-left: auto;
+  order: 3;
   color: var(--text-muted);
-  font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
 .activity-entry {
@@ -1168,12 +1381,14 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   align-items: baseline;
   gap: 10px;
   padding: 6px 4px;
-  border-radius: 6px;
+  border-radius: var(--radius);
 }
 .activity-entry:hover { background: var(--hover); }
 .activity-time {
   color: var(--text-muted);
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
 }
 .activity-icon {
@@ -1185,9 +1400,9 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   height: 22px;
 }
 .activity-icon svg { width: 16px; height: 16px; }
-.activity-icon.created { color: var(--due-today); }
-.activity-icon.completed { color: var(--due-today); }
-.activity-icon.reopened { color: var(--due-future); }
+.activity-icon.created { color: var(--text-muted); }
+.activity-icon.completed { color: var(--accent); }
+.activity-icon.reopened { color: var(--p2); }
 .activity-icon.deleted { color: var(--overdue); }
 .activity-body { font-size: 14px; color: var(--text); line-height: 1.4; min-width: 0; }
 .activity-action { color: var(--text-secondary); }
@@ -1213,7 +1428,7 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   .app { grid-template-columns: 1fr; }
   .main { padding: 16px 16px 96px; max-width: none; }
   .main-header { margin: 0 0 16px; }
-  .main-header h1 { font-size: 22px; }
+  .main-header h1 { font-size: 23px; }
 
   /* ---------- Hamburger ---------- */
   .menu-toggle {
@@ -1226,7 +1441,7 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
     border: 0;
     background: transparent;
     color: var(--text-secondary);
-    border-radius: 8px;
+    border-radius: var(--radius-pill);
     cursor: pointer;
   }
   .menu-toggle:hover { background: var(--hover); }
@@ -1251,7 +1466,7 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(21, 23, 28, 0.42);
     z-index: 30;
     opacity: 0;
     pointer-events: none;
@@ -1298,7 +1513,7 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
     min-width: 0;
     max-width: 100%;
   }
-  .td-title { font-size: 18px; }
+  .td-title { font-size: 19px; }
   .td-sidebar {
     flex: 0 0 auto;
     overflow: visible;
@@ -1323,10 +1538,10 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
     align-self: flex-start;
     background: transparent;
     border: 0;
-    color: var(--p3);
+    color: var(--accent);
     cursor: pointer;
     font-size: 13px;
-    font-family: inherit;
+    font-family: var(--font-sans);
     padding: 4px 0;
     margin-top: -4px;
   }
@@ -1379,10 +1594,11 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
 .timeline { margin: 0 0 20px; }
 .tl-cap {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+  font-family: var(--font-mono);
   font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-weight: 400;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
@@ -1391,7 +1607,9 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   position: relative;
   height: 14px;
   margin-bottom: 5px;
+  font-family: var(--font-mono);
   font-size: 10px;
+  letter-spacing: 0.04em;
   line-height: 1;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
@@ -1402,8 +1620,8 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   transform: translateX(-50%);
 }
 .tl-weeks span.cur {
-  color: var(--text);
-  font-weight: 600;
+  color: var(--accent);
+  font-weight: 700;
 }
 .tl-track {
   position: relative;
@@ -1438,7 +1656,7 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: var(--text);
+  background: var(--accent);
   box-shadow: 0 0 0 2px var(--main-bg);
   transform: translate(-50%, -50%);
 }
@@ -1446,7 +1664,10 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   position: relative;
   height: 16px;
   margin-top: 7px;
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
   color: var(--text-muted);
 }
 .tl-months span { position: absolute; top: 0; }
@@ -1472,14 +1693,15 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
    Akzentfarbe — sie ist eine Ortsmarke, kein Signal. */
 .absence-row.active {
   background: var(--hover);
-  border-radius: 6px;
+  border-radius: var(--radius);
 }
 .absence-row.active:hover { background: var(--hover); }
 .absence-type {
-  font-size: 12px;
-  font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 11px;
+  border-radius: var(--radius-pill);
   text-align: center;
   background: var(--surface);
   color: var(--text-secondary);
@@ -1504,13 +1726,18 @@ dialog.task-modal::backdrop { background: rgba(0,0,0,0.4); }
   text-align: right;
 }
 .absence-range {
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 .absence-meta {
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--text-muted);
   white-space: nowrap;
 }

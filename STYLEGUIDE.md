@@ -1,204 +1,205 @@
 # Styleguide
 
-Dieses Dokument hält fest, wie unser Frontend sich an einem etablierten
-Task-Manager-Webclient orientiert. Grundlage war eine aus dem Browser
-gespeicherte Seite dieses Referenz-Clients samt zugehörigen Assets.
-Die dortigen CSS-Klassen sind minifiziert (`.xPiLGH0`, `.JczMOAc`, …),
-weshalb dieser Guide nicht die Originalklassen kopiert, sondern die
-**Design-Tokens und Strukturmuster** extrahiert und in unsere eigene,
-lesbare Vanilla-CSS-Implementierung überträgt.
+Dieses Dokument hält fest, wie unser Frontend aussieht und warum. Es ist
+**maßgeblich**: eine Farbe, ein Radius oder eine Schriftrolle, die hier nicht
+steht, gehört nicht ins Stylesheet, bis sie hier steht.
 
-> Referenz-Theme: **„Moonstone"** (helle, leicht warme Variante,
-> Default-Theme des Referenz-Clients). Erkennbar im HTML an
-> `<html class="theme_moonstone …">`.
+> **Gestalterische Grundlage: die Weboberfläche von `md2pdf`**
+> (`../md2pdf`, `src/webui.js` und `assets/template.typ`). Von dort kommen die
+> beiden Schriften (IBM Plex Sans / IBM Plex Mono), die Druckerei-Palette
+> (Papier, Tusche, Graphit, Prozess-Cyan, Schnittmarken-Rot) und die Haltung:
+> **ein lautes Element, alles andere leise.** Übernommen ist nicht das Layout —
+> md2pdf konfiguriert einen Satzspiegel, wir führen eine Aufgabenliste —,
+> sondern das Vokabular.
 
-> **Bewusste Abweichung von der Referenz:** Struktur, Typografie, Abstände,
-> Prioritäts- und Statusfarben folgen weiterhin Moonstone. Der **Akzent
-> nicht**: statt des Rots (`#dc4c3e`) verwenden wir ein Salbei-Teal, und die
-> Neutralflächen sind ungetönt statt warm. Begründung in 2.2. Wo unten
-> Referenzwerte stehen, ist die Spalte „Unser Wert" maßgeblich.
-
----
-
-## 1. Designsystem-Schichten
-
-Der Referenz-Client verwendet ein dreischichtiges CSS-Variablensystem:
-
-| Schicht | Beispiel | Bedeutung |
-| --- | --- | --- |
-| **Produktbibliothek** | `--product-library-background-base-primary: #fff;` | Reine Tokens (rohe Hex-Werte), themeneutral definiert. |
-| **Reactist** | `--reactist-spacing-large: 16px;` | Komponenten-Tokens des Reactist-Designsystems, oft auf Produktbibliothek-Tokens gemappt. |
-| **Theme-Layer** | `--theme-card-sidebar-color: #fcf9f8;` | Spezifische Werte pro Theme (Moonstone, Reef, Snow Pine, …). |
-
-Wir spiegeln das vereinfacht in einer einzigen Token-Ebene (`:root` in
-`internal/web/static/style.css`). Dieselbe Ebene wird in einem
-`@media (prefers-color-scheme: dark)`-Block vollständig neu belegt — das ist
-unser Dark Mode. **Konsequenz: Farben gehören immer in ein Token**, nie direkt
-in eine Regel; ein hart notierter Hex überlebt den Themenwechsel nicht.
+> **Vorgänger:** Bis Commit `2215809` orientierte sich diese Datei an einem
+> etablierten Task-Manager-Webclient („Moonstone"-Theme, Salbei-Akzent). Diese
+> Fassung ersetzt sie vollständig. Wer alte Werte sucht, findet sie in der
+> Git-Historie, nicht hier.
 
 ---
 
-## 2. Farbpalette (Moonstone)
+## 1. Die drei Regeln
 
-### 2.1 Flächen und Hintergründe
+Alles Weitere folgt aus diesen drei Sätzen. Sie stehen als Kommentar auch am
+Kopf von `internal/web/static/style.css`.
 
-| Token (Referenz) | Referenzwert | Verwendung | Unser Mapping | Unser Wert |
-| --- | --- | --- | --- | --- |
-| `--product-library-background-base-primary` | `#fff` | Hauptinhaltsbereich | `--main-bg` | `#ffffff` |
-| `--product-library-background-base-secondary` | `#fcfbf8` | Leicht abgesetzte Flächen | `--surface` | `#fafafa` |
-| `--theme-card-sidebar-color` (Moonstone) | `#fcf9f8` | Sidebar-Hintergrund | `--sidebar-bg` | `#fafafa` |
-| `--product-library-background-overlay` | `rgba(0,0,0,.4)` | Dialog-Backdrop | `dialog::backdrop` | unverändert |
-| `--theme-card-sidebar-hover-color` (Moonstone) | `#f2f2f2` | Hover auf Sidebar-Items | `--hover` | `#f2f2f2` |
-| `--theme-card-sidebar-selected-color` (Moonstone) | `#fee6e3` | Aktive Auswahl in Sidebar | `--accent-soft` | `#e8f5f3` |
+1. **Zwei Schriften, zwei Aufgaben.** IBM Plex Sans setzt alles, was man
+   *liest*. IBM Plex Mono setzt alles, was man *abliest* — Zahlen, Daten,
+   Kürzel, Rubriken, Marginalien. Mono ist immer klein, versal, gesperrt und
+   hat Tabellenziffern.
+2. **Zwei Signalfarben, sonst Graustufen.** Prozess-Cyan heißt „jetzt"
+   (heute fällig, laufende Woche, aktive Auswahl, Marke).
+   Schnittmarken-Rot heißt „überfällig / löschen". Priorität ist **keine
+   Ampel, sondern Farbdichte**: Rot, Ocker, Graphit, blass.
+3. **Flächen sind kantig, Marken sind rund.** Was man *drückt* oder was etwas
+   *benennt*, ist eine Pille (`--radius-pill`). Was etwas *trägt* oder
+   *aufnimmt* — Karte, Dialog, Eingabefeld, Menü —, hat eine Kante
+   (`--radius`, 4 px). Kreise bleiben Kreise: Checkbox, Projektpunkt,
+   Farbwähler.
 
-Die Referenz tönt ihren Sidebar-Hintergrund warm (`#fcf9f8`, Farbton ~15°).
-Wir nicht: Salbei liegt bei 169°, ein Rosa-Creme stünde ihm damit fast
-komplementär gegenüber und beide Farben wirkten stumpf. **Alle
-Neutralflächen sind ungetönt** — das war bei `--surface`, `--hover`,
-`--border`, `--border-strong` und `--date-sep` ohnehin schon so; nur
-`--sidebar-bg` musste nachziehen.
+---
 
-### 2.2 Akzentfarbe & Brand
+## 2. Farbpalette
 
-Der Referenz-Client hat **rot** (`#dc4c3e`) als Akzent. **Wir nicht** — bei
-uns ist der Akzent ein **Salbei-Teal**. Die Einsatzregel bleibt gleich und
-bleibt sparsam: Brand-Logo, primärer Button, Auswahl-Highlight in der
-Sidebar, Focus-Ring.
+Alle Farben stehen als Token in `:root` und werden im
+`@media (prefers-color-scheme: dark)`-Block vollständig neu belegt. **Ein hart
+notierter Hex überlebt den Themenwechsel nicht** — Farben gehören immer in ein
+Token.
 
-| Zweck | Unser Wert | Dark Mode | Referenz |
+### 2.1 Flächen
+
+| Rolle | Token | Hell | Dunkel |
 | --- | --- | --- | --- |
-| Brand / Akzent | `#2f7d6e` (`--accent`) | `#429485` | `#dc4c3e` |
-| Akzent-Hover | `#27675a` (`--accent-hover`) | `#377c6e` | `#b03d32` |
-| Akzent weich (Auswahl) | `#e8f5f3` (`--accent-soft`) | `#1d2d2a` | `#fee6e3` |
-| Destructive (Löschen) | `--p1` `#d1453b` | `#e05549` | `#dc4c3e` |
+| Papier (Inhaltsspalte, Dialog) | `--main-bg` | `#ffffff` | `#12151a` |
+| Grund (abgesetzte Flächen, Quick-Add, Modal-Spalte) | `--surface` | `#fbfaf7` | `#191d23` |
+| Sidebar | `--sidebar-bg` | `#f3f1ec` | `#0e1116` |
+| Hover | `--hover` | `rgba(21,23,28,.05)` | `rgba(232,233,236,.07)` |
 
-**Warum der Akzent aus dem Warmbereich verbannt ist.** Das warme Spektrum ist
-bei uns dreifach mit Signalfarben belegt: `--p1`/`--overdue` bei 4°, `--p2`
-bei 34°, `--due-tomorrow` und `--deadline-color` bei 34–35°. Das alte Rot
-`#dc4c3e` lag bei 5° und damit **1,3° von P1 entfernt** — Markenfarbe und
-„dringend" waren faktisch dieselbe Farbe. Ein Akzent, der überall auftaucht,
-darf nicht dasselbe signalisieren wie eine Prioritätsmarkierung.
+Die Neutraltöne im Hellmodus sind **warm** (Papierweiß, nicht Reinweiß) — das
+ist der Grund, auf dem in md2pdf das Blatt liegt. Im Dunkelmodus ist die
+Sidebar **dunkler** als der Inhalt, nicht heller: der Inhalt bleibt die Fläche,
+auf die man schaut.
 
-Der Teal-Korridor ist dagegen frei. `#2f7d6e` (169°) hält **32,5°** Abstand
-zum Grün von `--due-today` (136°) und **47,6°** zum Blau von `--p3` /
-`--due-future` (216°). Keine Signalfarbe in Reichweite.
+### 2.2 Schrift und Linien
 
-Geprüfte Alternativen und warum sie ausschieden, siehe Gitea-Issue zur
-Farbumstellung — kurz: Terracotta/Beere/Pflaume blieben zu nah an P1 bzw.
-P2, ein reines Blau wäre mit `--p3` kollidiert.
+| Rolle | Token | Hell | Dunkel |
+| --- | --- | --- | --- |
+| Tusche (Titel, Aufgabentitel) | `--text` | `#15171c` | `#e8e9ec` |
+| Graphit (Fließtext, Nav idle) | `--text-secondary` | `#666c76` | `#9aa1ab` |
+| Marginalie (Daten, Zähler, Rubriken) | `--text-muted` | `#8a9099` | `#7b838e` |
+| Haarstrich | `--border` | `rgba(21,23,28,.12)` | `rgba(232,233,236,.14)` |
+| Kräftiger Strich (Rubrikzeile, Feldrand) | `--border-strong` | `rgba(21,23,28,.22)` | `rgba(232,233,236,.26)` |
 
-**Der Akzent trägt keine Destructive-Semantik mehr.** In der Referenz waren
-Brand- und Löschfarbe zufällig identisch (beides Rot); Löschen nutzt bei uns
-`--p1`. Neue destruktive Elemente also nie an `--accent` hängen.
+Linien sind **Alphawerte, keine Hex-Grautöne**. Dadurch stimmen sie über
+Papier, Grund und Sidebar hinweg, ohne dass es drei Strichfarben braucht.
 
-### 2.3 Text
+### 2.3 Akzent — die Prozessfarbe
 
-| Rolle | Wert | Verwendung |
+| Zweck | Token | Hell | Dunkel |
+| --- | --- | --- | --- |
+| Akzent | `--accent` | `#0b6e88` | `#56c5e2` |
+| Akzent Hover | `--accent-hover` | `#095a6f` | `#7ad4ec` |
+| Akzentlinie (Registermarke, Leiter) | `--accent-line` | `#0e88a6` | `#3fb4d4` |
+| Akzent weich (Auswahl in der Sidebar) | `--accent-soft` | `#e1edf0` | `#16323c` |
+| Schrift auf Akzentfläche | `--on-accent` | `#ffffff` | `#10141a` |
+
+In md2pdf markiert Cyan den Bereich, der **druckt** — das, was gerade zählt.
+Bei uns heißt es dasselbe: „jetzt". Es trägt daher **beide** Rollen, Marke und
+Fälligkeit, und das ist Absicht, keine Kollision: die laufende Woche, das
+heutige Datum, das ausgewählte Nav-Item und das Logo sind alle „jetzt".
+
+### 2.4 Priorität als Farbdichte
+
+| Stufe | Token | Hell | Dunkel | Lesart |
+| --- | --- | --- | --- | --- |
+| **P1** | `--p1` | `#b5342a` | `#e86a5e` | Schnittmarken-Rot |
+| **P2** | `--p2` | `#a2620f` | `#d79a4a` | Ocker |
+| **P3** | `--p3` | `#5b6472` | `#98a1ae` | Graphit |
+| **P4** | `--p4` | `#a9aeb6` | `#5c646f` | blass |
+
+Die Leiter ist bewusst **kein Regenbogen**. Eine vierstufige Skala aus vier
+Farbtönen zwingt zum Auswendiglernen; eine Skala aus einer Signalfarbe und
+abnehmender Tinte liest man ohne Legende. Blau ist damit als Prioritätsfarbe
+frei geworden — es steht jetzt der Akzentfarbe und den Projektfarben zur
+Verfügung.
+
+Die Farben tragen den Rand der hohlen Checkbox, mit einem 10 %-Tint als
+Innenfläche (`color-mix(in srgb, var(--pN) 10%, transparent)`, damit der Tint
+im Dunkelmodus automatisch mitzieht).
+
+> **Sonderfall Beschriftung:** Als Text auf einem Schalter (`.td-prio.p4`) wäre
+> `--p4` nicht mehr lesbar. Dort steht `--text-secondary`. Blass ist P4 überall
+> dort, wo es als *Fläche* auftritt.
+
+### 2.5 Fälligkeit
+
+| Status | Token | Hell | Dunkel |
+| --- | --- | --- | --- |
+| Überfällig | `--overdue` | `#b5342a` | `#e86a5e` |
+| Heute | `--due-today` | `#0b6e88` | `#56c5e2` |
+| Morgen | `--due-tomorrow` | `#a2620f` | `#d79a4a` |
+| Später | `--due-future` | `#666c76` | `#9aa1ab` |
+| Deadline (Flagge) | `--deadline-color` | `#a2620f` | `#d79a4a` |
+
+Dieselbe Leiter wie bei der Priorität, nur mit Cyan an der Stelle von „heute".
+Überfällig steht zusätzlich in Mono **700**.
+
+### 2.6 Abwesenheitsfarben
+
+Vier **Kategorien**, keine Rangfolge — der einzige Ort im Produkt, an dem
+mehrere Farbtöne nebeneinander stehen dürfen, weil die Zeitleiste sie
+unterscheidbar braucht. Sie sind auf dieselbe Helligkeit und Sättigung gedämpft
+wie der Rest.
+
+| Typ | Hell (`-bg` / `-fg`) | Dunkel (`-bg` / `-fg`) |
 | --- | --- | --- |
-| Primary | `#202020` (`--text`) | Headlines, Task-Titel |
-| Secondary | `#4d4d4d` (`--text-secondary`) | Body Copy, Nav-Items im Idle |
-| Muted / Tertiary | `#666` (`--text-muted`) | Datumslabel, Projekttag, Zähler |
-| Quaternary | `#999` | Sehr schwach betonte Metadaten |
-| Display-Disabled | `#b3b3b3` | Disabled-Icons, P4-Border |
-
-### 2.4 Border und Trennlinien
-
-| Rolle | Wert |
-| --- | --- |
-| Idle | `#e6e6e6` |
-| Strong (Inputs, Cards) | `#e5e5e5` (`--border-strong`) |
-| Trennlinie sehr dezent | `#ebebeb` (`--border`) — eigene Wahl, etwas softer als die `#e5e5e5` der Referenz |
-| Border-Hover | `#ccc` |
-
-### 2.5 Prioritäten
-
-Die Originalwerte der Referenz sind in den Asset-CSS-Dateien stark
-verschachtelt, aber öffentlich bekannt:
-
-| Stufe | Hex | Bedeutung |
-| --- | --- | --- |
-| **P1** | `#d1453b` | Sehr wichtig |
-| **P2** | `#eb8909` | Wichtig |
-| **P3** | `#246fe0` | Normal |
-| **P4** | `#b3b3b3` | Niedrig (entspricht `--product-library-display-quaternary-…`-Stufe) |
-
-Diese vier Farben werden in der hohlen Checkbox als Border verwendet,
-mit einem 8 %-igen Tint als Innenfläche (`rgba(... ,0.08)`), damit auch
-P4 deutlich von einer normalen Border unterscheidbar bleibt.
-
-> **Prioritäts- und Statusfarben sind von Akzentwechseln ausgenommen** und
-> bleiben exakt wie hier und in 2.6 dokumentiert. Sie sind Signal, nicht
-> Marke — P1 soll „dringend" heißen, unabhängig davon, welche Akzentfarbe
-> das Produkt gerade trägt. Umgekehrt gilt: **ein neuer Akzent muss um sie
-> herum gewählt werden**, nicht sie um ihn.
-
-### 2.6 Status-Datumsfarben
-
-Die Referenz färbt Datumslabel je nach Fälligkeit. Wir spiegeln das mit
-dezenten Akzenten:
-
-| Status | Wert | Aussagekraft |
-| --- | --- | --- |
-| Heute | `#058527` (`--due-today`) | Grün |
-| Morgen | `#ad6200` (`--due-tomorrow`) | Warmgelb/Orange |
-| Diese Woche / Zukunft | `#246fe0` (`--due-future`) | Blau |
-| Überfällig | `#d1453b` (`--overdue`) | Rot, ggf. fett |
-
-### 2.7 Abwesenheitsfarben
-
-Jeder Abwesenheitstyp hat ein Paar aus Tint-Fläche (`-bg`) und Schriftfarbe
-(`-fg`). Das Paar trägt Badges in der Abwesenheitsliste und in den
-Gruppenköpfen der Ansicht „Demnächst"; die Balken der Zeitleiste (7.9) nutzen
-die `-fg`-Variante als Vollfläche.
-
-| Typ | Hell (`-bg` / `-fg`) | Dark (`-bg` / `-fg`) |
-| --- | --- | --- |
-| `vacation` | `#e6f4ea` / `#1c7a3f` | `#16321f` / `#6ecb8c` |
-| `holiday` | `#f3eafc` / `#7b3fb8` | `#2c2038` / `#c79aeb` |
-| `business_trip` | `#e7effc` / `#1f5fc0` | `#1a2942` / `#7cabf5` |
-| `sick` | `#fde7e5` / `#c0392b` | `#3d2120` / `#eb8279` |
+| `vacation` | `#e4efe8` / `#2c7351` | `#16321f` / `#6ecb8c` |
+| `holiday` | `#ebe6f4` / `#6a4ca8` | `#251f36` / `#b49ae8` |
+| `business_trip` | `#e5e8f4` / `#3a4fa0` | `#1b2340` / `#8b9ce8` |
+| `sick` | `#f7e4e2` / `#b5342a` | `#3a201d` / `#e86a5e` |
 | `other` | `--surface` / `--text-secondary` | dito (Token-basiert) |
 
-Die Töne sind bewusst **Kategorie**, nicht Signal: Sie sagen „welche Art von
-Abwesenheit", nicht „dringend". Deshalb liegen sie als weiche Tints deutlich
-unter der Sättigung der Prioritätsfarben aus 2.5 — ein Urlaubs-Badge darf
-neben einem P1-Task nicht um Aufmerksamkeit konkurrieren.
+`sick` teilt sich die Farbe mit `--p1`: „krank" und „überfällig" sind beide
+Zustände, die etwas anhalten.
 
 ---
 
 ## 3. Typografie
 
-| Eigenschaft | Wert |
-| --- | --- |
-| Body-Font-Family | System-Stack: `-apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", system-ui, sans-serif` |
-| Base-Font-Size | `14px` |
-| Line-Height für Body | `21px` (die Referenz verwendet am häufigsten `21` und `20`) |
-| Body-Color | `#4d4d4d` |
-| Headline (H1) | `26px / 700 / letter-spacing -0.02em` |
-| Sektionsüberschrift | `14px / 700 / letter-spacing -0.005em` |
-| Metadaten / Datum | `12px / 400 / line-height 16px` |
-| Nav-Items | `14px / 500 (active) / 400 (idle) / line-height 20px` |
+Beide Schnitte liegen als Subset (Latin + Latin-Ext) im WOFF2-Format unter
+`internal/web/static/fonts/` und werden über `go:embed` mit ausgeliefert —
+kein CDN, keine Netzwerkabhängigkeit. Die TTF-Quellen stammen aus
+`../md2pdf/assets/fonts` (IBM Plex, SIL Open Font License; `LICENSE.txt` liegt
+im selben Ordner).
 
-**Antialiasing** ist explizit aktiviert (`-webkit-font-smoothing:
-antialiased; -moz-osx-font-smoothing: grayscale;`).
+| Datei | Familie | Schnitt |
+| --- | --- | --- |
+| `plex-sans-400.woff2` | `--font-sans` | Regular |
+| `plex-sans-400i.woff2` | `--font-sans` | Regular kursiv |
+| `plex-sans-500.woff2` | `--font-sans` | Medium |
+| `plex-sans-600.woff2` | `--font-sans` | SemiBold |
+| `plex-mono-400.woff2` | `--font-mono` | Regular |
+| `plex-mono-700.woff2` | `--font-mono` | Bold |
+
+**Es gibt kein 700 in der Sans.** `strong`/`b` sind global auf `600` gesetzt,
+damit gerendertes Markdown keinen synthetischen Fettschnitt erzeugt.
+
+### 3.1 Die Rollen
+
+| Rolle | Wert | Verwendung |
+| --- | --- | --- |
+| Body | Sans 400 / `14px` / `1.5` / `--text-secondary` | alles Gelesene |
+| Seitentitel (H1) | Sans 600 / `28px` / `-0.022em` | Ansichtsüberschrift |
+| Dialogtitel (H2) | Sans 600 / `18px` / `-0.018em` | |
+| Aufgabentitel im Modal | Sans 600 / `21px` / `-0.018em` | |
+| Aufgabentitel in der Liste | Sans 400 / `14px` / `1.45` / `--text` | |
+| **Marginalie** | Mono 400 / `11px` / `0.13em` / versal / `--text-muted` | Rubriken, Feldrubriken, Zähler, Rubrikzeilen |
+| **Ablesewert** | Mono 400 / `11px` / `0.04–0.07em` / `tabular-nums` | Daten, Uhrzeiten, Zeiträume, Kalenderwochen |
+
+Die Utility-Klassen `.mono` und `.eyebrow` in `style.css` fassen die letzten
+beiden Zeilen zusammen; Komponenten dürfen die Werte auch direkt setzen, wenn
+sie zusätzlich etwas anderes brauchen.
+
+**Faustregel für die Entscheidung Sans/Mono:** Steht dort ein Wort, das jemand
+frei gewählt hat (Aufgabentitel, Projektname, Abwesenheitslabel wie „Kreta")?
+→ Sans. Steht dort etwas, das das System ausrechnet oder benennt (Datum,
+Anzahl, „KW 35", „P2", „MO")? → Mono.
+
+Antialiasing ist explizit aktiviert (`-webkit-font-smoothing: antialiased;
+-moz-osx-font-smoothing: grayscale`).
 
 ---
 
 ## 4. Spacing-Skala
 
-Reactist definiert sechs Stufen, alle in 4er-Schritten:
+Unverändert eine 4er-Skala: `4 / 8 / 12 / 16 / 24 / 32 px`, nicht zu Tokens
+erhoben — bei unserer Komponentenmenge wäre das Overengineering.
 
-| Token | Wert |
-| --- | --- |
-| `--reactist-spacing-xsmall` | `4px` |
-| `--reactist-spacing-small` | `8px` |
-| `--reactist-spacing-medium` | `12px` |
-| `--reactist-spacing-large` | `16px` |
-| `--reactist-spacing-xlarge` | `24px` |
-| `--reactist-spacing-xxlarge` | `32px` |
-
-Wir verwenden dieselbe 4er-Skala, ohne sie zu Tokens zu erheben — bei
-unserer Komponentenmenge wäre das Overengineering.
+Eine Ausnahme mit Bedeutung: der Abstand **über** einer Rubrikzeile ist
+`30px` (Aufgabenliste) bzw. `22px` (Aktivität) und damit deutlich größer als
+der Abstand darunter (`7px` bis zur Linie). Die Rubrik gehört zu dem, was
+folgt, nicht zu dem, was davor stand.
 
 ---
 
@@ -206,15 +207,22 @@ unserer Komponentenmenge wäre das Overengineering.
 
 | Element | Radius |
 | --- | --- |
-| Inputs, Pills, kleine Buttons | `4 – 6 px` |
-| Cards, Quick-Add, Dialoge | `8 – 10 px` |
-| Avatare, Color-Swatches, Checkboxen | `50 %` |
-| Skip-Pill „Add task" usw. | `24 px` (kapselförmig) |
+| Karte, Dialog, Eingabefeld, Textarea, Select, Menü, Codeblock | `var(--radius)` = `4px` |
+| **Jeder Button**, Chip, Badge, Pille, Nav-Item, Icon-Button, Zeitleistenbalken | `var(--radius-pill)` = `999px` |
+| Checkbox, Projektpunkt, Farbwähler, „Heute"-Punkt | `50%` |
 
-Schatten sind in der Referenz extrem zurückhaltend. Verwendet werden:
+Die Trennung ist die dritte Grundregel aus §1 und der auffälligste Unterschied
+zur Vorgängerfassung, die alles zwischen 4 und 12 px gerundet hat. Sie ist
+funktional: Wenn ein Element rund ist, kann man es drücken oder es benennt
+etwas.
 
-* Dialoge: `0 16px 48px rgba(0,0,0,0.18)` (wir nutzen den gleichen)
-* Hover-Cards: leichte `0 2px 8px rgba(0,0,0,0.08)`
+Schatten sind zurückhaltend und nur an zwei Stellen:
+
+* Dialoge: `0 16px 48px var(--shadow-dialog)`
+* Popup-Menü (Projektauswahl im Quick-Add): `0 8px 24px var(--shadow-menu)`
+
+Aufgabenzeilen, Karten und Buttons haben **keinen** Schatten — sie sitzen auf
+dem Papier, sie schweben nicht darüber.
 
 ---
 
@@ -222,172 +230,185 @@ Schatten sind in der Referenz extrem zurückhaltend. Verwendet werden:
 
 ```
 ┌─────────────┬──────────────────────────────────────────────┐
-│             │  ┌─ Header (H1 + Subtitle) ───────────────┐  │
-│             │  │                                        │  │
-│  Sidebar    │  │  Quick-Add (Card, focus-ring akzent)   │  │
-│  280 px     │  │                                        │  │
-│ (neutral bg)│  │  Group Header                          │  │
-│             │  │  Task / Task / Task                    │  │
-│             │  │  Group Header                          │  │
-│             │  │  Task / Task                           │  │
-│             │  └────────────────────────────────────────┘  │
+│             │  Heute                                       │
+│             │  DONNERSTAG, 27. AUGUST                      │
+│  Sidebar    │  ─────────────────────────────────────────   │
+│  280 px     │  ┌ Quick-Add ────────────────────────────┐   │
+│  --sidebar- │  └───────────────────────────────────────┘   │
+│    bg       │  ▪ KW 35  24.08.–30.08. ─────────────────  5 │
+│             │  ◯ Aufgabe                        Projekt •  │
+│             │  ◯ Aufgabe                        Projekt •  │
+│             │    KW 36  31.08.–06.09. ──────  [Messe]   3  │
 └─────────────┴──────────────────────────────────────────────┘
 ```
 
-* Shell: zweispaltiges Grid `280px 1fr`, volle Höhe (`100vh`),
-  Sidebar mit eigenem Scrollbereich, Main-Pane mit eigenem.
-* Main-Pane mittig zentriert mit `max-width: 800px`, das ergibt die
-  für solche Clients typische Lesebreite.
-* Padding im Main: `32px 60px 96px` (großzügig nach unten für scrollende
-  Listen).
+* Shell: zweispaltiges Grid `280px 1fr`, volle Höhe, beide Spalten mit eigenem
+  Scrollbereich. Tablet hochkant: `242px`. Unter `721px` wird die Sidebar zum
+  Drawer.
+* Inhaltsspalte `max-width: 680px`, zentriert über
+  `padding: 32px max(60px, (100% - 680px) / 2) 96px`.
+* Der Kopf trägt unten einen `--border-strong`-Haarstrich; die Zeile darunter
+  („DONNERSTAG, 27. AUGUST") ist eine Marginalie. In der Ansicht „Heute"
+  wechselt der Strich auf `--accent-line` und die Marginalie trägt die
+  Registermarke (7.1).
 
 ---
 
 ## 7. Komponenten
 
-### 7.1 Sidebar-Navigation
-
-* Höhe pro Item ≈ `32px` (Padding `6px 8px`, Inhalt `20px` line-height).
-* Layout: `[icon 24×24] [label, flex:1] [count]`.
-* **Idle:** transparent. **Hover:** `#f2f2f2`. **Active:** `#e8f5f3` mit Akzentfarbe `#2f7d6e` für Icon und Label.
-* Icons sind 22 × 22 px Inline-SVGs im Lucide-Stil
-  (`stroke-width: 1.8`, `stroke-linecap: round`).
-* Das **„Heute"-Icon** ist ein Kalender-SVG, in dessen Innenrahmen wir
-  dynamisch die heutige Tageszahl positionieren (klein, fett, mittig
-  über dem horizontalen Strich). Genau dieses Muster nutzt die Referenz
-  auch.
-
-### 7.2 Sidebar-Projektliste
-
-* Project-Item-Markup: `[Farbpunkt 10px] [Name, flex:1] [Edit-Stift bei Hover oder Count]`.
-* Hover blendet **Edit** ein und **Count** aus — ein Standard-Pattern
-  der Referenz (gleicher Platz wird genutzt, kein Layout-Shift).
-* Farbpunkt nutzt die Projektfarbe (Default `#246fe0` für Inbox, sonst
-  `#808080` als neutrales Grau).
-* Klick auf das Item navigiert; Klick auf den Stift öffnet den
-  Projekt-Dialog. Event wird mit `stopPropagation` getrennt.
-
-### 7.3 Task-Zeile
+### 7.1 Die Rubrikzeile — das eine laute Element
 
 ```
-[ ◯ ]   Titel der Aufgabe   🔁
-        📅 Heute · ⚑ 25.05.                            • Projekt
-                                                  [ ✎ ] [ 🗑 ]
+▪ KW 35  24.08.–30.08. ─────────────────────────  [Kreta]   5
+──────────────────────────────────────────────────────────────
 ```
 
-* **Checkbox:** Hohlkreis 18 × 18 px, Border-Color = Prioritätsfarbe,
-  Innenfläche `rgba(priority, 0.08)`. Beim Hover blendet ein
-  halbtransparentes Häkchen-SVG ein.
-* **Body:** Titel (14 px, primary) und darunter eine Datumszeile (12 px,
-  muted) mit Mini-SVG-Icons.
-* **Recurrence-Indikator:** kleines Repeat-SVG (12 × 12) direkt am
-  Titelende — kein Emoji.
-* **Project-Tag:** rechtsbündig, klein gesetzt. In der Projektsicht
-  ausgeblendet (sonst redundant — Verhalten wie in der Referenz).
-* **Actions:** Bearbeiten/Löschen erscheinen erst bei Hover
-  (`visibility: hidden` → `visible`, damit kein Layout-Shift entsteht).
-* Trennlinie zwischen Tasks: `1px solid #ebebeb` an `border-bottom`.
-* Mindesthöhe `40px`.
+Sie ist die **Maßlinie über dem Satzspiegel**: links die Rubrik, rechts am
+Rand die Zahl, dazwischen ein ausgezogener Haarstrich. Genau die Geste, mit der
+md2pdf den druckenden Bereich eines Blattes bemaßt.
 
-### 7.4 Group-Header (Demnächst / Alle offenen)
+* Aufbau als Flexzeile mit expliziter `order`: Registermarke (0), Label (1),
+  Zeitraum (2), **Leiter** `::after` (3), Abwesenheits-Badges (4), Zähler (5).
+  Der Leiter ist ein `flex: 1 1 auto` hohes 1-px-Element — kein Markup nötig.
+* Grundzustand: Mono 11 px versal, Label in `--text`, Rest in `--text-muted`,
+  Unterlinie `--border-strong`.
+* **`.current` (laufende Woche):** Label, Zeitraum und Zähler in `--accent`,
+  Unterlinie und Leiter in `--accent-line`, plus eine **Registermarke** —
+  ein 7 × 7 px großes gefülltes Quadrat vor dem Label.
+  **Genau eine Registermarke pro Bildschirm.** Sie ist die einzige Stelle,
+  an der die Oberfläche laut wird; sie zweimal zu vergeben, macht sie
+  wertlos. In der Ansicht „Heute" gibt es keine Gruppenköpfe — dort ist die
+  ganze Seite der laufende Bereich, und die Marke sitzt in der Kopfzeile
+  (`.main-header.is-now`, gesetzt in `refresh()`), zusammen mit einer
+  Unterlinie in `--accent-line`.
+* **`.past`:** dasselbe in `--overdue`, aber **ohne** Marke.
+* Dieselbe Komponente trägt die Tagesköpfe der Aktivitätsansicht und die
+  Abschnitte „Bevorstehend" / „Vergangen" der Abwesenheiten.
+
+### 7.2 Sidebar
+
+* Item-Layout `[icon 24×24] [label, flex:1] [count]`, Padding `6px 10px`,
+  **Radius `--radius-pill`**.
+* Idle transparent, Hover `--hover`, Aktiv `--accent-soft` mit `--accent` für
+  Icon und Label (`font-weight: 500`).
+* Zähler in Mono 11 px, `tabular-nums`.
+* Der Abschnittskopf („PROJEKTE") ist eine Marginalie mit `--border`-Unterlinie
+  — dieselbe Rubrikgeste wie in 7.1, nur ohne Leiter, weil hier keine Zahl am
+  rechten Rand steht.
+* Das **„Heute"-Icon** trägt weiterhin dynamisch die heutige Tageszahl
+  (`todayIconSVG()`).
+
+### 7.3 Aufgabenzeile
 
 ```
-KW 21   18.05.–24.05.                                         3
-─────────────────────────────────────────────────────────────────
+◯   Titel der Aufgabe  ⟳
+    📅 HEUTE · ⚑ SAMSTAG · 💬 1                    Projekt •
 ```
 
-* Inhalte: Label (fett, 14 px), Range (regular, muted), Count
-  (rechtsbündig, muted).
-* In der Referenz sind die Headers in „Demnächst" tagweise („Montag,
-  20. Mai"); wir gruppieren bewusst nach **Kalenderwoche**, weil das
-  für unseren Anwendungsfall die richtige Verdichtung ist.
+* **Checkbox:** Hohlkreis 18 × 18 px, Rand = Prioritätsfarbe, Innenfläche
+  10 %-Tint (2.4). Hover blendet ein halbtransparentes Häkchen ein.
+* **Titel:** Sans 14 px / `1.45` in `--text`.
+* **Datumszeile:** Mono 11 px, **versal**, `0.07em` gesperrt, `tabular-nums`,
+  Farbe nach 2.5. Das ist der Faden, der alle Ansichten zusammenhält.
+* **Projekttag** rechtsbündig in Sans (ein Projektname ist ein Wort, kein
+  Ablesewert), in der Projektansicht ausgeblendet.
+* Trennlinie `1px solid var(--border)`, Mindesthöhe `40px`.
 
-### 7.5 Quick-Add
+### 7.4 Quick-Add
 
-* Card-Style, 1 px Border `#e5e5e5`, Radius 10 px.
-* Beim Fokus wechselt die Border auf die Akzentfarbe — gleiches Muster
-  wie in der Referenz (dort animiert es subtiler).
-* Optionsleiste unter dem Eingabefeld mit gepunkteter Trennlinie
-  (`border-top: 1px dashed`), Selects mit `4px 8px` Padding und
-  6 px Radius.
-* Submit per `Enter` legt die Aufgabe an, kein expliziter Button.
+* Karte auf `--surface` mit `--border-strong` und `--radius`. Bei Fokus
+  wechselt die Fläche auf `--main-bg` und der Rand auf `--accent` — das Feld
+  wird zu Papier, sobald man hineinschreibt.
+* Die Overlay-Marken (`.qa-mark-*`) sind Pillen: Datum in `--accent`, Projekt
+  in `--text` (Tusche auf Papier), Prioritäten in ihrer Stufenfarbe.
+  **Ihre Geometrie darf sich nicht ändern** — das Overlay liegt deckungsgleich
+  über dem unsichtbaren Text des Inputs; Padding oder Margin zu verschieben
+  bringt beide auseinander.
 
-### 7.6 Dialoge
+### 7.5 Dialoge
 
-* Radius 10 px, Backdrop `rgba(0,0,0,0.4)`.
-* Form-Layout: vertikaler Flex mit `gap: 12px`, sauberes Padding `20px 24px`.
-* Inputs/Selects haben Focus-Ring in Akzentfarbe statt Browser-Default.
-* Buttons:
-  * **Primary** („Speichern", „Anlegen"): salbei gefüllt (`#2f7d6e`),
-    weißer Text, Hover `#27675a`.
-  * **Secondary** („Abbrechen"): weißer Hintergrund, dezenter Border.
-  * **Danger** („Löschen"): outline-Style mit P1-Farbe, links
-    angeordnet (per `margin-right: auto`).
-* Error-Anzeige als roter Toast-Streifen im Dialog.
+* `--radius`, 1 px `--border`, Backdrop `rgba(21,23,28,.42)`.
+* **Feldrubriken sind Marginalien** — `dialog label`, `.dialog-label` und
+  `.td-field-label` sind Mono 11 px versal. Eingabefelder darin setzen die
+  Sans wieder (`dialog label input, dialog label select`).
+* Buttons: primär gefüllt in `--accent` mit `--on-accent`, sekundär
+  `--main-bg` mit `--border-strong`, destruktiv als Textbutton in `--p1` links
+  (`margin-right: auto`). Alle drei sind Pillen.
+* Fehler inline als Streifen in `--danger-bg` / `--p1`, nie global.
 
-### 7.7 Color-Picker im Projektdialog
+### 7.6 Aufgaben-Modal
 
-* 13 vordefinierte Swatches als 22 × 22 px Kreise in einem Grid.
-* Selected = Border in Textfarbe + 1 px Inset weißer Ring, damit auch
-  bei dunklen Farben sichtbar.
-* Hover skaliert leicht (`transform: scale(1.12)`).
-* Hex-Feld daneben akzeptiert `#rgb` und `#rrggbb`, ergänzt
-  führendes `#` automatisch.
+* Zweispaltig `1fr 320px`, Kopfleiste und rechte Spalte auf `--surface`,
+  Trennkanten in `--border-strong`.
+* **Prioritätsschalter** `P1…P4`: Mono 700, 11 px, `0.1em`, Pillen. Ausgewählt
+  = 2 px Rand in der Stufenfarbe plus 10 %-Tint.
+* **Wochentagsschalter** `MO…FR`: Mono 11 px versal, Pillen.
+* **Datumsfelder** in Mono mit `tabular-nums`; das Deadline-Feld nimmt
+  Freitext („morgen, +5, ende juni") und bleibt deshalb Sans.
+* Kommentare: Karte auf `--surface` mit `--radius`, Zeitstempel in Mono,
+  Abschnittskopf „KOMMENTARE" als Marginalie mit Unterlinie.
+* Code in gerenderten Beschreibungen: `--font-mono` auf `--surface` mit
+  1 px `--border` — dasselbe Bild wie ein Codeblock in einem md2pdf-Dokument.
 
-### 7.8 Abwesenheits-Zeile
+### 7.7 Farbwähler im Projektdialog
 
-* Layout: `[Typ-Badge] [Label, flex:1] [Zeitraum + Meta] [Edit] [Delete]`.
-* Das **Typ-Badge** ist eine Pille in den Tokens aus 2.7 — Hintergrund `-bg`,
-  Schrift `-fg`, `11px / 600`, `border-radius: 999px`. `other` fällt auf
-  `--surface` / `--text-secondary` zurück.
-* Unter dem Zeitraum steht eine **Meta-Zeile** in `--text-muted` (`12px`):
-  Dauer und zeitlicher Abstand, mit `·` getrennt („12 Tage · beginnt in
-  3 Wochen"). Bei vergangenen Einträgen entfällt der Abstand.
-* Die **laufende** Abwesenheit ist über `--accent-soft` hinterlegt; Hover
-  überschreibt das nicht (Selected-vor-Hover, siehe 11).
-* Zeiträume nutzen `font-variant-numeric: tabular-nums`, damit die Spalte
-  über mehrere Zeilen ruhig steht.
+* 13 Kreise à 22 px. Ausgewählt = Rand in `--text` plus 1 px weißer Innenring.
+* Hex-Feld daneben in Mono.
+
+### 7.8 Abwesenheitszeile
+
+* Layout `[Typ-Badge] [Label] [Zeitraum + Meta] [Edit] [Delete]`.
+* Typ-Badge: Pille in den Tokens aus 2.6, **Sans** 11 px / 500 (der Typ ist
+  ein Wort).
+* Zeitraum in Mono 12 px, Metazeile („12 TAGE · BEGINNT IN EINER WOCHE") in
+  Mono 11 px versal.
+* Die laufende Abwesenheit liegt auf `--hover` mit `--radius` — neutral, nicht
+  im Akzent: sie ist eine Ortsmarke, kein Signal.
 
 ### 7.9 Zeitleiste (12 Wochen)
 
-Die Abwesenheits-Ansicht setzt eine schmale Schiene über die Liste. Sie ist
-das einzige Element im Produkt, das Zeit **räumlich** darstellt.
+Das einzige Element im Produkt, das Zeit **räumlich** darstellt — und damit die
+direkte Entsprechung zum Blatt Papier in md2pdf.
 
-* `.tl-track`: Höhe `10px`, `border-radius: 999px`, Grundfläche `--surface`.
-  Die Wochengrenzen sind kein Markup, sondern ein `repeating-linear-gradient`
-  in `--border-strong` mit 12 gleich breiten Feldern — ein Tick pro
-  Kalenderwoche. Die Leiste kommt damit **ohne eigene Tokens** aus.
-* `.tl-span`: ein Balken je Abwesenheit, absolut in Prozent positioniert,
-  eingefärbt mit der **`-fg`-Variante** der Typfarbe (die `-bg`-Tints wären
-  auf der Schiene nicht ablesbar). `min-width` verhindert, dass ein
-  Ein-Tages-Balken verschwindet.
-* `.tl-today`: ein Punkt in Textfarbe mit Ring in Hintergrundfarbe, mittig auf
-  der heutigen Spalte.
-* `.tl-weeks`: Kalenderwochen oberhalb, `10px`, `--text-muted`,
-  `tabular-nums`, je Woche mittig über ihrer Zelle. Nackte ISO-Zahlen ohne
-  „KW" — die Gruppenköpfe der Ansicht „Demnächst" schreiben das Präfix aus,
-  auf der Schiene wäre es zwölfmal dasselbe Wort. Die laufende Woche (immer
-  die erste Zelle) trägt `.cur` und steht in `--text`, fett.
-* `.tl-months`: Monatskürzel unterhalb, `11px`, `--text-muted`. Labels, die
-  näher als ~9 % beieinander liegen, werden weggelassen statt überlappt.
-* **Hover-Kopplung:** Ein Hover auf einer Listenzeile setzt `.hl` auf den
-  zugehörigen Balken (`scaleY(1.6)` plus Ring in `--main-bg`). Leiste und Liste sollen als *eine* Darstellung gelesen
-  werden, nicht als zwei Listen von Daten.
-* Das Fenster beginnt am Montag der laufenden Woche, damit die Leiste nicht
-  mitten in der Woche weiterwandert.
+* `.tl-track`: Höhe `10px`, Pille, Grundfläche `--surface`. Die Wochengrenzen
+  sind kein Markup, sondern ein `repeating-linear-gradient` in
+  `--border-strong` mit zwölf gleich breiten Feldern.
+* `.tl-span`: ein Balken je Abwesenheit in der `-fg`-Variante der Typfarbe.
+* `.tl-today`: Punkt in `--accent` mit Ring in `--main-bg`.
+* `.tl-weeks` / `.tl-months`: Mono 10 px, `tabular-nums`; die laufende Woche
+  trägt `.cur` und steht in `--accent` / 700. Monatskürzel versal.
+* Hover auf einer Listenzeile hebt den zugehörigen Balken (`scaleY(1.6)`).
+
+> **Achtung, Zwilling:** Dieselben `.tl-*`-Klassen existieren ein zweites Mal
+> als Inline-`<style>` in `internal/httpapi/share.go`. Geometrieänderungen
+> hier und dort nachziehen.
+
+### 7.10 Die Share-Seite (`GET /api/absences.html`)
+
+Ein eigenständiges Dokument, kein Fenster in die App — und die Stelle, an der
+md2pdfs Umkehrung wörtlich gilt: **das Blatt bleibt auch im Dunkelmodus
+Papier** (`--paper: #e9e7e1`), nur der Grund darunter wird dunkel. Im
+Dark-Block werden deshalb ausschließlich `--bg`, `--paper`, `--edge`,
+`--shade` und `--offpaper` (die Fußzeile *neben* dem Blatt) neu belegt.
+
+* Die Überschrift „Availability" ist die **Rubrik** (Marginalie), die
+  Statuszeile ist die **Nachricht** (Sans 600, bis `1.7rem`) — die Seite
+  beantwortet eine Frage, also steht die Antwort oben und groß.
+* Verfügbar = `--ok` (Prozess-Cyan, „jetzt erreichbar"), abwesend =
+  Schnittmarken-Rot, Dienstreise = Indigo (dasselbe wie `business_trip`).
+* Die Seite lädt die Schriften aus `/static/fonts/` — derselbe Server, keine
+  externe Abhängigkeit.
 
 ---
 
 ## 8. Icons
 
-Wir verwenden **Inline-SVG im Lucide-Stil** statt Emojis. Alle Icons:
+Inline-SVG im Lucide-Stil, keine Emojis. Alle Icons:
 
-* `viewBox="0 0 24 24"`
-* `fill="none"`, `stroke="currentColor"`
+* `viewBox="0 0 24 24"`, `fill="none"`, `stroke="currentColor"`
 * `stroke-width: 1.8` für Nav-Icons, `2.0` für stark betonte Elemente
 * `stroke-linecap: round; stroke-linejoin: round`
-* Größen: `12px` (inline in Texten), `16px` (Action-Buttons),
-  `22px` (Sidebar-Nav, Logo).
+* Größen: `12px` (inline), `16px` (Action-Buttons), `22px` (Nav, Logo)
 
 Inventar in `app.js`:
 
@@ -395,48 +416,48 @@ Inventar in `app.js`:
 | --- | --- |
 | `ICON.calendar` | Erscheinungsdatum vor Datumslabel |
 | `ICON.flag` | Deadline vor Datumslabel |
-| `ICON.repeat` | Wiederholungs-Indikator am Task-Titel |
+| `ICON.repeat` | Wiederholungs-Indikator am Aufgabentitel |
 | `ICON.edit` | Edit-Action |
 | `ICON.trash` | Delete-Action |
 | `ICON.hashtag` | (reserviert) Projekt-Indikator |
 | `todayIconSVG()` | Kalender mit eingelegter Tageszahl für die „Heute"-Nav |
 
-Die Referenz verwendet teils ein eigenes Icon-Set mit minimal anderen
-Endcap-Radien — die Unterschiede sind in der Wahrnehmung minimal, und
-Lucide ist Open-Source-freundlich.
-
 ---
 
 ## 9. Datumsdarstellung
 
-Die Referenz setzt extrem stark auf **relative Datumslabel**. Unsere
-Übernahme in `smartDateLabel`:
+`smartDateLabel` setzt relative Label; die Darstellung ist immer Mono versal
+(7.3):
 
 | Eingabe (Heute = `T`) | Label |
 | --- | --- |
-| `T`            | `Heute` |
-| `T + 1`        | `Morgen` |
-| `T - 1`        | `Gestern` |
-| `T + 2 … T + 6`| voller Wochentag (z. B. `Mittwoch`) |
-| `T - 2 … T - 6`| voller Wochentag |
-| selbes Jahr   | `DD.MM.` |
-| anderes Jahr  | `DD.MM.YYYY` |
+| `T` | `HEUTE` |
+| `T + 1` | `MORGEN` |
+| `T - 1` | `GESTERN` |
+| `T + 2 … T + 6` | voller Wochentag (`MITTWOCH`) |
+| `T - 2 … T - 6` | voller Wochentag |
+| selbes Jahr | `DD.MM.` |
+| anderes Jahr | `DD.MM.YYYY` |
 
-Die zugehörige Farbklasse kommt aus `dateColorClass` (siehe 2.6).
-Überfällig setzt zusätzlich `font-weight: 500`.
+Die Farbklasse kommt aus `dateColorClass` (2.5); überfällig setzt zusätzlich
+`font-weight: 700`.
 
 ---
 
 ## 10. Projektfarben
 
-Die Referenz bietet eine kuratierte Palette aus etwa 13 Farben (Berry Red,
-Red, Orange, Yellow, Olive Green, …). Wir nähern uns mit denselben
-Familien an, leicht abweichend benannt (Tomate, Orange, Gelb, Olive,
-Grün, Mint, Türkis, Hellblau, Blau, Lila, Magenta, Rosa, Grau).
+Dreizehn Voreinstellungen als **Druckfarben** — dieselbe Helligkeit und
+Sättigung wie der Rest der Oberfläche, damit ein Projektpunkt neben einem
+Prioritätshaken nicht wie ein Signal aussieht:
 
-Frei vergebener Hex bleibt erlaubt (siehe Color-Picker).
-Inbox ist farblich auf `#246fe0` gepinnt — entspricht dem
-Inbox-Indigo der Referenz.
+Zinnober `#b5342a` · Ocker `#a2620f` · Safran `#b08b12` · Reseda `#6b8f3a` ·
+Tannengrün `#2c7351` · Grünspan `#2b8d84` · Prozesscyan `#0b6e88` ·
+Stahlblau `#2f6f9e` · Preußischblau `#3a4fa0` · Indigo `#6a4ca8` ·
+Aubergine `#8e3d86` · Krapp `#a83c62` · Graphit `#666c76`
+
+Frei vergebener Hex bleibt erlaubt. Ohne gespeicherte Farbe fällt ein Projekt
+auf Graphit zurück, die Inbox auf Preußischblau. **Bestehende Projekte behalten
+ihren gespeicherten Hex** — die Liste gilt für neue.
 
 ---
 
@@ -444,64 +465,43 @@ Inbox-Indigo der Referenz.
 
 | Muster | Verhalten |
 | --- | --- |
-| **Hover-Reveal**       | Aktions-Icons auf Items werden bei Hover sichtbar, der Platz ist permanent reserviert (`visibility`, kein `display: none`). Verhindert Layout-Sprünge. |
-| **Selected vs Hover**  | Selected überschreibt Hover — selected-Background bleibt, selbst wenn der Cursor das Item verlässt. |
-| **Single primary action** | Pro Dialog/Form genau ein primärer Button (Akzentfarbe). Sekundäres ist outline. |
-| **Optimistic refresh** | Nach einer Mutation (`createTask`, `completeTask` …) ruft das Frontend `refresh()` — wir verzichten bewusst auf clientseitiges Diffing; es ist schnell genug. Bei größeren Datenmengen würden wir auf optimistische Updates wechseln. |
-| **Toast-freie Errors** | Fehler werden inline im jeweiligen Dialog angezeigt, nicht global. |
+| **Hover-Reveal** | Aktions-Icons werden bei Hover sichtbar, der Platz ist permanent reserviert (`visibility`, nicht `display`). |
+| **Selected vor Hover** | Der Auswahl-Hintergrund bleibt, auch wenn der Cursor das Item verlässt. |
+| **Eine primäre Aktion** | Pro Dialog genau ein gefüllter Button; alles andere ist Outline oder Textbutton. |
+| **Optimistic refresh** | Nach einer Mutation ruft das Frontend `refresh()` — kein clientseitiges Diffing. |
+| **Fehler inline** | Fehler stehen im jeweiligen Dialog, nicht global. |
+| **Fokus sichtbar** | `:focus-visible` setzt global `2px solid var(--accent)` mit `2px` Offset. |
 
 ---
 
-## 12. Bewusst nicht übernommen
+## 12. Bewusst nicht gemacht
 
-Aus dem Lastenheft („Out of Scope" und „Explizit gestrichene Anforderungen"):
-
-* Drag & Drop in der Task-Liste — die Referenz nutzt dafür ein eigenes
-  Virtuoso-basiertes Virtual-List-Setup (`data-testid="virtuoso-item-list"`),
-  bei unserer Größenordnung unnötig.
-* **Theme-Switcher.** Ein Dark Mode existiert, aber ohne Umschalter: Die
-  Tokens werden in einem `@media (prefers-color-scheme: dark)`-Block neu
-  belegt und folgen damit der Systemeinstellung. Deshalb ist **jede** Farbe
-  ein Token — ein Hex direkt in einer Regel bleibt im Dark Mode stehen.
-* Filters/Labels-Bereich, Karma.
-* Avatare im User-Switcher (Single-User-Anwendung).
-* Subtasks (Modell nicht vorgesehen).
-* Kalender- und Board-Ansicht. Die Zeitleiste aus 7.9 ist keine Ausnahme
-  davon: Sie zeigt Zeiträume auf einer Achse, kein Kalendergitter, und man
-  kann in ihr nichts anlegen.
-
-Ein **Aktivitätsprotokoll** haben wir dagegen übernommen (Ansicht
-„Aktivität"); es nutzt die Group-Header-Komponente aus 7.4.
+* **Kein Theme-Switcher.** Der Dunkelmodus folgt der Systemeinstellung über
+  `@media (prefers-color-scheme: dark)`. Deshalb ist jede Farbe ein Token.
+* **Kein Build-Schritt.** `index.html`, `style.css`, `app.js` und die sechs
+  WOFF2-Dateien liegen als Quelltext in `internal/web/static/` und werden
+  per `go:embed` eingebettet. Kein Bundler, kein PostCSS, keine
+  Tailwind-Klassen im Markup.
+* **Keine zweite laute Stelle.** Wenn eine neue Komponente Aufmerksamkeit
+  braucht, ist die richtige Frage, ob die Registermarke (7.1) noch am
+  richtigen Ort sitzt — nicht, welche zweite Farbe man einführt.
+* Drag & Drop, Filter/Labels, Subtasks, Kalender- und Board-Ansicht
+  (siehe Lastenheft, „Out of Scope").
 
 ---
 
-## 13. Mapping unserer CSS-Variablen
+## 13. Anwenden bei Änderungen
 
-| Unsere Variable | Wert | Entspricht Referenz-Token |
-| --- | --- | --- |
-| `--sidebar-bg` | `#fafafa` | `--theme-card-sidebar-color` (Moonstone), Tint entfernt |
-| `--main-bg` | `#ffffff` | `--product-library-background-base-primary` |
-| `--accent` | `#2f7d6e` | **eigene Wahl** — Referenz nutzt hier Rot |
-| `--accent-soft` | `#e8f5f3` | **eigene Wahl** — Referenz nutzt hier ein Rosa |
-| `--text` | `#202020` | `--product-library-display-primary-idle-tint` |
-| `--text-secondary` | `#4d4d4d` | `--theme-card-content-color` (Moonstone) |
-| `--text-muted` | `#666` | `--product-library-display-secondary-idle-tint` |
-| `--border` | `#ebebeb` | (eigene Wahl, etwas softer als das `#e5e5e5` der Referenz) |
-| `--border-strong` | `#e5e5e5` | `--product-library-display-quaternary-idle-tint` |
-| `--hover` | `#f2f2f2` | `--theme-card-sidebar-hover-color` (Moonstone) |
-| `--p1 … --p4` | `#d1453b / #eb8909 / #246fe0 / #b3b3b3` | Prioritäts-Palette der Referenz |
-| `--absence-*-bg` / `-fg` | siehe 2.7 | **eigene Wahl** — die Referenz kennt keine Abwesenheiten |
-
----
-
-## 14. Anwenden bei Änderungen
-
-* **Neue UI-Komponente?** Erst die Tokens aus dieser Datei nutzen, nur
-  bei Bedarf eine neue Variable in `:root` ergänzen.
-* **Neue Farbe?** Vorher prüfen, ob die Referenz sie im
-  `--product-library-*`-Namensraum verwendet — wenn ja, denselben Hex
-  übernehmen.
-* **Neue Icons?** Lucide-Stil, in `ICON`-Objekt eintragen, `currentColor`
-  benutzen, damit das Icon Theme-fähig bleibt.
-* **Neue Action auf einem Item?** Hover-Reveal-Muster anwenden, Platz
-  über `visibility`/`opacity` reservieren, nicht über `display`.
+* **Neue Komponente?** Erst die Tokens aus dieser Datei nutzen. Neue Variable
+  nur, wenn sich keine bestehende ehrlich verwenden lässt — dann hier
+  eintragen.
+* **Neue Farbe?** Gegen §2 prüfen. Signalfarben sind vergeben (Cyan = jetzt,
+  Rot = Stopp); alles andere ist Graustufe, bis das Gegenteil begründet ist.
+* **Text hinzugefügt?** Sans oder Mono nach der Faustregel in §3.1 —
+  gewähltes Wort gegen ausgerechneten Wert.
+* **Rundung gebraucht?** §1, Regel 3: Pille, wenn man es drückt oder es etwas
+  benennt; `--radius`, wenn es etwas trägt.
+* **Neues Icon?** Lucide-Stil, ins `ICON`-Objekt, `currentColor` benutzen.
+* **Schrift geändert?** Die WOFF2-Subsets werden aus
+  `../md2pdf/assets/fonts/*.ttf` mit `pyftsubset` erzeugt (Latin + Latin-Ext,
+  `kern,liga,calt,tnum,frac`, `--flavor=woff2`). Die Lizenz muss mitwandern.

@@ -216,27 +216,31 @@ function syncRecurrenceModeUI() {
   }
 }
 
+// Projektfarben als Druckfarben: dieselbe Helligkeit und Sättigung wie der
+// Rest der Oberfläche, damit ein Projektpunkt neben einem Prioritätshaken
+// nicht wie ein Signal aussieht. Bestehende Projekte behalten ihren
+// gespeicherten Hex — die Liste gilt für neue.
 const PROJECT_COLOR_PRESETS = [
-  { name: "Tomate",    hex: "#db4c3f" },
-  { name: "Orange",    hex: "#eb8909" },
-  { name: "Gelb",      hex: "#d8af1a" },
-  { name: "Olive",     hex: "#7ecc49" },
-  { name: "Grün",      hex: "#299438" },
-  { name: "Mint",      hex: "#6accbc" },
-  { name: "Türkis",    hex: "#158fad" },
-  { name: "Hellblau",  hex: "#14aaf5" },
-  { name: "Blau",      hex: "#246fe0" },
-  { name: "Lila",      hex: "#884dff" },
-  { name: "Magenta",   hex: "#af38eb" },
-  { name: "Rosa",      hex: "#e05194" },
-  { name: "Grau",      hex: "#808080" },
+  { name: "Zinnober",       hex: "#b5342a" },
+  { name: "Ocker",          hex: "#a2620f" },
+  { name: "Safran",         hex: "#b08b12" },
+  { name: "Reseda",         hex: "#6b8f3a" },
+  { name: "Tannengrün",     hex: "#2c7351" },
+  { name: "Grünspan",       hex: "#2b8d84" },
+  { name: "Prozesscyan",    hex: "#0b6e88" },
+  { name: "Stahlblau",      hex: "#2f6f9e" },
+  { name: "Preußischblau",  hex: "#3a4fa0" },
+  { name: "Indigo",         hex: "#6a4ca8" },
+  { name: "Aubergine",      hex: "#8e3d86" },
+  { name: "Krapp",          hex: "#a83c62" },
+  { name: "Graphit",        hex: "#666c76" },
 ];
-const DEFAULT_PROJECT_COLOR = "#808080";
+const DEFAULT_PROJECT_COLOR = "#666c76";
 
 function projectColor(p) {
   if (!p) return DEFAULT_PROJECT_COLOR;
   if (p.color && p.color !== "") return p.color;
-  return p.id === "inbox" ? "#246fe0" : DEFAULT_PROJECT_COLOR;
+  return p.id === "inbox" ? "#3a4fa0" : DEFAULT_PROJECT_COLOR;
 }
 function projectById(id) { return state.projects.find(p => p.id === id); }
 
@@ -623,6 +627,10 @@ function defaultProjectForView() {
 async function refresh() {
   document.getElementById("view-title").textContent = viewTitle();
   document.getElementById("view-subtitle").textContent = new Date().toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "long" });
+  // Registermarke am Kopf: die Ansicht "Heute" ist selbst der laufende
+  // Bereich und trägt sie deshalb dort, wo sie in den gruppierten Ansichten
+  // an der laufenden Woche steht (Styleguide 7.1). Genau eine pro Bildschirm.
+  document.querySelector(".main-header").classList.toggle("is-now", state.view.kind === "today");
 
   setAbsencesViewVisible(false);
 
