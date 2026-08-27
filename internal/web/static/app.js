@@ -790,13 +790,13 @@ function absenceDurationDE(a) {
   return days === 1 ? "1 Tag" : `${days} Tage`;
 }
 
-// Where the absence stands relative to today: "beginnt in 3 Wochen",
+// Where the absence stands relative to today: "in 3 Wochen",
 // "noch 4 Tage", "endet heute" — or "" for past ones, where the date says it all.
 function absenceTimingDE(a, today) {
   if (a.end_date < today) return "";
   if (a.start_date > today) {
     const rel = relativeDaysDE(daysBetweenISO(today, a.start_date));
-    return rel === "morgen" ? "beginnt morgen" : `beginnt ${rel}`;
+    return rel === "morgen" ? "morgen" : `${rel}`;
   }
   const left = daysBetweenISO(today, a.end_date);
   if (left === 0) return "endet heute";
