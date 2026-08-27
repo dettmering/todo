@@ -98,9 +98,14 @@ heutige Datum, das ausgewählte Nav-Item und das Logo sind alle „jetzt".
 | Stufe | Token | Hell | Dunkel | Lesart |
 | --- | --- | --- | --- | --- |
 | **P1** | `--p1` | `#b5342a` | `#e86a5e` | Schnittmarken-Rot |
-| **P2** | `--p2` | `#a2620f` | `#d79a4a` | Ocker |
+| **P2** | `--p2` | `#bf8420` | `#d79a4a` | Ocker |
 | **P3** | `--p3` | `#5b6472` | `#98a1ae` | Graphit |
 | **P4** | `--p4` | `#a9aeb6` | `#5c646f` | blass |
+
+P2 stand im Hellen zunächst auf `#a2620f`. Das lag mit L\* 47,6 nur 5,6
+Punkte über P1 (41,9) und im selben warmen Winkel — zwei dunkle, satte Töne
+nebeneinander, die man am 18-px-Ring nicht auseinanderhält. `#bf8420` hebt
+den Abstand auf 17,7 Punkte, ohne den Ockerton zu verlassen.
 
 Die Leiter ist bewusst **kein Regenbogen**. Eine vierstufige Skala aus vier
 Farbtönen zwingt zum Auswendiglernen; eine Skala aus einer Signalfarbe und
@@ -128,6 +133,12 @@ im Dunkelmodus automatisch mitzieht).
 
 Dieselbe Leiter wie bei der Priorität, nur mit Cyan an der Stelle von „heute".
 Überfällig steht zusätzlich in Mono **700**.
+
+Eine Ausnahme: „Morgen" und die Deadline-Flagge stehen im Hellen weiter auf
+`#a2620f`, dem ursprünglichen Ocker, während `--p2` auf `#bf8420` aufgehellt
+wurde (§2.4). Der Grund für die Aufhellung — die Verwechslung mit dem Rot am
+Prioritätsring — greift hier nicht: Datumsangaben stehen als Text, nicht als
+Ring, und „überfällig" trägt zusätzlich den Mono-700-Schnitt.
 
 ### 2.6 Abwesenheitsfarben
 
