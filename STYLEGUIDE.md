@@ -385,12 +385,15 @@ direkte Entsprechung zum Blatt Papier in md2pdf.
 
 ### 7.10 Die Share-Seite (`GET /api/absences.html`)
 
-Ein eigenständiges Dokument, kein Fenster in die App — und die Stelle, an der
-md2pdfs Umkehrung wörtlich gilt: **das Blatt bleibt auch im Dunkelmodus
-Papier** (`--paper: #e9e7e1`), nur der Grund darunter wird dunkel. Im
-Dark-Block werden deshalb ausschließlich `--bg`, `--paper`, `--edge`,
-`--shade` und `--offpaper` (die Fußzeile *neben* dem Blatt) neu belegt.
+Ein eigenständiges Dokument, kein Fenster in die App: eine Karte auf dem
+Grund, mit eigenem, kleinem Tokensatz im Inline-`<style>` von `share.go`.
 
+* **Der Dunkelmodus schaltet die ganze Karte um**, nicht nur den Grund. Die
+  Werte im Dark-Block sind dieselben wie in `style.css` (`--paper` = das
+  `--surface` der App, `--fg` / `--muted` / `--line` = Tusche, Graphit,
+  Haarstrich), damit Karte und Oberfläche nicht auseinanderlaufen.
+  `--offpaper` ist der einzige Sonderwert: die Fußzeile steht *neben* der
+  Karte auf dem dunklen Grund und braucht dort einen eigenen Ton.
 * Die Überschrift „Availability" ist die **Rubrik** (Marginalie), die
   Statuszeile ist die **Nachricht** (Sans 600, bis `1.7rem`) — die Seite
   beantwortet eine Frage, also steht die Antwort oben und groß.
@@ -398,6 +401,12 @@ Dark-Block werden deshalb ausschließlich `--bg`, `--paper`, `--edge`,
   Schnittmarken-Rot, Dienstreise = Indigo (dasselbe wie `business_trip`).
 * Die Seite lädt die Schriften aus `/static/fonts/` — derselbe Server, keine
   externe Abhängigkeit.
+
+> **Verworfen:** In md2pdf bleibt das Blatt auch im Dunkelmodus Papier, weil
+> dort ein Druckbogen in der Vorschau liegt. Hier war es eine hell
+> leuchtende Karte auf dunklem Grund — als Metapher richtig, als Verhalten
+> falsch. Wer nachts eine Verfügbarkeit nachschlägt, will nicht geblendet
+> werden.
 
 ---
 

@@ -155,9 +155,9 @@ func buildAbsencesSharePage(absences []*domain.Absence, status domain.Availabili
 <title>Availability</title>
 <style>
 /* Die Share-Seite ist ein Dokument, kein Fenster in die App: ein Blatt Papier
-   auf dem Grund der Druckerei. Deshalb bleibt das Blatt auch im Dunkelmodus
-   Papier — nur der Grund darunter wird dunkel. Schriften kommen aus /static,
-   dieselben wie in der App. */
+   auf dem Grund der Druckerei. Sie folgt aber der Systemeinstellung wie die
+   App auch: im Dunkelmodus wechselt der ganze Satz an Tokens, nicht nur der
+   Grund. Schriften kommen aus /static, dieselben wie in der App. */
 @font-face{font-family:"Plex Sans";src:url("/static/fonts/plex-sans-400.woff2") format("woff2");font-weight:400;font-display:swap}
 @font-face{font-family:"Plex Sans";src:url("/static/fonts/plex-sans-600.woff2") format("woff2");font-weight:600;font-display:swap}
 @font-face{font-family:"Plex Mono";src:url("/static/fonts/plex-mono-400.woff2") format("woff2");font-weight:400;font-display:swap}
@@ -168,10 +168,14 @@ func buildAbsencesSharePage(absences []*domain.Absence, status domain.Availabili
 --fg:#15171c;--muted:#666c76;--faint:#8a9099;--line:rgba(21,23,28,.12);
 --track:#f3f1ec;--tick:rgba(21,23,28,.22);--offpaper:#8a9099;
 --away:#b5342a;--awaybg:#f7e4e2;--trip:#3a4fa0;--tripbg:#e5e8f4;--ok:#0b6e88;--okbg:#e1edf0}
-/* Nur der Grund wechselt. Alles auf dem Blatt bleibt, wie es gedruckt waere;
-   die Fusszeile steht daneben und braucht deshalb einen eigenen Wert. */
+/* Dieselben Werte wie im Dark-Block der App (style.css), damit Karte und
+   Oberflaeche nicht auseinanderlaufen. --offpaper ist die Fusszeile, die
+   neben der Karte auf dem Grund steht und deshalb einen eigenen Wert hat. */
 @media (prefers-color-scheme:dark){:root{
---bg:#12151a;--paper:#e9e7e1;--edge:rgba(0,0,0,.5);--shade:rgba(0,0,0,.55);--offpaper:#9aa1ab}}
+--bg:#12151a;--paper:#191d23;--edge:rgba(232,233,236,.14);--shade:rgba(0,0,0,.5);
+--fg:#e8e9ec;--muted:#9aa1ab;--faint:#7b838e;--line:rgba(232,233,236,.14);
+--track:#232830;--tick:rgba(232,233,236,.26);--offpaper:#7b838e;
+--away:#e86a5e;--awaybg:#3a201d;--trip:#8b9ce8;--tripbg:#1b2340;--ok:#56c5e2;--okbg:#16323c}}
 *{box-sizing:border-box}
 body{margin:0;padding:clamp(1.5rem,5vw,3.5rem) 1rem 3rem;background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased}
 main{max-width:32rem;margin:0 auto;background:var(--paper);border-radius:4px;padding:clamp(1.35rem,4vw,2rem) clamp(1.15rem,4vw,2rem);
