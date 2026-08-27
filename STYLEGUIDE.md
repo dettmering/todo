@@ -6,7 +6,7 @@ steht, gehört nicht ins Stylesheet, bis sie hier steht.
 
 > **Gestalterische Grundlage: die Weboberfläche von `md2pdf`**
 > (`../md2pdf`, `src/webui.js` und `assets/template.typ`). Von dort kommen die
-> beiden Schriften (IBM Plex Sans / IBM Plex Mono), die Druckerei-Palette
+> Haltung zur Typografie (eine Lesende, eine Ablesende), die Druckerei-Palette
 > (Papier, Tusche, Graphit, Prozess-Cyan, Schnittmarken-Rot) und die Haltung:
 > **ein lautes Element, alles andere leise.** Übernommen ist nicht das Layout —
 > md2pdf konfiguriert einen Satzspiegel, wir führen eine Aufgabenliste —,
@@ -24,8 +24,8 @@ steht, gehört nicht ins Stylesheet, bis sie hier steht.
 Alles Weitere folgt aus diesen drei Sätzen. Sie stehen als Kommentar auch am
 Kopf von `internal/web/static/style.css`.
 
-1. **Zwei Schriften, zwei Aufgaben.** IBM Plex Sans setzt alles, was man
-   *liest*. IBM Plex Mono setzt alles, was man *abliest* — Zahlen, Daten,
+1. **Zwei Schriften, zwei Aufgaben.** Inter setzt alles, was man
+   *liest*. JetBrains Mono setzt alles, was man *abliest* — Zahlen, Daten,
    Kürzel, Rubriken, Marginalien. Mono ist immer klein, versal, gesperrt und
    hat Tabellenziffern.
 2. **Zwei Signalfarben, sonst Graustufen.** Prozess-Cyan heißt „jetzt"
@@ -161,6 +161,17 @@ Zustände, die etwas anhalten.
 ---
 
 ## 3. Typografie
+
+**Inter** für `--font-sans`, **JetBrains Mono** für `--font-mono`.
+
+Vorher standen hier IBM Plex Sans und IBM Plex Mono — die Schnitte, die
+md2pdf selbst ausliefert. Sie waren die naheliegende Wahl, solange es um die
+Herkunft der Gestaltung ging, aber nicht die richtige für diese Oberfläche:
+Plex hat eine vergleichsweise kleine x-Höhe und enge Punzen, und das rächt
+sich genau bei den Größen, aus denen diese App besteht — 12 px Marginalien,
+13 px Rubrikzeile, 15 px Fließtext. Inter und JetBrains Mono sind für den
+Bildschirm und für kleine Grade gezeichnet: größere x-Höhe, offenere Punzen.
+Die **Rollen** aus Regel 1 ändern sich dadurch nicht, nur die Schnitte.
 
 Beide Familien kommen über **Google Fonts**. `index.html` trägt dazu zwei
 `preconnect` und einen Stylesheet-Link auf `fonts.googleapis.com`; die

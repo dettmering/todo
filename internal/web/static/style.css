@@ -3,8 +3,8 @@
 
    Drei Regeln:
 
-   1. Zwei Schriften, zwei Aufgaben. IBM Plex Sans setzt alles, was man liest.
-      IBM Plex Mono setzt alles, was man *abliest* — Zahlen, Daten, Kürzel,
+   1. Zwei Schriften, zwei Aufgaben. Inter setzt alles, was man liest.
+      JetBrains Mono setzt alles, was man *abliest* — Zahlen, Daten, Kürzel,
       Marginalien; immer klein, versal, gesperrt, mit Tabellenziffern.
    2. Zwei Signalfarben, sonst Graustufen. Prozess-Cyan heißt „jetzt" (heute
       fällig, laufende Woche, aktive Auswahl, Marke). Schnittmarken-Rot heißt
@@ -19,8 +19,8 @@
    nicht mehr als WOFF2 aus /static/fonts -- siehe Styleguide 4.4. */
 
 :root {
-  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
   /* Flächen: der Inhalt liegt auf Papier, alles andere auf dem Grund. */
   --main-bg: #ffffff;
