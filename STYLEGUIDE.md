@@ -153,7 +153,16 @@ Zustände, die etwas anhalten.
 
 Beide Schnitte liegen als Subset (Latin + Latin-Ext) im WOFF2-Format unter
 `internal/web/static/fonts/` und werden über `go:embed` mit ausgeliefert —
-kein CDN, keine Netzwerkabhängigkeit. Die TTF-Quellen stammen aus
+kein CDN, keine Netzwerkabhängigkeit.
+
+Die vier Schnitte, die oberhalb der Falz vorkommen — Sans 400, Sans 600,
+Mono 400, Mono 700 — stehen in `index.html` als
+`<link rel="preload" as="font" … crossorigin>`. Ohne das werden sie erst beim
+Parsen des Stylesheets entdeckt; auf dem Handy ist das Swap-Fenster dann lang
+genug, dass Rubrik und Datum kurzzeitig in zwei verschiedenen Schriften
+stehen. `crossorigin` ist auch bei gleicher Herkunft Pflicht — Schriften
+werden immer im CORS-Modus geholt, ohne das Attribut lädt der Browser sie ein
+zweites Mal. Die TTF-Quellen stammen aus
 `../md2pdf/assets/fonts` (IBM Plex, SIL Open Font License; `LICENSE.txt` liegt
 im selben Ordner).
 
@@ -281,6 +290,16 @@ md2pdf den druckenden Bereich eines Blattes bemaßt.
 * Aufbau als Flexzeile mit expliziter `order`: Registermarke (0), Label (1),
   Zeitraum (2), **Leiter** `::after` (3), Abwesenheits-Badges (4), Zähler (5).
   Der Leiter ist ein `flex: 1 1 auto` hohes 1-px-Element — kein Markup nötig.
+* **`align-items: baseline`, nicht `center`.** Die Zeile mischt zwei Schnitte;
+  `center` legt nur die Zeilenkästen übereinander, nicht die Glyphen. Solange
+  beide Schnitte aus derselben Schrift kommen, fällt das nicht auf — sobald
+  einer davon noch lädt oder auf einen Systemfont zurückfällt (auf iOS
+  beobachtet), steht die Rubrik sichtbar höher als das Datum daneben. Was
+  keine eigene Grundlinie beiträgt — Registermarke, Leiter, Badge-Gruppe —
+  bekommt `align-self: center` und ist damit aus der Ausrichtung heraus.
+  **Dieselbe Regel gilt für jede Zeile, die Schnitte oder Größen mischt**:
+  `.activity-day` und `.task .dates` (dort trägt zusätzlich das Icon
+  `align-self: center`, damit die Zeile ihre Grundlinie vom Text bekommt).
 * Grundzustand: Mono 13 px versal, `0.06em`; die Rubrik selbst in **700** und
   `--text`, Zeitraum und Zähler in 400 und `--text-muted`; Unterlinie
   `--border-strong`. Der Fettschnitt liegt nur auf der Rubrik — läge er auf

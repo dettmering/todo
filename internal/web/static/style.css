@@ -490,7 +490,12 @@ strong, b { font-weight: 600; }
    einzige Stelle, an der diese Ansicht laut wird. */
 .group-header {
   display: flex;
-  align-items: center;
+  /* Grundlinie, nicht Boxmitte. Die Zeile mischt zwei Schnitte (Rubrik 700,
+     Zeitraum 400); `center` legt nur die Zeilenkaesten uebereinander, nicht
+     die Glyphen. Sobald ein Schnitt aus einer anderen Schrift kommt -- auf
+     iOS beobachtet -- stand die Rubrik sichtbar hoeher als das Datum daneben.
+     Die Grundlinie ist der gemeinsame Bezug, egal welche Schrift rendert. */
+  align-items: baseline;
   gap: 10px;
   padding: 30px 0 8px;
   font-family: var(--font-mono);
@@ -507,6 +512,11 @@ strong, b { font-weight: 600; }
 /* Die Rubrik selbst traegt den Fettschnitt, der Zeitraum daneben bleibt
    regular — sonst wird die Zeile bei dieser Groesse eine Wand. */
 .group-header > span:first-of-type { order: 1; flex: none; font-weight: 700; }
+/* Was keine eigene Grundlinie beitraegt, wird mittig gesetzt und aus der
+   Grundlinienausrichtung herausgenommen. */
+.group-header::before,
+.group-header::after,
+.group-header .group-absences { align-self: center; }
 .group-header::after {
   content: "";
   order: 3;
@@ -652,7 +662,9 @@ strong, b { font-weight: 600; }
 .task .dates {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  /* Wie in der Rubrikzeile: "Gestern" steht in 700, der Rest in 400 --
+     gemeinsamer Bezug ist die Grundlinie. */
+  align-items: baseline;
   gap: 8px;
   margin-top: 4px;
   font-family: var(--font-mono);
@@ -663,10 +675,13 @@ strong, b { font-weight: 600; }
 }
 .task .date-item {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: 4px;
 }
-.task .date-item svg { width: 12px; height: 12px; flex-shrink: 0; }
+/* Das Icon hat keine Grundlinie. `align-self: center` nimmt es aus der
+   Ausrichtung heraus, damit die Zeile ihre Grundlinie vom Text bekommt --
+   und zentriert es zugleich sauber daneben. */
+.task .date-item svg { width: 12px; height: 12px; flex-shrink: 0; align-self: center; }
 .task .date-item.due-today { color: var(--due-today); }
 .task .date-item.due-tomorrow { color: var(--due-tomorrow); }
 .task .date-item.due-future { color: var(--due-future); }
@@ -1350,7 +1365,7 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
    Rubrik, die Zahl steht wieder am rechten Rand. */
 .activity-day {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 10px;
   padding: 22px 0 7px;
   font-family: var(--font-mono);
@@ -1366,6 +1381,7 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
 .activity-day > span:first-of-type { font-weight: 700; }
 .activity-day::after {
   content: "";
+  align-self: center;
   flex: 1 1 auto;
   min-width: 16px;
   height: 1px;

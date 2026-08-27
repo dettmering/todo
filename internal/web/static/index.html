@@ -4,6 +4,18 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Todo</title>
+  <!-- Die vier Schnitte, die oberhalb der Falz vorkommen: Sans 400 (Fliesstext),
+       Sans 600 (Seitentitel), Mono 400 und Mono 700 (Rubrikzeile). Ohne Preload
+       werden sie erst entdeckt, wenn das Stylesheet geparst ist; auf dem Handy
+       ist das Swap-Fenster dann lang genug, um sichtbar zu werden -- und weil
+       jede Datei einzeln ankommt, stehen Rubrik und Datum kurzzeitig in zwei
+       verschiedenen Schriften. `crossorigin` ist auch bei gleicher Herkunft
+       Pflicht: Schriften werden immer im CORS-Modus geholt, ohne das Attribut
+       laedt der Browser sie ein zweites Mal. -->
+  <link rel="preload" as="font" type="font/woff2" href="/static/fonts/plex-sans-400.woff2" crossorigin />
+  <link rel="preload" as="font" type="font/woff2" href="/static/fonts/plex-sans-600.woff2" crossorigin />
+  <link rel="preload" as="font" type="font/woff2" href="/static/fonts/plex-mono-400.woff2" crossorigin />
+  <link rel="preload" as="font" type="font/woff2" href="/static/fonts/plex-mono-700.woff2" crossorigin />
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
