@@ -153,12 +153,12 @@ func buildAbsencesSharePage(absences []*domain.Absence, status domain.Availabili
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Availability</title>
-<!-- IBM Plex kommt hier von Google Fonts, nicht aus /static/fonts wie in der
-     App. Diese Seite ist die einzige, die jemand von aussen aufruft, und
-     /static liegt hinter der BasicAuth des Reverse Proxy: die Schriften
-     kaemen als 401 zurueck und die Seite faende in einer Systemschrift
-     statt. Der Preis ist eine externe Abhaengigkeit fuer genau dieses
-     Dokument; faellt sie aus, greift der Fallback-Stack unten. -->
+<!-- IBM Plex kommt von Google Fonts, wie in der App auch. Hier war es schon
+     immer zwingend: diese Seite ist die einzige, die jemand von aussen
+     aufruft, und /static liegt hinter der BasicAuth des Reverse Proxy --
+     selbst ausgelieferte Schriften kaemen als 401 zurueck und die Seite
+     stuende in einer Systemschrift. Faellt Google Fonts aus, greift der
+     Fallback-Stack unten. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">

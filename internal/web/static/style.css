@@ -15,16 +15,12 @@
       oder aufnimmt, hat eine Kante. Kreise bleiben Kreise (Checkbox, Punkt).
 */
 
-@font-face { font-family: "Plex Sans"; src: url("/static/fonts/plex-sans-400.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
-@font-face { font-family: "Plex Sans"; src: url("/static/fonts/plex-sans-400i.woff2") format("woff2"); font-weight: 400; font-style: italic; font-display: swap; }
-@font-face { font-family: "Plex Sans"; src: url("/static/fonts/plex-sans-500.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
-@font-face { font-family: "Plex Sans"; src: url("/static/fonts/plex-sans-600.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
-@font-face { font-family: "Plex Mono"; src: url("/static/fonts/plex-mono-400.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
-@font-face { font-family: "Plex Mono"; src: url("/static/fonts/plex-mono-700.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
+/* Die Schnitte kommen ueber Google Fonts (Link im <head> von index.html),
+   nicht mehr als WOFF2 aus /static/fonts -- siehe Styleguide 4.4. */
 
 :root {
-  --font-sans: "Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "Plex Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
 
   /* Flächen: der Inhalt liegt auf Papier, alles andere auf dem Grund. */
   --main-bg: #ffffff;

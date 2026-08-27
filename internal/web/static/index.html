@@ -4,18 +4,16 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Todo</title>
-  <!-- Die vier Schnitte, die oberhalb der Falz vorkommen: Sans 400 (Fliesstext),
-       Sans 600 (Seitentitel), Mono 400 und Mono 700 (Rubrikzeile). Ohne Preload
-       werden sie erst entdeckt, wenn das Stylesheet geparst ist; auf dem Handy
-       ist das Swap-Fenster dann lang genug, um sichtbar zu werden -- und weil
-       jede Datei einzeln ankommt, stehen Rubrik und Datum kurzzeitig in zwei
-       verschiedenen Schriften. `crossorigin` ist auch bei gleicher Herkunft
-       Pflicht: Schriften werden immer im CORS-Modus geholt, ohne das Attribut
-       laedt der Browser sie ein zweites Mal. -->
-  <link rel="preload" as="font" type="font/woff2" href="/static/fonts/plex-sans-400.woff2" crossorigin />
-  <link rel="preload" as="font" type="font/woff2" href="/static/fonts/plex-sans-600.woff2" crossorigin />
-  <link rel="preload" as="font" type="font/woff2" href="/static/fonts/plex-mono-400.woff2" crossorigin />
-  <link rel="preload" as="font" type="font/woff2" href="/static/fonts/plex-mono-700.woff2" crossorigin />
+  <!-- IBM Plex kommt von Google Fonts, nicht mehr aus /static/fonts. Selbst
+       ausgeliefert waren es sechs zusaetzliche Anfragen an den eigenen Host
+       bei jedem Aufruf; der Reverse Proxy davor begrenzt die Zahl der
+       Anfragen und hat dabei die Skripte abgewiesen, worauf die Seite leer
+       blieb. Von fonts.gstatic.com zaehlen sie nicht mit. Der Preis ist eine
+       externe Abhaengigkeit; faellt sie aus, greift der Fallback-Stack in
+       --font-sans / --font-mono. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&amp;family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&amp;display=swap" />
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>

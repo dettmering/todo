@@ -106,10 +106,11 @@ These choices look unremarkable but are easy to break:
 ## Frontend conventions
 
 - **No build step.** `internal/web/static/{index.html, style.css, app.js}`
-  plus the six WOFF2 subsets in `static/fonts/` are embedded via `go:embed`
-  (`all:static`) in `internal/web/web.go`. Edit and rebuild. `main.go`
-  registers the `.woff2` MIME type explicitly — the scratch image has no
-  `/etc/mime.types` to derive it from.
+  are embedded via `go:embed` (`all:static`) in `internal/web/web.go`. Edit
+  and rebuild. IBM Plex comes from Google Fonts (link in the `<head>`), not
+  from `/static` — self-hosting it cost six extra requests per load against
+  the app's own host, and the reverse proxy's rate limit then rejected
+  `app.js`.
 - **Icons are inline SVG strings** in `app.js` (object `ICON`). Lucide
   stroke style, `currentColor`. The "Heute" sidebar icon is generated
   dynamically with the current day number (`todayIconSVG`).

@@ -151,29 +151,30 @@ Zustände, die etwas anhalten.
 
 ## 3. Typografie
 
-Beide Schnitte liegen als Subset (Latin + Latin-Ext) im WOFF2-Format unter
-`internal/web/static/fonts/` und werden über `go:embed` mit ausgeliefert —
-kein CDN, keine Netzwerkabhängigkeit.
+Beide Familien kommen über **Google Fonts**. `index.html` trägt dazu zwei
+`preconnect` und einen Stylesheet-Link auf `fonts.googleapis.com`; die
+Schriftdateien selbst holt der Browser von `fonts.gstatic.com`. Fällt Google
+Fonts aus, greift der Fallback-Stack in `--font-sans` / `--font-mono`.
 
-Die vier Schnitte, die oberhalb der Falz vorkommen — Sans 400, Sans 600,
-Mono 400, Mono 700 — stehen in `index.html` als
-`<link rel="preload" as="font" … crossorigin>`. Ohne das werden sie erst beim
-Parsen des Stylesheets entdeckt; auf dem Handy ist das Swap-Fenster dann lang
-genug, dass Rubrik und Datum kurzzeitig in zwei verschiedenen Schriften
-stehen. `crossorigin` ist auch bei gleicher Herkunft Pflicht — Schriften
-werden immer im CORS-Modus geholt, ohne das Attribut lädt der Browser sie ein
-zweites Mal. Die TTF-Quellen stammen aus
-`../md2pdf/assets/fonts` (IBM Plex, SIL Open Font License; `LICENSE.txt` liegt
-im selben Ordner).
+Vorher lagen die Schnitte als WOFF2-Subsets unter
+`internal/web/static/fonts/` und gingen über `go:embed` mit ins Binary. Das
+waren sechs zusätzliche Anfragen an den eigenen Host bei jedem Aufruf. Der
+Reverse Proxy vor der App begrenzt die Zahl der Anfragen, und mit den
+`preload`-Links standen die Schriften vor den Skripten in der Warteschlange:
+`app.js` kam als `429` zurück und die Seite blieb leer. Von einem fremden
+Host zählen die Schriften nicht gegen dieses Limit.
 
-| Datei | Familie | Schnitt |
+| Schnitt | Familie | Verwendung |
 | --- | --- | --- |
-| `plex-sans-400.woff2` | `--font-sans` | Regular |
-| `plex-sans-400i.woff2` | `--font-sans` | Regular kursiv |
-| `plex-sans-500.woff2` | `--font-sans` | Medium |
-| `plex-sans-600.woff2` | `--font-sans` | SemiBold |
-| `plex-mono-400.woff2` | `--font-mono` | Regular |
-| `plex-mono-700.woff2` | `--font-mono` | Bold |
+| Sans 400 | `--font-sans` | Regular |
+| Sans 400 kursiv | `--font-sans` | Regular kursiv |
+| Sans 500 | `--font-sans` | Medium |
+| Sans 600 | `--font-sans` | SemiBold |
+| Mono 400 | `--font-mono` | Regular |
+| Mono 700 | `--font-mono` | Bold |
+
+Genau diese sechs stehen in der Google-Fonts-URL. Wer einen weiteren Schnitt
+braucht, muss ihn dort eintragen — sonst synthetisiert der Browser ihn.
 
 **Es gibt kein 700 in der Sans.** `strong`/`b` sind global auf `600` gesetzt,
 damit gerendertes Markdown keinen synthetischen Fettschnitt erzeugt.
@@ -433,13 +434,11 @@ Grund, mit eigenem, kleinem Tokensatz im Inline-`<style>` von `share.go`.
   beantwortet eine Frage, also steht die Antwort oben und groß.
 * Verfügbar = `--ok` (Prozess-Cyan, „jetzt erreichbar"), abwesend =
   Schnittmarken-Rot, Dienstreise = Indigo (dasselbe wie `business_trip`).
-* **Die Schriften kommen hier von Google Fonts**, nicht aus `/static/fonts/`
-  wie überall sonst. Diese Seite ist die einzige, die jemand von außen
-  aufruft, und `/static` liegt hinter der BasicAuth des Reverse Proxy — die
-  eingebetteten WOFF2 kämen als 401 zurück und die Seite fiele auf eine
-  Systemschrift zurück. Die externe Abhängigkeit gilt **nur für dieses
-  Dokument**; die App selbst bleibt netzunabhängig. Fällt Google Fonts aus,
-  greift der Fallback-Stack in `--sans` / `--mono`.
+* **Die Schriften kommen von Google Fonts**, wie in der App auch (§3).
+  Für diese Seite war das schon immer zwingend: sie ist die einzige, die
+  jemand von außen aufruft, und `/static` liegt hinter der BasicAuth des
+  Reverse Proxy — selbst ausgelieferte WOFF2 kämen als 401 zurück. Fällt
+  Google Fonts aus, greift der Fallback-Stack in `--sans` / `--mono`.
 
 > **Verworfen:** In md2pdf bleibt das Blatt auch im Dunkelmodus Papier, weil
 > dort ein Druckbogen in der Vorschau liegt. Hier war es eine hell
@@ -550,6 +549,6 @@ ihren gespeicherten Hex** — die Liste gilt für neue.
 * **Rundung gebraucht?** §1, Regel 3: Pille, wenn man es drückt oder es etwas
   benennt; `--radius`, wenn es etwas trägt.
 * **Neues Icon?** Lucide-Stil, ins `ICON`-Objekt, `currentColor` benutzen.
-* **Schrift geändert?** Die WOFF2-Subsets werden aus
-  `../md2pdf/assets/fonts/*.ttf` mit `pyftsubset` erzeugt (Latin + Latin-Ext,
-  `kern,liga,calt,tnum,frac`, `--flavor=woff2`). Die Lizenz muss mitwandern.
+* **Schnitt gebraucht, den es noch nicht gibt?** In die Google-Fonts-URL im
+  `<head>` von `index.html` eintragen — und in §3 nachtragen. Sonst
+  synthetisiert der Browser ihn.
