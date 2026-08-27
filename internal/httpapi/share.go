@@ -163,7 +163,17 @@ func buildAbsencesSharePage(absences []*domain.Absence, status domain.Availabili
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono&amp;display=swap">
 <style>
-/* Die Share-Seite ist ein Dokument, kein Fenster in die App: ein Blatt Papier
+/* --ok ist das Gruen des Verfuegbarkeitsstatus, --now die Prozessfarbe der
+   Jetzt-Marken auf der Schiene (Raute, laufende Kalenderwoche). Beide lagen
+   frueher auf demselben Wert; das Gruen haette sonst die Raute mitgenommen
+   und sie waere ihrem Zwilling in style.css davongelaufen. Der Gruenton
+   stammt aus der Kategorienskala der App und bleibt damit im Register.
+
+   Hinweis: In dieser Datei duerfen die Namen der Abwesenheitstypen nirgends
+   auftauchen, auch nicht im Kommentar -- die Seite ist anonymisiert, und
+   TestBuildAbsencesSharePage_Anonymized prueft den gesamten Ausgabetext.
+
+   Die Share-Seite ist ein Dokument, kein Fenster in die App: ein Blatt Papier
    auf dem Grund der Druckerei. Sie folgt aber der Systemeinstellung wie die
    App auch: im Dunkelmodus wechselt der ganze Satz an Tokens, nicht nur der
    Grund. */
@@ -173,7 +183,7 @@ func buildAbsencesSharePage(absences []*domain.Absence, status domain.Availabili
 --bg:#fbfaf7;--paper:#fff;--edge:rgba(21,23,28,.16);--shade:rgba(21,23,28,.13);
 --fg:#15171c;--muted:#666c76;--faint:#8a9099;--line:rgba(21,23,28,.12);
 --track:#f3f1ec;--tick:rgba(21,23,28,.22);--offpaper:#8a9099;
---away:#b5342a;--awaybg:#f7e4e2;--trip:#3a4fa0;--tripbg:#e5e8f4;--ok:#0b6e88;--okbg:#e1edf0}
+--away:#b5342a;--awaybg:#f7e4e2;--trip:#3a4fa0;--tripbg:#e5e8f4;--ok:#2c7351;--now:#0b6e88}
 /* Dieselben Werte wie im Dark-Block der App (style.css), damit Karte und
    Oberflaeche nicht auseinanderlaufen. --offpaper ist die Fusszeile, die
    neben der Karte auf dem Grund steht und deshalb einen eigenen Wert hat. */
@@ -181,7 +191,7 @@ func buildAbsencesSharePage(absences []*domain.Absence, status domain.Availabili
 --bg:#12151a;--paper:#191d23;--edge:rgba(232,233,236,.14);--shade:rgba(0,0,0,.5);
 --fg:#e8e9ec;--muted:#9aa1ab;--faint:#7b838e;--line:rgba(232,233,236,.14);
 --track:#232830;--tick:rgba(232,233,236,.26);--offpaper:#7b838e;
---away:#e86a5e;--awaybg:#3a201d;--trip:#8b9ce8;--tripbg:#1b2340;--ok:#56c5e2;--okbg:#16323c}}
+--away:#e86a5e;--awaybg:#3a201d;--trip:#8b9ce8;--tripbg:#1b2340;--ok:#6ecb8c;--now:#56c5e2}}
 *{box-sizing:border-box}
 body{margin:0;padding:clamp(1.5rem,5vw,3.5rem) 1rem 3rem;background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased}
 main{max-width:32rem;margin:0 auto;background:var(--paper);border-radius:4px;padding:clamp(1.35rem,4vw,2rem) clamp(1.15rem,4vw,2rem);
@@ -206,14 +216,14 @@ h2{margin:1.1rem 0 .7rem;padding-top:1.1rem;border-top:1px solid var(--line);fon
 .timeline{margin:1.5rem 0 0}
 .tl-weeks{position:relative;height:.95rem;margin-bottom:.35rem;font-family:var(--mono);font-size:.625rem;letter-spacing:.04em;line-height:1;color:var(--faint);font-variant-numeric:tabular-nums}
 .tl-weeks span{position:absolute;top:0;transform:translateX(-50%)}
-.tl-weeks span.cur{color:var(--ok);font-weight:400}
+.tl-weeks span.cur{color:var(--now);font-weight:400}
 .tl-track{position:relative;height:.5rem;border-radius:999px;background-color:var(--track);background-image:repeating-linear-gradient(to right,transparent 0,transparent calc(100%/12 - 1px),var(--tick) calc(100%/12 - 1px),var(--tick) calc(100%/12))}
 .tl-span{position:absolute;top:0;bottom:0;border-radius:999px;min-width:.5rem}
 .tl-span.away{background:var(--away)}
 .tl-span.trip{background:var(--trip)}
 /* Raute statt Punkt, wie die Meilensteinmarke im Gantt-Diagramm -- Zwilling
    zu .tl-today in style.css. */
-.tl-today{position:absolute;top:50%;width:.56rem;height:.56rem;background:var(--ok);box-shadow:0 0 0 2px var(--paper);transform:translate(-50%,-50%) rotate(45deg)}
+.tl-today{position:absolute;top:50%;width:.56rem;height:.56rem;background:var(--now);box-shadow:0 0 0 2px var(--paper);transform:translate(-50%,-50%) rotate(45deg)}
 .tl-months{position:relative;height:1rem;margin-top:.55rem;font-family:var(--mono);font-size:.625rem;letter-spacing:.11em;text-transform:uppercase;color:var(--faint)}
 .tl-months span{position:absolute;top:0}
 .list{list-style:none;margin:1.25rem 0 0;padding:0}
