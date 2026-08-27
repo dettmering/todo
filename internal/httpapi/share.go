@@ -197,7 +197,7 @@ h2{margin:2rem 0 .7rem;padding-top:1.1rem;border-top:1px solid var(--line);font-
 .status.available{color:var(--ok)}
 .status.away{color:var(--away)}
 .status.trip{color:var(--trip)}
-.back{margin:0;color:var(--muted);font-family:var(--mono);font-size:.75rem;letter-spacing:.05em;font-variant-numeric:tabular-nums}
+.back{margin:0;color:var(--muted);font-family:var(--mono);font-size:.9rem;letter-spacing:.02em;font-variant-numeric:tabular-nums}
 .back strong{color:var(--fg);font-weight:400}
 /* Die Schiene ist das einzige Bild auf der Seite und darf das auch sein. */
 .timeline{margin:1.5rem 0 0}
@@ -212,16 +212,16 @@ h2{margin:2rem 0 .7rem;padding-top:1.1rem;border-top:1px solid var(--line);font-
 .tl-months{position:relative;height:1rem;margin-top:.55rem;font-family:var(--mono);font-size:.625rem;letter-spacing:.11em;text-transform:uppercase;color:var(--faint)}
 .tl-months span{position:absolute;top:0}
 .list{list-style:none;margin:1.25rem 0 0;padding:0}
-.list li{display:flex;align-items:center;gap:.55rem;padding:.55rem 0;border-bottom:1px solid var(--line)}
+.list li{display:flex;align-items:baseline;gap:.6rem;padding:.6rem 0;border-bottom:1px solid var(--line)}
 .list li:last-child{border-bottom:0}
 .list li .badge{margin-left:auto}
-.range{font-family:var(--mono);font-size:.8rem;letter-spacing:.04em;font-variant-numeric:tabular-nums}
-.now{flex:none;white-space:nowrap;font-family:var(--mono);font-size:.625rem;font-weight:400;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);border:1px solid var(--tick);padding:.1rem .5rem;border-radius:999px}
-.badge{flex:none;white-space:nowrap;font-size:.75rem;font-weight:500;padding:.15rem .65rem;border-radius:999px}
+.range{font-family:var(--mono);font-size:.95rem;letter-spacing:.02em;font-variant-numeric:tabular-nums}
+.now{flex:none;align-self:center;white-space:nowrap;font-family:var(--mono);font-size:.6875rem;font-weight:400;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);border:1px solid var(--tick);padding:.1rem .55rem;border-radius:999px}
+.badge{flex:none;align-self:center;white-space:nowrap;font-size:.8rem;font-weight:500;padding:.18rem .7rem;border-radius:999px}
 .badge.away{color:var(--away);background:var(--awaybg)}
 .badge.trip{color:var(--trip);background:var(--tripbg)}
 .empty{color:var(--muted)}
-.legend{display:grid;grid-template-columns:auto 1fr;gap:.45rem .75rem;align-items:center;margin:1.35rem 0 0;padding-top:1rem;border-top:1px solid var(--line);color:var(--muted);font-size:.8rem}
+.legend{display:grid;grid-template-columns:auto 1fr;gap:.5rem .75rem;align-items:center;margin:1.35rem 0 0;padding-top:1rem;border-top:1px solid var(--line);color:var(--muted);font-size:.85rem}
 .legend dt,.legend dd{margin:0}
 footer{max-width:32rem;margin:1.1rem auto 0;color:var(--offpaper);font-family:var(--mono);font-size:.625rem;letter-spacing:.11em;text-transform:uppercase;text-align:center}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
