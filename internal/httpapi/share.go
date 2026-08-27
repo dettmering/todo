@@ -190,7 +190,10 @@ outline:1px solid var(--edge);outline-offset:-1px;box-shadow:0 1px 2px var(--sha
 /* Die Überschrift ist die Rubrik, nicht die Nachricht — die Nachricht ist der
    Status darunter. */
 h1{margin:0;font-family:var(--mono);font-size:.688rem;font-weight:400;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
-h2{margin:2rem 0 .7rem;padding-top:1.1rem;border-top:1px solid var(--line);font-family:var(--mono);font-size:.688rem;font-weight:400;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+/* Die Linie ist die Oberkante dieser Ueberschrift. Luft darueber (margin-top)
+   und darunter (padding-top) sind derselbe Wert, sonst haengt der Strich
+   schief zwischen den beiden Bloecken. */
+h2{margin:1.1rem 0 .7rem;padding-top:1.1rem;border-top:1px solid var(--line);font-family:var(--mono);font-size:.688rem;font-weight:400;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
 /* Kein Statuspunkt davor: die Zeile ist selbst schon in der Statusfarbe
    gesetzt, der Punkt sagte dasselbe ein zweites Mal. */
 .status{font-size:clamp(1.35rem,4.5vw,1.7rem);font-weight:600;letter-spacing:-.022em;line-height:1.15;margin:0 0 .5rem}
