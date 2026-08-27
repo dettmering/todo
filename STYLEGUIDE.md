@@ -431,7 +431,12 @@ direkte Entsprechung zum Blatt Papier in md2pdf.
   sind kein Markup, sondern ein `repeating-linear-gradient` in
   `--border-strong` mit zwölf gleich breiten Feldern.
 * `.tl-span`: ein Balken je Abwesenheit in der `-fg`-Variante der Typfarbe.
-* `.tl-today`: Punkt in `--accent` mit Ring in `--main-bg`.
+* `.tl-today`: **Raute** in `--accent` mit Ring in `--main-bg` — ein um 45°
+  gedrehtes Quadrat, die Meilensteinmarke aus dem Gantt-Diagramm. Sie hebt
+  sich damit in der *Form* von den Balken ab und nicht nur in der Farbe.
+  9 px Kante ergeben ~12,7 px Diagonale, also dieselbe sichtbare Größe wie
+  der Punkt davor. `rotate` steht hinter `translate`, sonst wandert die
+  Marke von ihrer Position weg.
 * `.tl-weeks` / `.tl-months`: Mono 11 px, `tabular-nums`; die laufende Woche
   trägt `.cur` und steht in `--accent` / 700. Monatskürzel versal.
 * Hover auf einer Listenzeile hebt den zugehörigen Balken (`scaleY(1.6)`).

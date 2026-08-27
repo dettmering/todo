@@ -1666,15 +1666,19 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
 .tl-span.type-holiday       { background: var(--absence-holiday-fg); }
 .tl-span.type-business_trip { background: var(--absence-business_trip-fg); }
 .tl-span.type-sick          { background: var(--absence-sick-fg); }
+/* Heute ist eine Raute, kein Punkt — die Meilensteinmarke aus dem Gantt-
+   Diagramm. Sie unterscheidet sich damit in der Form von den Balken und
+   nicht nur in der Farbe. 9px Kante ergeben rund 12,7px Diagonale, also
+   dieselbe sichtbare Groesse wie der Punkt davor; `rotate` kommt nach
+   `translate`, damit die Marke auf ihrem Punkt zentriert bleibt. */
 .tl-today {
   position: absolute;
   top: 50%;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
+  width: 9px;
+  height: 9px;
   background: var(--accent);
   box-shadow: 0 0 0 2px var(--main-bg);
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) rotate(45deg);
 }
 .tl-months {
   position: relative;

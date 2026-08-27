@@ -211,7 +211,9 @@ h2{margin:1.1rem 0 .7rem;padding-top:1.1rem;border-top:1px solid var(--line);fon
 .tl-span{position:absolute;top:0;bottom:0;border-radius:999px;min-width:.5rem}
 .tl-span.away{background:var(--away)}
 .tl-span.trip{background:var(--trip)}
-.tl-today{position:absolute;top:50%;width:.7rem;height:.7rem;border-radius:50%;background:var(--ok);box-shadow:0 0 0 2px var(--paper);transform:translate(-50%,-50%)}
+/* Raute statt Punkt, wie die Meilensteinmarke im Gantt-Diagramm -- Zwilling
+   zu .tl-today in style.css. */
+.tl-today{position:absolute;top:50%;width:.56rem;height:.56rem;background:var(--ok);box-shadow:0 0 0 2px var(--paper);transform:translate(-50%,-50%) rotate(45deg)}
 .tl-months{position:relative;height:1rem;margin-top:.55rem;font-family:var(--mono);font-size:.625rem;letter-spacing:.11em;text-transform:uppercase;color:var(--faint)}
 .tl-months span{position:absolute;top:0}
 .list{list-style:none;margin:1.25rem 0 0;padding:0}
