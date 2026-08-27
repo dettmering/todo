@@ -399,8 +399,13 @@ Grund, mit eigenem, kleinem Tokensatz im Inline-`<style>` von `share.go`.
   beantwortet eine Frage, also steht die Antwort oben und groß.
 * Verfügbar = `--ok` (Prozess-Cyan, „jetzt erreichbar"), abwesend =
   Schnittmarken-Rot, Dienstreise = Indigo (dasselbe wie `business_trip`).
-* Die Seite lädt die Schriften aus `/static/fonts/` — derselbe Server, keine
-  externe Abhängigkeit.
+* **Die Schriften kommen hier von Google Fonts**, nicht aus `/static/fonts/`
+  wie überall sonst. Diese Seite ist die einzige, die jemand von außen
+  aufruft, und `/static` liegt hinter der BasicAuth des Reverse Proxy — die
+  eingebetteten WOFF2 kämen als 401 zurück und die Seite fiele auf eine
+  Systemschrift zurück. Die externe Abhängigkeit gilt **nur für dieses
+  Dokument**; die App selbst bleibt netzunabhängig. Fällt Google Fonts aus,
+  greift der Fallback-Stack in `--sans` / `--mono`.
 
 > **Verworfen:** In md2pdf bleibt das Blatt auch im Dunkelmodus Papier, weil
 > dort ein Druckbogen in der Vorschau liegt. Hier war es eine hell

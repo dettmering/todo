@@ -153,17 +153,23 @@ func buildAbsencesSharePage(absences []*domain.Absence, status domain.Availabili
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Availability</title>
+<!-- IBM Plex kommt hier von Google Fonts, nicht aus /static/fonts wie in der
+     App. Diese Seite ist die einzige, die jemand von aussen aufruft, und
+     /static liegt hinter der BasicAuth des Reverse Proxy: die Schriften
+     kaemen als 401 zurueck und die Seite faende in einer Systemschrift
+     statt. Der Preis ist eine externe Abhaengigkeit fuer genau dieses
+     Dokument; faellt sie aus, greift der Fallback-Stack unten. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
 <style>
 /* Die Share-Seite ist ein Dokument, kein Fenster in die App: ein Blatt Papier
    auf dem Grund der Druckerei. Sie folgt aber der Systemeinstellung wie die
    App auch: im Dunkelmodus wechselt der ganze Satz an Tokens, nicht nur der
-   Grund. Schriften kommen aus /static, dieselben wie in der App. */
-@font-face{font-family:"Plex Sans";src:url("/static/fonts/plex-sans-400.woff2") format("woff2");font-weight:400;font-display:swap}
-@font-face{font-family:"Plex Sans";src:url("/static/fonts/plex-sans-600.woff2") format("woff2");font-weight:600;font-display:swap}
-@font-face{font-family:"Plex Mono";src:url("/static/fonts/plex-mono-400.woff2") format("woff2");font-weight:400;font-display:swap}
+   Grund. */
 :root{
---sans:"Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
---mono:"Plex Mono",ui-monospace,SFMono-Regular,monospace;
+--sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+--mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,monospace;
 --bg:#fbfaf7;--paper:#fff;--edge:rgba(21,23,28,.16);--shade:rgba(21,23,28,.13);
 --fg:#15171c;--muted:#666c76;--faint:#8a9099;--line:rgba(21,23,28,.12);
 --track:#f3f1ec;--tick:rgba(21,23,28,.22);--offpaper:#8a9099;
