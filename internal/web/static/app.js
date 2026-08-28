@@ -736,14 +736,14 @@ function absencesCoveringDate(iso) {
 }
 
 // Warning text for a task date landing inside an absence, or "" if it doesn't.
-// Picks the first overlapping absence, e.g. "! fällt in Urlaub (Kreta, bis 19.6.)".
+// Picks the first overlapping absence, e.g. "Fällt in Urlaub (Kreta, bis 19.6.)".
 function absenceWarningText(iso) {
   const hits = absencesCoveringDate(iso);
   if (!hits.length) return "";
   const a = hits[0];
   const type = ABSENCE_TYPE_LABEL[a.type] || a.type;
   const label = a.label ? ` (${a.label}, bis ${smartDateLabel(a.end_date)})` : ` (bis ${smartDateLabel(a.end_date)})`;
-  return `! fällt in ${type}${label}`;
+  return `Fällt in ${type}${label}`;
 }
 
 // ---------- Absence date arithmetic ----------
