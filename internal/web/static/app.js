@@ -1948,7 +1948,7 @@ function openTaskDialogInternal(t) {
   document.getElementById("td-project").value = t.project_id;
   document.getElementById("td-priority").value = String(t.priority);
   document.getElementById("td-visible-from").value = t.visible_from || "";
-  renderVisibleFromAbsenceWarning();
+  syncVisibleFromUI();
   document.getElementById("td-deadline").value = isoToDE(t.deadline);
   clearDateHint("td-deadline");
   setRecurrenceControls("td-recurrence", "td-recur-custom-wrap", "td-recur-custom", t.recurrence_rule || "");
@@ -2027,14 +2027,28 @@ function toISODate(d) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-// Reflect whether the dialog's visible_from (an ISO date input) lands inside an
-// absence, into the warning span next to the field.
-function renderVisibleFromAbsenceWarning() {
+// Reflect the dialog's visible_from (an ISO date input) into everything that
+// hangs off it: the warning span that fires when the date lands inside an
+// absence, and the Mo–Fr buttons, of which the one matching the date is
+// highlighted (their click behaviour is unaffected — they still jump to the
+// *next* occurrence of that weekday).
+function syncVisibleFromUI() {
+  const value = document.getElementById("td-visible-from").value || "";
+
   const el = document.getElementById("td-visible-from-absence");
-  if (!el) return;
-  const text = absenceWarningText(document.getElementById("td-visible-from").value || "");
-  el.textContent = text;
-  el.classList.toggle("hidden", !text);
+  if (el) {
+    const text = absenceWarningText(value);
+    el.textContent = text;
+    el.classList.toggle("hidden", !text);
+  }
+
+  // Parsed with an explicit time so it stays local — new Date("YYYY-MM-DD")
+  // is UTC and would shift the weekday west of Greenwich. getDay() is
+  // 0=Sun..6=Sat, the same numbering as data-weekday.
+  const dow = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(value + "T00:00:00").getDay() : -1;
+  document.querySelectorAll(".td-weekday").forEach(btn => {
+    btn.classList.toggle("is-active", parseInt(btn.dataset.weekday, 10) === dow);
+  });
 }
 
 function wireTaskDialog() {
@@ -2106,8 +2120,8 @@ function wireTaskDialog() {
   });
 
   // Warn when the chosen visible_from falls inside an absence.
-  document.getElementById("td-visible-from").addEventListener("change", renderVisibleFromAbsenceWarning);
-  document.getElementById("td-visible-from").addEventListener("input", renderVisibleFromAbsenceWarning);
+  document.getElementById("td-visible-from").addEventListener("change", syncVisibleFromUI);
+  document.getElementById("td-visible-from").addEventListener("input", syncVisibleFromUI);
   document.querySelectorAll("#td-priority-buttons .td-prio").forEach(btn => {
     btn.addEventListener("click", () => {
       const p = parseInt(btn.dataset.priority, 10);
@@ -2147,13 +2161,13 @@ function wireTaskDialog() {
           const res = await api.nextWorkday();
           if (res && res.date) document.getElementById("td-visible-from").value = res.date;
         } catch (_) { /* ignore — leave the field unchanged */ }
-        renderVisibleFromAbsenceWarning();
+        syncVisibleFromUI();
         return;
       }
       const iso = quickRescheduleISO(btn.dataset.quick);
       if (!iso) return;
       document.getElementById("td-visible-from").value = iso;
-      renderVisibleFromAbsenceWarning();
+      syncVisibleFromUI();
     });
   });
 
@@ -2162,7 +2176,7 @@ function wireTaskDialog() {
     btn.addEventListener("click", () => {
       const iso = nextWeekdayISO(parseInt(btn.dataset.weekday, 10));
       document.getElementById("td-visible-from").value = iso;
-      renderVisibleFromAbsenceWarning();
+      syncVisibleFromUI();
     });
   });
 
