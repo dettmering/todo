@@ -1309,7 +1309,7 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
 .td-sidebar-buttons { display: flex; gap: 6px; margin-left: auto; }
 /* Schaltflächen teilen sich Kante und Höhe mit den Eingabefeldern daneben.
    Die waagerechte Polsterung ist knapp gehalten, damit die Aktionszeile
-   "Löschen | Abbrechen | Speichern" in die 320px-Spalte des Modals passt. */
+   "× | Abbrechen | Speichern" in die 320px-Spalte des Modals passt. */
 .td-btn {
   font-size: 14px;
   padding: 7px 13px;
@@ -1328,17 +1328,27 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
   border-color: var(--accent);
 }
 .td-btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+/* Nur ein Kreuz statt "Löschen": die Aktionszeile brach in der 320px-Spalte
+   des Modals um, sobald der Text danebenstand. */
 .td-link-danger {
-  background: transparent;
-  border: 0;
+  background: var(--main-bg);
+  /* Kante nur angedeutet rot — der Löschen-Button soll die Zeile rahmen,
+     nicht dominieren. Volles Rot erst beim Hover. */
+  border: 1px solid color-mix(in srgb, var(--p1) 32%, var(--border-strong));
   color: var(--p1);
   cursor: pointer;
-  font-size: 14px;
-  font-family: var(--font-sans);
-  padding: 4px 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Höhe kommt aus der Zeile, damit die Kante exakt auf der von
+     "Abbrechen"/"Speichern" sitzt — unabhängig von deren Zeilenhöhe. */
+  align-self: stretch;
+  width: 34px;
+  padding: 0;
   border-radius: var(--radius);
 }
-.td-link-danger:hover { background: var(--danger-bg); }
+.td-link-danger svg { width: 18px; height: 18px; display: block; }
+.td-link-danger:hover { background: var(--danger-bg); border-color: var(--p1); }
 
 /* ---------- Aktivitätsansicht ---------- */
 .activity-controls {
