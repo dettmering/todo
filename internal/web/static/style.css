@@ -1822,17 +1822,39 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
 .absence-row.active .absence-meta { color: var(--text-secondary); }
 
 /* Nicht erst am Telefon: im Hochkant-Tablet steht die 242px-Sidebar daneben,
-   die Zeile ist dort genauso eng wie auf einem 400px-Display. Ab hier wandert
-   der Zeitraum in eine eigene Zeile und die Breite gehoert dem Titel. */
+   die Zeile ist dort genauso eng wie auf einem 400px-Display. Ab hier zerfaellt
+   die Zeile in drei Baender: Rubrik (Pille), Text, Zeitraum. Der Titel bekommt
+   damit die volle Breite und muss sich mit niemandem darum streiten. */
 @media (max-width: 1024px) {
   .absence-row {
-    grid-template-columns: auto minmax(0, 1fr) 32px 32px;
+    grid-template-columns: 1fr 32px 32px;
     row-gap: 4px;
+    align-items: center;
   }
-  /* Datum/Dauer in eine eigene zweite Zeile, die Buttons bleiben oben rechts. */
-  .absence-when {
-    grid-column: 1 / 3;
+  /* Band 1: die Pille steht allein, die beiden Knoepfe rechts daneben. */
+  .absence-type {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+  }
+  .absence-edit,
+  .absence-edit-placeholder {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .absence-delete {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  /* Band 2: Titel und Kommentar ueber die ganze Breite. */
+  .absence-main {
+    grid-column: 1 / -1;
     grid-row: 2;
+  }
+  /* Band 3: Zeitraum und Dauer, nebeneinander wie eine Bildunterschrift. */
+  .absence-when {
+    grid-column: 1 / -1;
+    grid-row: 3;
     flex-direction: row;
     align-items: baseline;
     justify-content: flex-start;
