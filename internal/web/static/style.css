@@ -1739,7 +1739,9 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
 }
 .absence-row {
   display: grid;
-  grid-template-columns: 132px 1fr auto 32px 32px;
+  /* Die Textspalte hat eine Untergrenze: sonst frisst die Datumsspalte (auto,
+     also so breit wie ihr laengster Wert) den Titel bis zur Ellipse auf. */
+  grid-template-columns: 132px minmax(200px, 1fr) auto 32px 32px;
   align-items: center;
   gap: 12px;
   padding: 10px 4px;
@@ -1774,21 +1776,25 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-width: 0;
 }
+/* Der Titel wird umbrochen, nicht abgeschnitten: "Ber…" statt "Berlin Kickoff"
+   spart eine Zeile und kostet die Information. Zwei Zeilen Titel sind billiger
+   als ein Titel, den man aufklappen muss. */
 .absence-label {
   font-size: 15px;
+  line-height: 1.35;
   color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: break-word;
 }
 .absence-comment {
   font-size: 13px;
   line-height: 1.45;
   color: var(--text-muted);
   white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  /* break-word statt anywhere: anywhere zerlegt in einer engen Spalte auch
+     kurze Woerter ("Buc/hun/g"), break-word bricht nur, was allein nicht
+     passt. */
+  overflow-wrap: break-word;
 }
 .absence-row.active .absence-comment { color: var(--text-secondary); }
 .absence-when {
@@ -1815,9 +1821,12 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
 }
 .absence-row.active .absence-meta { color: var(--text-secondary); }
 
-@media (max-width: 720px) {
+/* Nicht erst am Telefon: im Hochkant-Tablet steht die 242px-Sidebar daneben,
+   die Zeile ist dort genauso eng wie auf einem 400px-Display. Ab hier wandert
+   der Zeitraum in eine eigene Zeile und die Breite gehoert dem Titel. */
+@media (max-width: 1024px) {
   .absence-row {
-    grid-template-columns: auto 1fr 32px 32px;
+    grid-template-columns: auto minmax(0, 1fr) 32px 32px;
     row-gap: 4px;
   }
   /* Datum/Dauer in eine eigene zweite Zeile, die Buttons bleiben oben rechts. */
