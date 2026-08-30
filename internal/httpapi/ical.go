@@ -135,6 +135,13 @@ func buildAbsencesICS(absences []*domain.Absence, now time.Time, name string) st
 		// CONFIRMED anyway; a few want it spelled out.
 		writeICSLine(&b, "STATUS:CONFIRMED")
 		writeICSLine(&b, "SUMMARY:"+escapeICSText(absenceSummary(a)))
+		// The free-text comment (booking numbers, hotel, flight times) becomes
+		// the event body — that is where a calendar client shows the details
+		// the title has no room for. Omitted when empty: an empty DESCRIPTION
+		// makes some clients render a blank notes section.
+		if c := strings.TrimSpace(a.Comment); c != "" {
+			writeICSLine(&b, "DESCRIPTION:"+escapeICSText(c))
+		}
 		writeICSLine(&b, "CATEGORIES:"+escapeICSText(strings.ToUpper(string(a.Type))))
 		// Free/busy signalling: TRANSP is the portable field, the
 		// X-MICROSOFT-CDO-* pair the Outlook-specific equivalent. Without the

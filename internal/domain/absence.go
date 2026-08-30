@@ -31,6 +31,7 @@ type Absence struct {
 	ID        string
 	Type      AbsenceType
 	Label     string // optional free-text name, e.g. "Kreta"
+	Comment   string // optional free-text note, e.g. booking numbers
 	Start     LocalDate
 	End       LocalDate
 	CreatedAt time.Time

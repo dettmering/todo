@@ -9,17 +9,19 @@ import (
 )
 
 type AbsenceInput struct {
-	Type  string
-	Label string
-	Start domain.LocalDate
-	End   domain.LocalDate
+	Type    string
+	Label   string
+	Comment string
+	Start   domain.LocalDate
+	End     domain.LocalDate
 }
 
 type AbsencePatch struct {
-	Type  *string
-	Label *string
-	Start *domain.LocalDate
-	End   *domain.LocalDate
+	Type    *string
+	Label   *string
+	Comment *string
+	Start   *domain.LocalDate
+	End     *domain.LocalDate
 }
 
 func (s *Service) CreateAbsence(ctx context.Context, in AbsenceInput) (*domain.Absence, error) {
@@ -41,6 +43,7 @@ func (s *Service) CreateAbsence(ctx context.Context, in AbsenceInput) (*domain.A
 		ID:        newID("absence"),
 		Type:      typ,
 		Label:     in.Label,
+		Comment:   in.Comment,
 		Start:     in.Start,
 		End:       in.End,
 		CreatedAt: now,
@@ -67,6 +70,9 @@ func (s *Service) UpdateAbsence(ctx context.Context, id string, p AbsencePatch) 
 	}
 	if p.Label != nil {
 		a.Label = *p.Label
+	}
+	if p.Comment != nil {
+		a.Comment = *p.Comment
 	}
 	if p.Start != nil {
 		a.Start = *p.Start

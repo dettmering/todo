@@ -151,6 +151,7 @@ type absenceDTO struct {
 	ID        string `json:"id"`
 	Type      string `json:"type"`
 	Label     string `json:"label"`
+	Comment   string `json:"comment"`
 	StartDate string `json:"start_date"`
 	EndDate   string `json:"end_date"`
 	CreatedAt string `json:"created_at"`
@@ -162,6 +163,7 @@ func toAbsenceDTO(a *domain.Absence) absenceDTO {
 		ID:        a.ID,
 		Type:      string(a.Type),
 		Label:     a.Label,
+		Comment:   a.Comment,
 		StartDate: a.Start.String(),
 		EndDate:   a.End.String(),
 		CreatedAt: a.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),

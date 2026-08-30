@@ -36,7 +36,7 @@ func TestAbsenceCRUD(t *testing.T) {
 	svc := newTestService(t)
 
 	a, err := svc.CreateAbsence(ctx, AbsenceInput{
-		Type: "vacation", Label: "Kreta",
+		Type: "vacation", Label: "Kreta", Comment: "Buchung AB-12345",
 		Start: date(t, "2026-06-15"), End: date(t, "2026-06-19"),
 	})
 	if err != nil {
@@ -44,6 +44,15 @@ func TestAbsenceCRUD(t *testing.T) {
 	}
 	if a.ID == "" || a.Type != domain.AbsenceVacation {
 		t.Fatalf("unexpected absence: %+v", a)
+	}
+	if a.Comment != "Buchung AB-12345" {
+		t.Fatalf("Comment = %q, want %q", a.Comment, "Buchung AB-12345")
+	}
+
+	// The comment survives a round trip through storage.
+	got, err := svc.GetAbsence(ctx, a.ID)
+	if err != nil || got.Comment != "Buchung AB-12345" {
+		t.Fatalf("GetAbsence = %+v, %v; want comment preserved", got, err)
 	}
 
 	list, err := svc.ListAbsences(ctx)
@@ -55,6 +64,22 @@ func TestAbsenceCRUD(t *testing.T) {
 	upd, err := svc.UpdateAbsence(ctx, a.ID, AbsencePatch{Label: &label})
 	if err != nil || upd.Label != label {
 		t.Fatalf("UpdateAbsence = %+v, %v", upd, err)
+	}
+	// A patch that leaves the comment out must not clear it.
+	if upd.Comment != "Buchung AB-12345" {
+		t.Fatalf("Comment after label patch = %q, want unchanged", upd.Comment)
+	}
+
+	comment := "Flug LH123, Hotel Elounda"
+	upd, err = svc.UpdateAbsence(ctx, a.ID, AbsencePatch{Comment: &comment})
+	if err != nil || upd.Comment != comment {
+		t.Fatalf("UpdateAbsence(comment) = %+v, %v", upd, err)
+	}
+
+	empty := ""
+	upd, err = svc.UpdateAbsence(ctx, a.ID, AbsencePatch{Comment: &empty})
+	if err != nil || upd.Comment != "" {
+		t.Fatalf("UpdateAbsence(clear comment) = %+v, %v", upd, err)
 	}
 
 	if err := svc.DeleteAbsence(ctx, a.ID); err != nil {

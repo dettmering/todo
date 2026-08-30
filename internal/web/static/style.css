@@ -1768,6 +1768,14 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
 .absence-type.type-business_trip { background: var(--absence-business_trip-bg); color: var(--absence-business_trip-fg); }
 .absence-type.type-sick          { background: var(--absence-sick-bg); color: var(--absence-sick-fg); }
 .absence-type.type-other         { background: var(--surface); color: var(--text-secondary); }
+/* Bezeichnung und Kommentar teilen sich eine Spalte: der Kommentar steht unter
+   dem Titel, wie die Kommentare unter einer Aufgabe. */
+.absence-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
 .absence-label {
   font-size: 15px;
   color: var(--text);
@@ -1775,6 +1783,14 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.absence-comment {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.absence-row.active .absence-comment { color: var(--text-secondary); }
 .absence-when {
   display: flex;
   flex-direction: column;

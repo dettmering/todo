@@ -1004,9 +1004,15 @@ function createAbsenceRow(a, today, editable) {
   // off it is are exactly what the bare dates make you compute yourself.
   const timing = absenceTimingDE(a, today);
   const meta = [absenceDurationDE(a), timing].filter(Boolean).join(" · ");
+  // The comment (booking numbers and the like) sits under the label, the way
+  // comments sit under a task — free text, so it keeps its line breaks.
+  const comment = (a.comment || "").trim();
   row.innerHTML = `
     <span class="absence-type type-${escapeHTML(a.type)}">${escapeHTML(ABSENCE_TYPE_LABEL[a.type] || a.type)}</span>
-    <span class="absence-label">${escapeHTML(a.label || "")}</span>
+    <span class="absence-main">
+      <span class="absence-label">${escapeHTML(a.label || "")}</span>
+      ${comment ? `<span class="absence-comment">${escapeHTML(comment)}</span>` : ""}
+    </span>
     <span class="absence-when">
       <span class="absence-range">${escapeHTML(range)}</span>
       <span class="absence-meta">${escapeHTML(meta)}</span>
@@ -1044,6 +1050,7 @@ function openAbsenceDialog(a) {
   document.getElementById("ad-title").textContent = a ? "Abwesenheit bearbeiten" : "Neue Abwesenheit";
   document.getElementById("ad-type").value = a ? a.type : "vacation";
   document.getElementById("ad-label").value = a ? (a.label || "") : "";
+  document.getElementById("ad-comment").value = a ? (a.comment || "") : "";
   document.getElementById("ad-start").value = a ? a.start_date : todayISO();
   document.getElementById("ad-end").value = a ? a.end_date : todayISO();
   document.getElementById("ad-error").classList.add("hidden");
@@ -1083,11 +1090,12 @@ function wireAbsenceDialog() {
     e.preventDefault();
     const type = document.getElementById("ad-type").value;
     const label = document.getElementById("ad-label").value.trim();
+    const comment = document.getElementById("ad-comment").value.trim();
     const start = document.getElementById("ad-start").value;
     const end = document.getElementById("ad-end").value;
     if (!start || !end) { showAbsenceDialogError("Start- und Enddatum sind erforderlich."); return; }
     if (end < start) { showAbsenceDialogError("Das Enddatum darf nicht vor dem Startdatum liegen."); return; }
-    const body = { type, label, start_date: start, end_date: end };
+    const body = { type, label, comment, start_date: start, end_date: end };
     try {
       if (absenceDialogState.mode === "edit") {
         await api.patchAbsence(absenceDialogState.id, body);

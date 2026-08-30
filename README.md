@@ -558,6 +558,11 @@ Hinweise zur Erzeugung:
   letzte Abwesenheitstag im Kalender belegt bleibt.
 - `SUMMARY` ist deutsch nach Typ (`Urlaub`, `Feiertag`, `Dienstreise`, `Krank`,
   sonst `Abwesend`), optional mit `: <label>`.
+- **`comment` wird zur Event-`DESCRIPTION`** — dort zeigen Kalender-Clients die
+  Details (Buchungsnummer, Hotel, Flugzeiten), für die der Titel keinen Platz
+  hat. Zeilenumbrüche werden als `\n` escaped. Ist der Kommentar leer (oder nur
+  Whitespace), fehlt die Property ganz; eine leere `DESCRIPTION` lässt manche
+  Clients einen leeren Notizblock rendern.
 - `UID` ist stabil (`<id>@todo`), sodass erneutes Abrufen Events aktualisiert
   statt zu duplizieren.
 - Jedes Event bekommt `STATUS:CONFIRMED` — Abwesenheiten sind Tatsachen, keine
@@ -658,8 +663,10 @@ Requests), sodass die sensiblen Felder gar nicht erst im Browser landen:
   - Ohne Abwesenheiten wird gar keine Leiste gerendert.
 - Die Liste darunter zeigt nur den **Datumsbereich** plus einen groben Status —
   **„Away"** für alles außer Dienstreisen, **„Business Trip"** für
-  `business_trip` (blockiert keine Arbeit, i. d. R. erreichbar). **Grund und
-  `label` werden nie ausgeliefert.**
+  `business_trip` (blockiert keine Arbeit, i. d. R. erreichbar). **Grund,
+  `label` und `comment` werden nie ausgeliefert** — der Kommentar trägt
+  typischerweise Buchungsnummern und hat auf einer geteilten Seite nichts
+  verloren.
 - Der Eintrag, der **heute gerade läuft**, trägt zusätzlich den Marker **„now"**
   zwischen Zeitraum und Badge. Ohne ihn müsste der Leser jeden Zeitraum gegen
   das aktuelle Datum abgleichen, um zu sehen, welcher der laufende ist.
@@ -692,7 +699,7 @@ curl 'http://localhost:8080/api/absences.html?token=DEINGEHEIMNIS'
 ```
 
 `SHARE_TOKEN` ist bewusst getrennt von `ICAL_TOKEN`: Der geteilte Weblink schaltet
-so nicht den vollständigen iCal-Feed (mit Labels und Typen) frei und ist separat
+so nicht den vollständigen iCal-Feed (mit Labels, Kommentaren und Typen) frei und ist separat
 widerrufbar.
 
 #### `GET /api/share-links`
@@ -732,6 +739,7 @@ Body:
 | --- | --- | --- | --- | --- |
 | `type` | string | | `"other"` | einer der Werte oben; unbekannt ⇒ 400 |
 | `label` | string | | `""` | freier Name, z. B. `"Kreta"` |
+| `comment` | string | | `""` | freier Notiztext, z. B. Buchungsnummern; mehrzeilig erlaubt |
 | `start_date` | string | ✓ | — | ISO-Datum `YYYY-MM-DD` |
 | `end_date` | string | ✓ | — | ISO-Datum; muss `≥ start_date` sein, sonst 400 |
 
@@ -745,6 +753,7 @@ curl -X POST http://localhost:8080/api/absences \
   -d '{
     "type": "vacation",
     "label": "Kreta",
+    "comment": "Buchung AB-12345, Hotel Elounda",
     "start_date": "2026-07-10",
     "end_date": "2026-07-24"
   }'
@@ -757,7 +766,7 @@ Antwort: `200 OK` und das Abwesenheits-Objekt; `404` wenn nicht vorhanden.
 #### `PATCH /api/absences/{id}`
 
 Partial-Update; weggelassene Felder bleiben unverändert. Akzeptiert `type`,
-`label`, `start_date`, `end_date`. Selbe Validierungen wie bei `POST` (gültiger
+`label`, `comment`, `start_date`, `end_date`. Selbe Validierungen wie bei `POST` (gültiger
 Typ, `end_date ≥ start_date`).
 
 ```bash
@@ -779,6 +788,7 @@ Antwort: `204 No Content`.
   "id": "absence_7a1b2c3d4e5f6071",
   "type": "vacation",
   "label": "Kreta",
+  "comment": "Buchung AB-12345, Hotel Elounda",
   "start_date": "2026-07-10",
   "end_date": "2026-07-24",
   "created_at": "2026-06-08T10:15:00Z",
@@ -979,7 +989,10 @@ strukturiertes JSON (snake_case, wie die REST-Objekte) zurück.
 | `list_projects` | Projekte auflisten (`include_archived`) | `ListProjects` |
 | `create_project` | Projekt anlegen (nur `name` Pflicht) | `CreateProject` |
 | `list_absences` | Abwesenheiten auflisten | `ListAbsences` |
-| `create_absence` | Abwesenheit `start_date`..`end_date` anlegen | `CreateAbsence` |
+| `create_absence` | Abwesenheit `start_date`..`end_date` anlegen (optional `label`, `comment`) | `CreateAbsence` |
+| `get_absence` | Einzelne Abwesenheit per `id` holen | `GetAbsence` |
+| `update_absence` | Felder einer Abwesenheit ändern (nur gesetzte Felder) | `UpdateAbsence` |
+| `delete_absence` | Abwesenheit hart löschen | `DeleteAbsence` |
 | `next_workday` | Nächsten Arbeitstag ermitteln | `NextWorkday` |
 | `parse_task` | Deutsche NL-Phrase in Datum/RRULE parsen (ohne anzulegen) | `nldate.Parse` |
 

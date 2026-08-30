@@ -85,7 +85,8 @@ func TestToolsRegistered(t *testing.T) {
 		"list_tasks", "get_task", "create_task", "update_task",
 		"complete_task", "reopen_task", "delete_task",
 		"list_projects", "create_project",
-		"list_absences", "create_absence", "next_workday", "parse_task",
+		"list_absences", "create_absence", "get_absence", "update_absence", "delete_absence",
+		"next_workday", "parse_task",
 	}
 	for _, name := range want {
 		if !got[name] {

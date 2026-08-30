@@ -10,12 +10,12 @@ import (
 
 type AbsenceRepo struct{ db *sql.DB }
 
-const absenceCols = `id, type, label, start_date, end_date, created_at, updated_at`
+const absenceCols = `id, type, label, comment, start_date, end_date, created_at, updated_at`
 
 func (r *AbsenceRepo) Create(ctx context.Context, a *domain.Absence) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO absences (`+absenceCols+`) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		a.ID, string(a.Type), a.Label, a.Start.String(), a.End.String(),
+		`INSERT INTO absences (`+absenceCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		a.ID, string(a.Type), a.Label, a.Comment, a.Start.String(), a.End.String(),
 		timeString(a.CreatedAt), timeString(a.UpdatedAt),
 	)
 	return err
@@ -32,8 +32,8 @@ func (r *AbsenceRepo) Get(ctx context.Context, id string) (*domain.Absence, erro
 
 func (r *AbsenceRepo) Update(ctx context.Context, a *domain.Absence) error {
 	res, err := r.db.ExecContext(ctx,
-		`UPDATE absences SET type = ?, label = ?, start_date = ?, end_date = ?, updated_at = ? WHERE id = ?`,
-		string(a.Type), a.Label, a.Start.String(), a.End.String(), timeString(a.UpdatedAt), a.ID,
+		`UPDATE absences SET type = ?, label = ?, comment = ?, start_date = ?, end_date = ?, updated_at = ? WHERE id = ?`,
+		string(a.Type), a.Label, a.Comment, a.Start.String(), a.End.String(), timeString(a.UpdatedAt), a.ID,
 	)
 	if err != nil {
 		return err
@@ -77,7 +77,7 @@ func (r *AbsenceRepo) Delete(ctx context.Context, id string) error {
 func scanAbsence(s rowScanner) (*domain.Absence, error) {
 	var a domain.Absence
 	var typ, start, end, createdAt, updatedAt string
-	if err := s.Scan(&a.ID, &typ, &a.Label, &start, &end, &createdAt, &updatedAt); err != nil {
+	if err := s.Scan(&a.ID, &typ, &a.Label, &a.Comment, &start, &end, &createdAt, &updatedAt); err != nil {
 		return nil, err
 	}
 	a.Type = domain.AbsenceType(typ)

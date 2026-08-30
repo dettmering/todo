@@ -128,6 +128,18 @@ func (s *server) build() *mcp.Server {
 		Description: "Create an absence spanning start_date..end_date (inclusive).",
 	}, s.createAbsence)
 	mcp.AddTool(srv, &mcp.Tool{
+		Name:        "get_absence",
+		Description: "Read a single absence by id.",
+	}, s.getAbsence)
+	mcp.AddTool(srv, &mcp.Tool{
+		Name:        "update_absence",
+		Description: "Partially update an absence. Omitted fields stay unchanged.",
+	}, s.updateAbsence)
+	mcp.AddTool(srv, &mcp.Tool{
+		Name:        "delete_absence",
+		Description: "Delete an absence for good (hard delete, unlike tasks).",
+	}, s.deleteAbsence)
+	mcp.AddTool(srv, &mcp.Tool{
 		Name:        "next_workday",
 		Description: "Return the next working day (skipping weekends and absences).",
 	}, s.nextWorkday)
@@ -215,6 +227,7 @@ type absenceOut struct {
 	ID        string `json:"id"`
 	Type      string `json:"type"`
 	Label     string `json:"label,omitempty"`
+	Comment   string `json:"comment,omitempty"`
 	StartDate string `json:"start_date"`
 	EndDate   string `json:"end_date"`
 	CreatedAt string `json:"created_at"`
@@ -226,6 +239,7 @@ func toAbsenceOut(a *domain.Absence) absenceOut {
 		ID:        a.ID,
 		Type:      string(a.Type),
 		Label:     a.Label,
+		Comment:   a.Comment,
 		StartDate: a.Start.String(),
 		EndDate:   a.End.String(),
 		CreatedAt: a.CreatedAt.Format(timeFormat),
@@ -483,6 +497,7 @@ func (s *server) listAbsences(ctx context.Context, _ *mcp.CallToolRequest, _ emp
 type createAbsenceInput struct {
 	Type      string `json:"type,omitempty" jsonschema:"one of vacation, holiday, business_trip, sick, other; defaults to other"`
 	Label     string `json:"label,omitempty"`
+	Comment   string `json:"comment,omitempty" jsonschema:"free-text note, e.g. booking numbers"`
 	StartDate string `json:"start_date" jsonschema:"ISO date or German phrase (required)"`
 	EndDate   string `json:"end_date" jsonschema:"ISO date or German phrase (required)"`
 }
@@ -497,15 +512,67 @@ func (s *server) createAbsence(ctx context.Context, _ *mcp.CallToolRequest, in c
 		return nil, absenceOut{}, err
 	}
 	a, err := s.svc.CreateAbsence(ctx, service.AbsenceInput{
-		Type:  in.Type,
-		Label: in.Label,
-		Start: start,
-		End:   end,
+		Type:    in.Type,
+		Label:   in.Label,
+		Comment: in.Comment,
+		Start:   start,
+		End:     end,
 	})
 	if err != nil {
 		return nil, absenceOut{}, err
 	}
 	return nil, toAbsenceOut(a), nil
+}
+
+type absenceIDInput struct {
+	ID string `json:"id" jsonschema:"the absence id"`
+}
+
+func (s *server) getAbsence(ctx context.Context, _ *mcp.CallToolRequest, in absenceIDInput) (*mcp.CallToolResult, absenceOut, error) {
+	a, err := s.svc.GetAbsence(ctx, in.ID)
+	if err != nil {
+		return nil, absenceOut{}, err
+	}
+	return nil, toAbsenceOut(a), nil
+}
+
+type updateAbsenceInput struct {
+	ID        string  `json:"id" jsonschema:"the absence id"`
+	Type      *string `json:"type,omitempty" jsonschema:"one of vacation, holiday, business_trip, sick, other"`
+	Label     *string `json:"label,omitempty" jsonschema:"empty string clears it"`
+	Comment   *string `json:"comment,omitempty" jsonschema:"free-text note, e.g. booking numbers; empty string clears it"`
+	StartDate *string `json:"start_date,omitempty" jsonschema:"ISO date or German phrase"`
+	EndDate   *string `json:"end_date,omitempty" jsonschema:"ISO date or German phrase"`
+}
+
+func (s *server) updateAbsence(ctx context.Context, _ *mcp.CallToolRequest, in updateAbsenceInput) (*mcp.CallToolResult, absenceOut, error) {
+	patch := service.AbsencePatch{Type: in.Type, Label: in.Label, Comment: in.Comment}
+	if in.StartDate != nil {
+		d, err := parseDateInput(*in.StartDate)
+		if err != nil {
+			return nil, absenceOut{}, err
+		}
+		patch.Start = &d
+	}
+	if in.EndDate != nil {
+		d, err := parseDateInput(*in.EndDate)
+		if err != nil {
+			return nil, absenceOut{}, err
+		}
+		patch.End = &d
+	}
+	a, err := s.svc.UpdateAbsence(ctx, in.ID, patch)
+	if err != nil {
+		return nil, absenceOut{}, err
+	}
+	return nil, toAbsenceOut(a), nil
+}
+
+func (s *server) deleteAbsence(ctx context.Context, _ *mcp.CallToolRequest, in absenceIDInput) (*mcp.CallToolResult, deleteResult, error) {
+	if err := s.svc.DeleteAbsence(ctx, in.ID); err != nil {
+		return nil, deleteResult{}, err
+	}
+	return nil, deleteResult{ID: in.ID, Deleted: true}, nil
 }
 
 type nextWorkdayOutput struct {

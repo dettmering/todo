@@ -111,6 +111,7 @@ var migrations = []migrationStep{
 	// is what they anchored on before the column existed.
 	{16, `UPDATE tasks SET recurrence_anchor = visible_from
 	      WHERE recurrence_rule != '' AND recurrence_anchor = '';`},
+	{17, `ALTER TABLE absences ADD COLUMN comment TEXT NOT NULL DEFAULT '';`},
 }
 
 func (s *Store) migrate() error {

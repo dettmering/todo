@@ -158,6 +158,30 @@ func TestBuildAbsencesICS_Summary(t *testing.T) {
 	}
 }
 
+func TestBuildAbsencesICS_Description(t *testing.T) {
+	a := absence("absence_1", "vacation", "Kreta", date(2026, 7, 10), date(2026, 7, 24))
+	a.Comment = "Buchung AB-12345\nHotel Elounda"
+	out := buildAbsencesICS([]*domain.Absence{a}, stamp, "")
+	// The comment becomes the event body, with newlines escaped as \n. Line
+	// folding may break the value, so match on the unfolded output.
+	unfolded := strings.ReplaceAll(out, "\r\n ", "")
+	want := `DESCRIPTION:Buchung AB-12345\nHotel Elounda`
+	if !strings.Contains(unfolded, want) {
+		t.Errorf("missing %q in:\n%s", want, out)
+	}
+}
+
+func TestBuildAbsencesICS_OmitsEmptyDescription(t *testing.T) {
+	a := absence("absence_1", "vacation", "Kreta", date(2026, 7, 10), date(2026, 7, 24))
+	a.Comment = "   " // whitespace only counts as empty
+	out := buildAbsencesICS([]*domain.Absence{a}, stamp, "")
+	// The calendar itself always has a DESCRIPTION — only the VEVENT must not.
+	_, event, _ := strings.Cut(out, "BEGIN:VEVENT")
+	if strings.Contains(event, "DESCRIPTION:") {
+		t.Errorf("event carries a DESCRIPTION despite an empty comment:\n%s", out)
+	}
+}
+
 func TestBuildAbsencesICS_OutlookFields(t *testing.T) {
 	a := absence("absence_1", "vacation", "Kreta", date(2026, 7, 10), date(2026, 7, 24))
 	a.CreatedAt = time.Date(2026, 6, 1, 8, 30, 0, 0, time.UTC)

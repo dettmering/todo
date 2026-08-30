@@ -11,6 +11,7 @@ import (
 type absenceCreateReq struct {
 	Type      string `json:"type"`
 	Label     string `json:"label"`
+	Comment   string `json:"comment"`
 	StartDate string `json:"start_date"`
 	EndDate   string `json:"end_date"`
 }
@@ -18,6 +19,7 @@ type absenceCreateReq struct {
 type absencePatchReq struct {
 	Type      *string `json:"type"`
 	Label     *string `json:"label"`
+	Comment   *string `json:"comment"`
 	StartDate *string `json:"start_date"`
 	EndDate   *string `json:"end_date"`
 }
@@ -76,7 +78,7 @@ func (h *Handler) handleCreateAbsence(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a, err := h.svc.CreateAbsence(r.Context(), service.AbsenceInput{
-		Type: req.Type, Label: req.Label, Start: start, End: end,
+		Type: req.Type, Label: req.Label, Comment: req.Comment, Start: start, End: end,
 	})
 	if err != nil {
 		writeError(w, err)
@@ -100,7 +102,7 @@ func (h *Handler) handlePatchAbsence(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, errorResp{Error: "invalid JSON: " + err.Error()})
 		return
 	}
-	patch := service.AbsencePatch{Type: req.Type, Label: req.Label}
+	patch := service.AbsencePatch{Type: req.Type, Label: req.Label, Comment: req.Comment}
 	if req.StartDate != nil {
 		d, err := domain.ParseDate(*req.StartDate)
 		if err != nil {
