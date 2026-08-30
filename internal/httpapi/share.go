@@ -153,30 +153,10 @@ func buildAbsencesSharePage(absences []*domain.Absence, status domain.Availabili
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Availability</title>
-<!-- Inter und JetBrains Mono von Google Fonts, dieselben Schnitte wie in der
-     App. Hier war der fremde Host schon immer zwingend: diese Seite ist die
-     einzige, die jemand von aussen aufruft, und /static liegt hinter der
-     BasicAuth des Reverse Proxy -- selbst ausgelieferte Schriften kaemen als
-     401 zurueck und die Seite stuende in einer Systemschrift. Faellt Google
-     Fonts aus, greift der Fallback-Stack unten. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono&amp;display=swap">
 <style>
-/* --ok ist das Gruen des Verfuegbarkeitsstatus, --now die Prozessfarbe der
-   Jetzt-Marken auf der Schiene (Raute, laufende Kalenderwoche). Beide lagen
-   frueher auf demselben Wert; das Gruen haette sonst die Raute mitgenommen
-   und sie waere ihrem Zwilling in style.css davongelaufen. Der Gruenton
-   stammt aus der Kategorienskala der App und bleibt damit im Register.
-
-   Hinweis: In dieser Datei duerfen die Namen der Abwesenheitstypen nirgends
-   auftauchen, auch nicht im Kommentar -- die Seite ist anonymisiert, und
-   TestBuildAbsencesSharePage_Anonymized prueft den gesamten Ausgabetext.
-
-   Die Share-Seite ist ein Dokument, kein Fenster in die App: ein Blatt Papier
-   auf dem Grund der Druckerei. Sie folgt aber der Systemeinstellung wie die
-   App auch: im Dunkelmodus wechselt der ganze Satz an Tokens, nicht nur der
-   Grund. */
 :root{
 --sans:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
 --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,monospace;
@@ -184,9 +164,6 @@ func buildAbsencesSharePage(absences []*domain.Absence, status domain.Availabili
 --fg:#15171c;--muted:#666c76;--faint:#8a9099;--line:rgba(21,23,28,.12);
 --track:#f3f1ec;--tick:rgba(21,23,28,.22);--offpaper:#8a9099;
 --away:#b5342a;--awaybg:#f7e4e2;--trip:#3a4fa0;--tripbg:#e5e8f4;--ok:#2c7351;--now:#0b6e88}
-/* Dieselben Werte wie im Dark-Block der App (style.css), damit Karte und
-   Oberflaeche nicht auseinanderlaufen. --offpaper ist die Fusszeile, die
-   neben der Karte auf dem Grund steht und deshalb einen eigenen Wert hat. */
 @media (prefers-color-scheme:dark){:root{
 --bg:#12151a;--paper:#191d23;--edge:rgba(232,233,236,.14);--shade:rgba(0,0,0,.5);
 --fg:#e8e9ec;--muted:#9aa1ab;--faint:#7b838e;--line:rgba(232,233,236,.14);
