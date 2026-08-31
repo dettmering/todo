@@ -48,6 +48,8 @@
   --accent-line: #0e88a6;
   --accent-soft: #e1edf0;
   --accent-wash: rgba(14, 136, 166, 0.09);
+  /* Auswahl im Quick-Add: muss den Text darunter durchscheinen lassen. */
+  --qa-selection: rgba(14, 136, 166, 0.28);
   --on-accent: #ffffff;
 
   /* Priorität als Farbdichte, nicht als Ampel. */
@@ -100,6 +102,7 @@
     --accent-line: #3fb4d4;
     --accent-soft: #16323c;
     --accent-wash: rgba(63, 180, 212, 0.11);
+    --qa-selection: rgba(63, 180, 212, 0.32);
     --on-accent: #10141a;
 
     --p1: #e86a5e;
@@ -408,6 +411,28 @@ strong, b { font-weight: 600; }
   position: relative;
   display: block;
 }
+
+/* Eingabefeld und Overlay setzen denselben Text zweimal: das Feld unsichtbar
+   (nur der Cursor bleibt), das Overlay sichtbar. Beide muessen deshalb Zeichen
+   fuer Zeichen dieselbe Breite belegen -- jede Abweichung in Schnitt, Groesse,
+   Laufweite oder Zeilenhoehe verschiebt den Cursor gegenueber dem Text, und
+   zwar kumulativ ueber die ganze Zeile. Ein <input> erbt font-family NICHT vom
+   body; darum steht hier jede Metrik ausgeschrieben und genau einmal fuer
+   beide. Wer hier etwas aendert, aendert es fuer beide Selektoren zugleich. */
+.quick-add-input-wrap input[type="text"],
+.qa-overlay {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 400;
+  font-style: normal;
+  letter-spacing: normal;
+  word-spacing: normal;
+  line-height: 22px;
+  text-indent: 0;
+  text-transform: none;
+  padding: 4px 0;
+  border: 0;
+}
 .quick-add-input-wrap input[type="text"] {
   position: relative;
   z-index: 1;
@@ -416,35 +441,40 @@ strong, b { font-weight: 600; }
   caret-color: var(--text);
   background: transparent;
 }
+/* Halbtransparent, sonst deckt die Auswahl den Text im Overlay darunter zu
+   und die Markierung sieht aus wie ein leerer Balken. */
 .quick-add-input-wrap input[type="text"]::selection {
-  background: var(--accent-soft);
+  background: var(--qa-selection);
   color: transparent;
 }
 .qa-overlay {
   position: absolute;
   inset: 0;
-  padding: 4px 0;
-  font-size: 15px;
-  line-height: inherit;
-  font-family: inherit;
   color: var(--text);
   white-space: pre;
   overflow: hidden;
   pointer-events: none;
   z-index: 0;
 }
+/* Die Marken duerfen keine Breite beanspruchen -- seitliches padding oder
+   margin wuerde den sichtbaren Text gegen den Cursor schieben, und zwar
+   aufaddiert ueber alle Marken davor. Die Hoehe der Pille kommt darum aus
+   senkrechtem padding (an einem inline-Element ohne Wirkung aufs Layout),
+   der schmale Rand aus einem box-shadow-Spread; beides liegt ausserhalb des
+   Textflusses. Waagerechtes padding gehoert hier nie wieder hinein. */
 .qa-mark {
   border-radius: var(--radius-pill);
-  padding: 0 3px;
-  margin: 0 -1px;
+  padding: 3px 0;
+  background: var(--qa-mark-bg);
+  box-shadow: 0 0 0 1px var(--qa-mark-bg);
 }
-.qa-mark-date { background: var(--accent); color: var(--on-accent); }
-.qa-mark-project { background: var(--text); color: var(--main-bg); }
-.qa-mark-prio1 { background: var(--p1); color: #fff; }
-.qa-mark-prio2 { background: var(--p2); color: #fff; }
-.qa-mark-prio3 { background: var(--p3); color: #fff; }
-.qa-mark-prio4 { background: var(--text-muted); color: #fff; }
-.qa-mark-unresolved { background: transparent; color: var(--text); text-decoration: underline wavy var(--overdue); }
+.qa-mark-date { --qa-mark-bg: var(--accent); color: var(--on-accent); }
+.qa-mark-project { --qa-mark-bg: var(--text); color: var(--main-bg); }
+.qa-mark-prio1 { --qa-mark-bg: var(--p1); color: #fff; }
+.qa-mark-prio2 { --qa-mark-bg: var(--p2); color: #fff; }
+.qa-mark-prio3 { --qa-mark-bg: var(--p3); color: #fff; }
+.qa-mark-prio4 { --qa-mark-bg: var(--text-muted); color: #fff; }
+.qa-mark-unresolved { --qa-mark-bg: transparent; box-shadow: none; color: var(--text); text-decoration: underline wavy var(--overdue); }
 
 .qa-project-menu {
   position: absolute;

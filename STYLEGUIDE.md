@@ -87,6 +87,7 @@ Papier, Grund und Sidebar hinweg, ohne dass es drei Strichfarben braucht.
 | Akzent Hover | `--accent-hover` | `#095a6f` | `#7ad4ec` |
 | Akzentlinie (Registermarke, Leiter) | `--accent-line` | `#0e88a6` | `#3fb4d4` |
 | Akzent weich (Auswahl in der Sidebar) | `--accent-soft` | `#e1edf0` | `#16323c` |
+| Textauswahl im Quick-Add (halbtransparent) | `--qa-selection` | `rgba(14,136,166,.28)` | `rgba(63,180,212,.32)` |
 | Schrift auf Akzentfläche | `--on-accent` | `#ffffff` | `#10141a` |
 
 In md2pdf markiert Cyan den Bereich, der **druckt** — das, was gerade zählt.
@@ -387,9 +388,21 @@ md2pdf den druckenden Bereich eines Blattes bemaßt.
   wird zu Papier, sobald man hineinschreibt.
 * Die Overlay-Marken (`.qa-mark-*`) sind Pillen: Datum in `--accent`, Projekt
   in `--text` (Tusche auf Papier), Prioritäten in ihrer Stufenfarbe.
-  **Ihre Geometrie darf sich nicht ändern** — das Overlay liegt deckungsgleich
-  über dem unsichtbaren Text des Inputs; Padding oder Margin zu verschieben
-  bringt beide auseinander.
+* **Keine Marke darf Breite kosten.** Das Overlay liegt deckungsgleich über dem
+  unsichtbaren Text des Inputs; jedes Pixel seitliches `padding`, `margin` oder
+  `border` an einer Marke schiebt den sichtbaren Text gegen den Cursor — und
+  zwar aufaddiert über alle Marken davor, bis Korrigieren unmöglich wird. Die
+  Höhe der Pille kommt aus senkrechtem `padding` (an einem inline-Element ohne
+  Wirkung aufs Layout), ihr schmaler Rand aus `box-shadow`-Spread.
+* **Input und Overlay teilen einen Metrikblock.** Schnitt, Größe, Fettgrad,
+  Laufweite, Wortabstand, Zeilenhöhe, Texteinzug und waagerechtes Padding
+  stehen in `style.css` genau einmal, für beide Selektoren zugleich. Ein
+  `<input>` erbt `font-family` **nicht** vom `body` — sie muss dort
+  ausgeschrieben stehen, sonst setzt das Feld in der System-Schrift und das
+  Overlay in Inter.
+* Die Textauswahl im Feld nutzt `--qa-selection`, halbtransparent: eine deckende
+  Fläche würde den Text des Overlays darunter zudecken, und die Markierung sähe
+  aus wie ein leerer Balken.
 
 ### 7.5 Dialoge
 

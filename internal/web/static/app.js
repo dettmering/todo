@@ -1655,6 +1655,17 @@ function renderQuickAddOverlay() {
   }
   html += escapeHTML(text.slice(cursor));
   overlay.innerHTML = html || "&#8203;";
+  syncQuickAddScroll();
+}
+
+// Sobald der Text breiter ist als das Feld, scrollt das <input> mit dem Cursor
+// mit -- das Overlay tut das nicht von allein und wuerde am Zeilenanfang
+// haengenbleiben. Ohne diesen Abgleich steht der Cursor irgendwo im Text.
+function syncQuickAddScroll() {
+  const input = document.getElementById("quick-add-input");
+  const overlay = document.getElementById("qa-overlay");
+  if (!input || !overlay) return;
+  overlay.scrollLeft = input.scrollLeft;
 }
 
 function updateProjectMenu() {
@@ -1736,6 +1747,11 @@ function wireQuickAdd() {
   const input = document.getElementById("quick-add-input");
 
   input.addEventListener("input", processQuickAddInput);
+  // Cursorbewegungen ohne Texteingabe (Pfeiltasten, Klick, Auswahl) scrollen
+  // das Feld ebenfalls; das Overlay muss jedes Mal nachziehen.
+  input.addEventListener("scroll", syncQuickAddScroll);
+  input.addEventListener("keyup", syncQuickAddScroll);
+  input.addEventListener("click", syncQuickAddScroll);
   input.addEventListener("keydown", (e) => {
     if (qaInline.menu.visible && qaInline.menu.items.length > 0) {
       if (e.key === "ArrowDown") {
