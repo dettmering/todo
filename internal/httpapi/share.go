@@ -204,7 +204,7 @@ h2{margin:1.1rem 0 .7rem;padding-top:1.1rem;border-top:1px solid var(--line);fon
 .tl-months{position:relative;height:1rem;margin-top:.55rem;font-family:var(--mono);font-size:.625rem;letter-spacing:.11em;text-transform:uppercase;color:var(--faint)}
 .tl-months span{position:absolute;top:0}
 .list{list-style:none;margin:1.25rem 0 0;padding:0}
-.list li{display:flex;align-items:baseline;gap:.6rem;padding:.6rem 0;border-bottom:1px solid var(--line)}
+.list li{display:flex;align-items:baseline;gap:.6rem;padding:.6rem 0}
 .list li:last-child{border-bottom:0}
 .list li .badge{margin-left:auto}
 .range{font-family:var(--mono);font-size:.95rem;letter-spacing:.02em;font-variant-numeric:tabular-nums}
