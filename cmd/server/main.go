@@ -61,8 +61,8 @@ func main() {
 
 	webFS := web.Static()
 	root := http.NewServeMux()
-	root.Handle("/static/", http.StripPrefix("/static/", http.FileServerFS(webFS)))
-	root.Handle("/api/", httpapi.New(svc, icalToken, shareToken, shareName))
+	root.Handle("/static/", gzipped(http.StripPrefix("/static/", http.FileServerFS(webFS))))
+	root.Handle("/api/", gzipped(httpapi.New(svc, icalToken, shareToken, shareName)))
 
 	// MCP server over Streamable HTTP, guarded by a bearer token. Empty token
 	// disables the route entirely (like ICAL_TOKEN). Behind Traefik it gets a
@@ -73,7 +73,7 @@ func main() {
 		root.Handle("/mcp/", mcpHandler)
 		slog.Info("mcp server enabled", "path", "/mcp")
 	}
-	root.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	root.Handle("/", gzipped(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// SPA catch-all: every path without a file extension serves index.html so
 		// the client-side router can handle /today, /projects/<slug>, /tasks/<id>,
 		// etc. Paths with an extension (favicon.ico, missing.png) fall through to
@@ -89,7 +89,7 @@ func main() {
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = w.Write(data)
-	})
+	})))
 
 	srv := &http.Server{
 		Addr:              *addr,

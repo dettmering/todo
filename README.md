@@ -77,6 +77,11 @@ darf zusätzlich eine deutsche natürlichsprachige Phrase stehen (`morgen`,
 - **Sichtbarkeit:** Listenabfragen filtern standardmäßig nach Lastenheft 5.5
   (`status = open` und `visible_from ≤ heute`). Mit `?scope=all` werden alle
   Tasks zurückgegeben, unabhängig von `visible_from`.
+- **Kompression:** Antworten werden gzippt, wenn der Client
+  `Accept-Encoding: gzip` schickt (`Vary: Accept-Encoding` steht in jedem Fall
+  dabei). Range-Anfragen, `204`/`304` und nicht-textuelle Typen bleiben
+  unkomprimiert, ebenso der MCP-Endpunkt — der streamt. `curl --compressed`
+  packt automatisch aus.
 
 ### Fehlerformat
 

@@ -108,6 +108,10 @@ These choices look unremarkable but are easy to break:
   only for these queries, and their column order *is* the query: add a filter
   column that is not in the index and the plan silently degrades to a table
   scan. Check with `EXPLAIN QUERY PLAN` — it must say COVERING INDEX.
+- **gzip is wired per route, never around the whole mux.** `cmd/server/gzip.go`
+  wraps `/static/`, `/api/` and the SPA catch-all. `/mcp` is left out on
+  purpose: Streamable HTTP streams, and a compressor in front of a stream holds
+  bytes back. Wrap `root` and you break MCP without a test failing.
 - **List responses carry no comment bodies.** `GET /api/tasks` uses
   `toTaskListDTO` (count only); the single-task responses use `toTaskDTO`
   (bodies included). The frontend fetches bodies per task when a modal opens.

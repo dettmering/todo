@@ -339,8 +339,9 @@ function viewToPath(view) {
 }
 
 // pushView updates state.view, syncs the URL, and re-renders. Use replace=true
-// when canonicalising the URL on first load so the back button still works.
-function pushView(view, { replace = false } = {}) {
+// when canonicalising the URL on first load so the back button still works, and
+// epicsAreFresh when the epic list was just loaded (see refresh).
+function pushView(view, { replace = false, epicsAreFresh = false } = {}) {
   state.view = view;
   // Mark the clicked entry before refresh() awaits the network. Otherwise the
   // accent only lands once the fetch resolves, and the item sits in its
@@ -351,7 +352,7 @@ function pushView(view, { replace = false } = {}) {
     if (replace) history.replaceState({}, "", path);
     else history.pushState({}, "", path);
   }
-  refresh();
+  refresh({ epicsAreFresh });
 }
 
 function pushTaskUrl(taskId) {
@@ -824,7 +825,11 @@ function setMainSection(section) {
 // (scroll back to the top) from a re-render after a mutation (stay put).
 let lastRenderedView = null;
 
-async function refresh() {
+// epicsAreFresh says that state.epics was loaded moments ago and does not need
+// reloading with the view. Set by boot(), which has just fetched the list —
+// otherwise the first render of an epic or project view asks for the same list
+// a second time within half a second.
+async function refresh({ epicsAreFresh = false } = {}) {
   const viewKey = state.view.kind + ":" + (state.view.id || "");
   const navigated = viewKey !== lastRenderedView;
   lastRenderedView = viewKey;
@@ -875,7 +880,8 @@ async function refresh() {
   }
   // Both views that show epics also show their tallies, and those come from the
   // server — reload them rather than guessing from a partial task list.
-  if (isEpic || isProject) fetches.push(api.listEpics());
+  const wantEpics = (isEpic || isProject) && !epicsAreFresh;
+  if (wantEpics) fetches.push(api.listEpics());
   const results = await Promise.all(fetches);
   const tasks = results[0];
   const counts = results[1];
@@ -884,7 +890,7 @@ async function refresh() {
     : [];
   if (isUpcoming) state.absences = results[2] || [];
   const completedInEpic = isEpic ? (results[2] || []) : [];
-  if (isEpic || isProject) state.epics = results[results.length - 1] || state.epics;
+  if (wantEpics) state.epics = results[results.length - 1] || state.epics;
 
   applySidebarCounts(counts);
   renderSidebar();
@@ -2940,13 +2946,22 @@ async function boot() {
   wireActivityControls();
   wireShortcuts();
   window.addEventListener("popstate", () => { handlePopState(); });
-  state.projects = await api.listProjects();
-  // Epics up front too: the sidebar shows them in every view, and the router
-  // resolves /epics/<slug> against this list before the first render.
-  try { state.epics = await api.listEpics(); } catch (_) { /* best-effort */ }
-  // Load absences up front so the "falls on an absence" warning works in every
-  // view (quick-add + task dialog), not just the absences/upcoming views.
-  try { state.absences = await api.listAbsences(); } catch (_) { /* best-effort */ }
+  // Three lists the first render needs, and none of them depends on the others:
+  // projects and epics because the router resolves /projects/<slug> and
+  // /epics/<slug> against them before it can render anything, absences because
+  // the "falls on an absence" warning applies in every view, not just the
+  // absences one. One round trip, not three.
+  //
+  // Only the projects are load-bearing — without them nothing resolves, so that
+  // rejection propagates. The other two degrade to an empty list.
+  const [projects, epics, absences] = await Promise.all([
+    api.listProjects(),
+    api.listEpics().catch(() => []),
+    api.listAbsences().catch(() => []),
+  ]);
+  state.projects = projects;
+  state.epics = epics;
+  state.absences = absences;
 
   const parsed = parsePath(location.pathname);
   if (parsed.openTaskId) {
@@ -2962,12 +2977,12 @@ async function boot() {
     // Replace history so the background view is recoverable when the modal closes.
     history.replaceState({}, "", viewToPath(state.view));
     history.pushState({}, "", `/tasks/${encodeURIComponent(task.id)}`);
-    await refresh();
+    await refresh({ epicsAreFresh: true });
     openTaskDialogInternal(task);
     return;
   }
   const view = resolveViewFromPath(parsed.view);
-  pushView(view, { replace: true });
+  pushView(view, { replace: true, epicsAreFresh: true });
 }
 
 boot();
