@@ -31,8 +31,9 @@ Gitea-Issue #15, Branch `feature-epics`.
 * Wird eine Aufgabe eines beendeten Epics wieder geöffnet, geht das **Epic
   zurück auf `active`**. Das Wiederöffnen zu verbieten machte ein beendetes Epic
   zur Falle.
-* Nur `project_id` einer verknüpften Aufgabe zu ändern ⇒ 400. Die Verknüpfung
-  stillschweigend zu kappen wäre Datenverlust, um den niemand gebeten hat.
+* Wird nur `project_id` einer verknüpften Aufgabe geändert, **löst sich die
+  Epic-Verknüpfung und die Aufgabe wird verschoben**. Das zuletzt genannte Feld
+  gewinnt; liegen beide im selben Request, gewinnt `epic_id`.
 * Wechselt ein **Epic** das Projekt, wandern **alle seine Aufgaben** mit.
 
 ## Umsetzung

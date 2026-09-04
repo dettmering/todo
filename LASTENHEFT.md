@@ -482,9 +482,10 @@ Vorhaben in zwanzig lose Aufgaben, und niemand sieht, wie weit es ist.
 * Eine Aufgabe gehört **höchstens einem** Epic (`epic_id`, leer = keins) und
   liegt dann **immer im Projekt des Epics**. Wird einer Aufgabe ein Epic
   zugewiesen, wandert sie in dessen Projekt; wechselt ein Epic das Projekt,
-  wandern alle seine Aufgaben mit. Nur das Projekt einer verknüpften Aufgabe zu
-  ändern, wird abgelehnt — die Verknüpfung stillschweigend zu kappen wäre
-  Datenverlust, um den niemand gebeten hat.
+  wandern alle seine Aufgaben mit. Wird umgekehrt nur das Projekt einer
+  verknüpften Aufgabe geändert, **löst sich die Verknüpfung und die Aufgabe
+  wird verschoben** — das zuletzt genannte Feld gewinnt, und ein Epic in einem
+  anderen Projekt als seine Aufgabe ist kein lesbarer Zustand.
 * Ein Epic lässt sich **nur beenden, wenn keine seiner Aufgaben mehr offen
   ist.** Erledigte und soft-gelöschte Aufgaben blockieren nicht — was
   weggeworfen wurde, ist keine offene Arbeit.
@@ -1421,7 +1422,7 @@ Das System gilt als fachlich abgenommen, wenn folgende Szenarien funktionieren:
 31. Ein Epic kann über UI und API angelegt, bearbeitet, beendet, wieder geöffnet und archiviert werden; es gehört immer zu genau einem Projekt und nie zur Inbox.
 32. Ein Epic lässt sich nicht beenden, solange eine seiner Aufgaben offen ist; die Oberfläche zeigt die Begründung an Ort und Stelle.
 33. Wird eine Aufgabe eines beendeten Epics wieder geöffnet, geht das Epic zurück auf „laufend".
-34. Eine Aufgabe mit Epic liegt immer im Projekt ihres Epics — beim Zuordnen wandert sie mit, ein Projektwechsel ohne Epic-Wechsel wird abgelehnt.
+34. Eine Aufgabe mit Epic liegt immer im Projekt ihres Epics — beim Zuordnen wandert sie mit; wird sie in ein anderes Projekt verschoben, löst sich die Epic-Verknüpfung.
 35. Die Sidebar führt die laufenden Epics; die Projektansicht gruppiert die Aufgaben unter ihnen, die Epic-Ansicht zeigt Zeitraum, Status und Fortschritt.
 
 ---

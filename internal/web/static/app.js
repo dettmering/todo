@@ -849,13 +849,14 @@ function setEpicHeadVisible(visible) {
   if (el) el.classList.toggle("hidden", !visible);
 }
 
-// epicRangeLabel renders the two optional dates as one readable span.
-// A missing side is spelled out rather than left as a dangling dash.
+// epicRangeLabel renders the two optional dates as one readable span. An epic
+// without any dates gets an empty string, not a placeholder: "ohne Zeitraum"
+// takes up a slot to say nothing.
 function epicRangeLabel(e) {
   if (e.start_date && e.end_date) return `${formatDate(e.start_date)} – ${formatDate(e.end_date)}`;
   if (e.start_date) return `seit ${formatDate(e.start_date)}`;
   if (e.end_date) return `bis ${formatDate(e.end_date)}`;
-  return "ohne Zeitraum";
+  return "";
 }
 
 function renderEpicHead(e) {
@@ -875,7 +876,9 @@ function renderEpicHead(e) {
   status.textContent = finished ? "Beendet" : "Laufend";
   status.classList.toggle("done", finished);
 
-  document.getElementById("eh-range").textContent = epicRangeLabel(e);
+  const range = document.getElementById("eh-range");
+  range.textContent = epicRangeLabel(e);
+  range.classList.toggle("hidden", range.textContent === "");
 
   const total = (e.open_tasks || 0) + (e.done_tasks || 0);
   document.getElementById("eh-progress").textContent =
@@ -1376,7 +1379,20 @@ const ACTIVITY_LABEL = {
   deadline_changed:      "Deadline geändert",
   project_changed:       "Projekt geändert",
   priority_changed:      "Priorität geändert",
+  epic_changed:          "Epic gewechselt",
 };
+
+// Das Audit-Log kennt für Epics nur eine Aktion; ob zugeordnet, entfernt oder
+// gewechselt wurde, steht in den beiden Werten. Die Beschriftung liest sie aus,
+// statt für alle drei Fälle "Epic gewechselt" zu behaupten.
+function activityLabelFor(e) {
+  if (e.action === "epic_changed") {
+    if (!e.old_value) return "Epic zugeordnet";
+    if (!e.new_value) return "aus Epic entfernt";
+    return "Epic gewechselt";
+  }
+  return ACTIVITY_LABEL[e.action] || e.action;
+}
 
 const ACTIVITY_ICON = {
   created:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
@@ -1387,6 +1403,7 @@ const ACTIVITY_ICON = {
   deadline:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 4h12l-2 4 2 4H5"/></svg>',
   project:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>',
   priority:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>',
+  epic:      ICON.epic,
 };
 
 function activityIconFor(action) {
@@ -1397,6 +1414,7 @@ function activityIconFor(action) {
   if (action.startsWith("deadline"))     return { svg: ACTIVITY_ICON.deadline, cls: "deadline" };
   if (action === "project_changed")      return { svg: ACTIVITY_ICON.project, cls: "project" };
   if (action === "priority_changed")     return { svg: ACTIVITY_ICON.priority, cls: "priority" };
+  if (action === "epic_changed")         return { svg: ACTIVITY_ICON.epic, cls: "project" };
   return { svg: ACTIVITY_ICON.date, cls: "" };
 }
 
@@ -1404,6 +1422,10 @@ function activityDiffHTML(e) {
   // Dates: format human-friendly.
   const isDate = e.action.startsWith("visible_from") || e.action.startsWith("deadline");
   const fmt = (v) => isDate ? (v ? formatDate(v) : "—") : (v || "—");
+  if (e.action === "epic_changed") {
+    if (!e.old_value) return `<span class="activity-diff"><span class="activity-diff-new">${escapeHTML(e.new_value)}</span></span>`;
+    if (!e.new_value) return `<span class="activity-diff"><span class="activity-diff-old">${escapeHTML(e.old_value)}</span></span>`;
+  }
   if (e.action === "project_changed") {
     return `<span class="activity-diff"><span class="activity-diff-old">${escapeHTML(e.old_value || "—")}</span><span class="activity-diff-sep">→</span><span class="activity-diff-new">${escapeHTML(e.new_value || "—")}</span></span>`;
   }
@@ -1513,7 +1535,7 @@ function createActivityLI(e) {
   const dt = new Date(e.at);
   const time = dt.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
   const icon = activityIconFor(e.action);
-  const label = ACTIVITY_LABEL[e.action] || e.action;
+  const label = activityLabelFor(e);
   const diff = activityDiffHTML(e);
   li.innerHTML = `
     <span class="activity-time">${escapeHTML(time)}</span>
@@ -1695,10 +1717,11 @@ function createEpicGroupHeader(group) {
   }
   const e = group.epic;
   const total = (e.open_tasks || 0) + (e.done_tasks || 0);
+  const range = epicRangeLabel(e);
   header.className = "group-header epic";
   header.innerHTML = `
     <span class="group-epic-title">${escapeHTML(e.title)}</span>
-    <span class="group-range">${escapeHTML(epicRangeLabel(e))}</span>
+    ${range ? `<span class="group-range">${escapeHTML(range)}</span>` : ""}
     <span class="group-count" title="${e.done_tasks || 0} von ${total} erledigt">${e.done_tasks || 0}/${total}</span>
   `;
   header.title = "Doppelklick zum Bearbeiten";

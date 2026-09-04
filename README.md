@@ -233,9 +233,10 @@ Antwort: `200 OK` und das Task-Objekt; `404` wenn nicht vorhanden.
 #### `PATCH /api/tasks/{id}`
 
 `epic_id` folgt derselben Regel wie beim Anlegen: ein gesetztes Epic zieht den
-Task in dessen Projekt, ein leerer String löst die Verknüpfung. Nur `project_id`
-zu ändern, während der Task an einem Epic hängt, ist ⇒ 400 — erst das Epic
-wechseln oder entfernen.
+Task in dessen Projekt, ein leerer String löst die Verknüpfung. Wird umgekehrt
+nur `project_id` geändert, während der Task an einem Epic hängt, **wird die
+Verknüpfung gelöst und der Task verschoben** — das zuletzt genannte Feld
+gewinnt. Liegen beide im selben Request, gewinnt `epic_id`.
 
 Partial-Update. Jedes Feld ist optional; weggelassene Felder bleiben
 unverändert. **Ein explizit gesetzter Leerstring** (z. B. `"deadline": ""`)
@@ -514,7 +515,8 @@ irgendwann beendet ist.
 - `status` ist `active` („laufend") oder `completed` („beendet") und wird
   **nicht** per `PATCH` gesetzt, sondern nur über `complete` / `reopen`.
 - Ein Task gehört höchstens **einem** Epic (`epic_id`) und liegt dann **immer**
-  im Projekt des Epics — siehe [`POST /api/tasks`](#post-apitasks).
+  im Projekt des Epics — siehe [`POST /api/tasks`](#post-apitasks). Wird er in
+  ein anderes Projekt verschoben, löst sich die Verknüpfung.
 
 #### `GET /api/epics`
 

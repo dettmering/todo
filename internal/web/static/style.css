@@ -417,14 +417,12 @@ strong, b { font-weight: 600; }
 }
 .date-item.recur-label { color: var(--text-muted); }
 .date-item.recur-label svg { width: 14px; height: 14px; }
-/* Der Epic-Name auf einer Aufgabenzeile ist ein gewaehltes Wort, kein
-   Ablesewert — Sans, gemischt, wie der Projekttag rechts. Er erscheint nur in
-   den Ansichten, in denen das Epic nicht ohnehin darueber steht. */
+/* Die Zeile unter dem Aufgabentitel ist ein Block: Datum, Deadline,
+   Wiederholung, Kommentare und Epic teilen sich denselben Schnitt. Ein
+   abweichender Schnitt mitten in der Zeile faellt mehr auf als er nuetzt —
+   der Epic-Name erbt also die Metrik von .dates wie alles andere dort. */
 .date-item.epic-label {
   color: var(--text-muted);
-  font-family: var(--font-sans);
-  font-size: 12px;
-  letter-spacing: 0;
   max-width: 220px;
 }
 .date-item.epic-label span {

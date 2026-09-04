@@ -213,12 +213,11 @@ func (s *Service) UpdateTask(ctx context.Context, id string, p TaskPatch) (*doma
 		}
 		t.ProjectID = *p.ProjectID
 	}
-	// Epic and project are applied as a pair, epic last. Linking to an epic
-	// drags the task into the epic's project, so a project_id in the same patch
-	// loses — that is what "the task moves with the epic" means. Changing only
-	// the project of a task that hangs on an epic is refused rather than
-	// silently unlinked: dropping the link behind the user's back would lose
-	// data they never asked to give up.
+	// Epic and project are applied as a pair, epic last, and the later
+	// instruction wins. Naming an epic drags the task into that epic's project,
+	// so a project_id in the same patch loses. Naming only a project moves the
+	// task and drops the epic link, because an epic in a different project than
+	// its task is not a state the rest of the code can read.
 	if p.EpicID != nil {
 		if *p.EpicID == "" {
 			t.EpicID = ""
@@ -231,9 +230,8 @@ func (s *Service) UpdateTask(ctx context.Context, id string, p TaskPatch) (*doma
 			t.ProjectID = e.ProjectID
 		}
 	} else if p.ProjectID != nil && t.EpicID != "" {
-		e, err := s.epics.Get(ctx, t.EpicID)
-		if err == nil && e.ProjectID != t.ProjectID {
-			return nil, fmt.Errorf("%w: task belongs to epic %q in another project; change or clear epic_id first", ErrValidation, e.Title)
+		if e, err := s.epics.Get(ctx, t.EpicID); err == nil && e.ProjectID != t.ProjectID {
+			t.EpicID = ""
 		}
 	}
 	if p.Priority != nil {

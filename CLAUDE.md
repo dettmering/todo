@@ -95,10 +95,10 @@ These choices look unremarkable but are easy to break:
   through `CompleteEpic`/`ReopenEpic`, never through `UpdateEpic`: the "no open
   tasks left" rule has exactly one home.
 - **`task.epic_id` implies `task.project_id`.** Linking a task to an epic moves
-  it into the epic's project; moving an epic moves all its tasks. Changing only
-  the project of a linked task is a validation error rather than a silent
-  unlink. `epic_id` is an empty string when unset — no foreign key, because ''
-  would violate one.
+  it into the epic's project; moving an epic moves all its tasks. Moving a
+  linked task to a different project clears `epic_id` instead — in a patch that
+  names both, the epic wins. `epic_id` is an empty string when unset — no
+  foreign key, because '' would violate one.
 - **Task deletion is soft.** `DELETE /api/tasks/{id}` sets
   `status = 'deleted'`; rows are kept. Project archival can therefore
   always succeed.

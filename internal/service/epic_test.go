@@ -210,22 +210,34 @@ func TestTaskFollowsItsEpicsProject(t *testing.T) {
 		t.Errorf("ProjectID = %q, want the epic's project %q", task.ProjectID, pA.ID)
 	}
 
-	// Moving the task out of the epic's project alone is refused rather than
-	// silently unlinking it.
-	if _, err := svc.UpdateTask(ctx, task.ID, TaskPatch{ProjectID: &pB.ID}); !errors.Is(err, ErrValidation) {
-		t.Errorf("project-only move = %v, want ErrValidation", err)
-	}
-
-	// Clearing the epic frees the task to move.
-	if _, err := svc.UpdateTask(ctx, task.ID, TaskPatch{EpicID: ptr("")}); err != nil {
-		t.Fatalf("clear epic: %v", err)
-	}
+	// Moving the task to another project takes it out of the epic: the project
+	// the user just picked is the later instruction, and an epic in a different
+	// project than its task is not a readable state.
 	moved, err := svc.UpdateTask(ctx, task.ID, TaskPatch{ProjectID: &pB.ID})
 	if err != nil {
 		t.Fatalf("UpdateTask: %v", err)
 	}
 	if moved.EpicID != "" || moved.ProjectID != pB.ID {
 		t.Errorf("task = %+v, want no epic and project %q", moved, pB.ID)
+	}
+
+	// Moving it to the epic's own project is no reason to drop anything — but
+	// the link is already gone by now, so re-link first and check.
+	if _, err := svc.UpdateTask(ctx, task.ID, TaskPatch{EpicID: &e.ID}); err != nil {
+		t.Fatalf("re-link: %v", err)
+	}
+	same, err := svc.UpdateTask(ctx, task.ID, TaskPatch{ProjectID: &pA.ID})
+	if err != nil {
+		t.Fatalf("UpdateTask: %v", err)
+	}
+	if same.EpicID != e.ID {
+		t.Errorf("EpicID = %q, want the link kept when the project does not change", same.EpicID)
+	}
+	if _, err := svc.UpdateTask(ctx, task.ID, TaskPatch{EpicID: ptr("")}); err != nil {
+		t.Fatalf("clear epic: %v", err)
+	}
+	if _, err := svc.UpdateTask(ctx, task.ID, TaskPatch{ProjectID: &pB.ID}); err != nil {
+		t.Fatalf("UpdateTask: %v", err)
 	}
 
 	// Re-linking pulls it back into the epic's project.

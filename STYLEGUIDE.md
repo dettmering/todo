@@ -213,7 +213,7 @@ damit gerendertes Markdown keinen synthetischen Fettschnitt erzeugt.
 | Aufgabentitel im Modal | Sans 600 / `22px` / `-0.018em` | |
 | Aufgabentitel in der Liste | Sans 400 / `15px` / `1.45` / `--text` | |
 | **Rubrikzeile** | Mono / `13px` / `0.06em` / versal; Rubrik 700, Rest 400 | Wochen-, Tages- und Abschnittsköpfe (7.1) |
-| Epic-Rubrik | Sans 600 / `15px` / `-0.012em` / gemischt | **einzige Ausnahme** in einer Rubrikzeile: ein Epic-Titel ist ein gewähltes Wort, kein Ablesewert (7.11) |
+| Epic-Rubrik | Sans 600 / `15px` / `-0.012em` / gemischt | **einzige Ausnahme** in einer Rubrikzeile: ein Epic-Titel ist ein gewähltes Wort, kein Ablesewert (7.11). Gilt nur für den Gruppenkopf — in der Datumszeile einer Aufgabe bleibt der Epic-Name Mono wie alles daneben |
 | **Marginalie** | Mono 400 / `12px` / `0.09em` / versal / `--text-muted` | Feldrubriken, Abschnittsköpfe der Sidebar, Hinweise |
 | **Ablesewert** | Mono 400 / `12px` / `0.01–0.03em` / gemischt / `tabular-nums` | Daten, Uhrzeiten, Zeiträume, Zähler |
 
@@ -537,8 +537,11 @@ Abgeschlossen mit einer `--border`-Linie, nicht mit einer Fläche.
 * Fehler beim Beenden stehen inline im Kopf (`.dialog-error`), nicht global.
 
 **Auf der Aufgabenzeile** erscheint der Epic-Name als `.date-item.epic-label` in
-der Datumszeile — in **Sans**, gemischt, aus demselben Grund wie oben, und nur
-in den Ansichten, in denen das Epic nicht ohnehin darübersteht.
+der Datumszeile — nur in den Ansichten, in denen das Epic nicht ohnehin
+darübersteht. Anders als die Rubrik oben bekommt er **keine** Sonderschrift: die
+Zeile unter dem Aufgabentitel ist ein Block, in dem Datum, Deadline,
+Wiederholung, Kommentare und Epic denselben Schnitt teilen. Ein abweichender
+Schnitt mitten in dieser Zeile fällt mehr auf, als der Unterschied wert ist.
 
 ## 8. Icons
 
