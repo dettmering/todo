@@ -4,7 +4,7 @@ Schlanke, persönliche, webbasierte Todo-Anwendung nach den Vorgaben in [LASTENH
 
 - **Backend:** Go, stdlib `net/http`, pure-Go SQLite (`modernc.org/sqlite`)
 - **Frontend:** Vanilla HTML/CSS/JS, an gaengigen Task-Managern orientiert, in das Binary eingebettet
-- **Umfang:** Tasks, Projekte, Kommentare, Aktivitätsprotokoll, Abwesenheiten mit Arbeitstag-Logik, Wiederholungen, deutscher NL-Datums-Parser, REST-API, Webhooks, MCP-Server, iCal-Feed und anonymisierte Share-Seite.
+- **Umfang:** Tasks, Projekte, Epics (langlaufende Initiativen), Kommentare, Aktivitätsprotokoll, Abwesenheiten mit Arbeitstag-Logik, Wiederholungen, deutscher NL-Datums-Parser, REST-API, Webhooks, MCP-Server, iCal-Feed und anonymisierte Share-Seite.
 
 ## Starten
 
@@ -20,8 +20,8 @@ Dann http://localhost:8080 öffnen.
 
 ```
 cmd/server/             main, embed der Web-Assets, http.Server
-internal/domain/        Task, Project, LocalDate, Priority, Sichtbarkeitsregel
-internal/storage/       Repository-Interfaces (TaskRepo, ProjectRepo)
+internal/domain/        Task, Project, Epic, LocalDate, Priority, Sichtbarkeitsregel
+internal/storage/       Repository-Interfaces (TaskRepo, ProjectRepo, EpicRepo)
 internal/storage/sqlite SQLite-Implementierung + Migrations + Inbox-Seed
 internal/service/       Geschäftslogik, Validierung, ID-Vergabe, Event-Emit
 internal/events/        In-Process Pub/Sub
@@ -64,13 +64,14 @@ darf zusätzlich eine deutsche natürlichsprachige Phrase stehen (`morgen`,
 ### Konventionen
 
 - IDs sind opaque Strings mit Präfix: `task_<16 hex>`, `project_<16 hex>`,
-  `absence_<16 hex>`, `comment_<16 hex>`, `audit_<16 hex>`.
+  `epic_<16 hex>`, `absence_<16 hex>`, `comment_<16 hex>`, `audit_<16 hex>`.
   Die Inbox hat die reservierte ID `inbox` und kann nicht gelöscht werden.
 - Zeitstempel (`created_at`, `updated_at`, `completed_at`) sind RFC3339-UTC.
 - `LocalDate`-Felder sind timezone-naiv (`YYYY-MM-DD`); leerer String =
   „nicht gesetzt".
 - **Soft-Delete:** `DELETE /api/tasks/{id}` setzt `status = "deleted"` —
-  die Zeile bleibt erhalten. Projekt-Delete archiviert nur (`archived = true`).
+  die Zeile bleibt erhalten. Projekt- und Epic-Delete archivieren nur
+  (`archived = true`).
 - **Priorität:** `1` = höchste, `4` = niedrigste. `0` oder fehlend ⇒ Service
   setzt `P4`.
 - **Sichtbarkeit:** Listenabfragen filtern standardmäßig nach Lastenheft 5.5
@@ -84,7 +85,7 @@ Alle Fehler liefern `{"error": "<text>"}` als Body. Status-Codes:
 | Code | Bedeutung |
 | --- | --- |
 | `400 Bad Request` | Validierungsfehler (z. B. leerer `title`, ungültige Priorität, kaputtes JSON) |
-| `404 Not Found` | Ressource (`task_*` / `project_*`) existiert nicht |
+| `404 Not Found` | Ressource (`task_*` / `project_*` / `epic_*` / `absence_*`) existiert nicht |
 | `422 Unprocessable Entity` | nur `POST /api/parse`: Eingabe konnte nicht interpretiert werden |
 | `500 Internal Server Error` | unerwarteter Storage- oder Logikfehler |
 
@@ -110,6 +111,13 @@ Alle Fehler liefern `{"error": "<text>"}` als Body. Status-Codes:
 | `GET` | `/api/projects/{id}` | Projekt lesen |
 | `PATCH` | `/api/projects/{id}` | Projekt aktualisieren (auch entarchivieren) |
 | `DELETE` | `/api/projects/{id}` | Archivieren (Tasks bleiben erhalten) |
+| `GET` | `/api/epics` | Epics listen (Filter: Projekt, Status, archivierte) |
+| `POST` | `/api/epics` | Epic anlegen |
+| `GET` | `/api/epics/{id}` | Epic lesen |
+| `PATCH` | `/api/epics/{id}` | Epic teilaktualisieren (ohne Status) |
+| `POST` | `/api/epics/{id}/complete` | Epic beenden (nur ohne offene Tasks) |
+| `POST` | `/api/epics/{id}/reopen` | Epic wieder öffnen |
+| `DELETE` | `/api/epics/{id}` | Archivieren (Tasks behalten ihre `epic_id`) |
 | `GET` | `/api/absences` | Abwesenheiten listen (View- oder Range-Modus) |
 | `GET` | `/api/absences.ics` | Abwesenheiten als abonnierbarer iCal-Feed (Token nötig) |
 | `GET` | `/api/absences.html` | Anonymisierte Abwesenheits-Übersicht als Webseite (Token nötig) |
@@ -132,6 +140,7 @@ Query-Parameter (alle optional):
 | Parameter | Werte | Wirkung |
 | --- | --- | --- |
 | `project_id` | `inbox`, `project_…` | Nur Tasks dieses Projekts |
+| `epic_id` | `epic_…` | Nur Tasks dieses Epics |
 | `status` | `open`, `completed`, `deleted` | Status-Filter; ohne Angabe gilt mit Default-Scope „nur open" |
 | `scope` | `all` | Hebt den Sichtbarkeits-Filter (Lastenheft 5.5) auf — auch zukünftige `visible_from`-Tasks sind dabei |
 | `date` | `YYYY-MM-DD` | Nur Tasks, deren `visible_from` exakt dieser Tag ist (Shortcut für `from=…&to=…` mit demselben Wert) |
@@ -193,7 +202,8 @@ Body:
 | --- | --- | --- | --- | --- |
 | `title` | string | ✓ | — | wird getrimmt; leer ⇒ 400 |
 | `description` | string | | `""` | Markdown wird im Frontend gerendert |
-| `project_id` | string | | `"inbox"` | unbekannte ID ⇒ 400 |
+| `project_id` | string | | `"inbox"` | unbekannte ID ⇒ 400; wird von `epic_id` überstimmt |
+| `epic_id` | string | | `""` | Epic, zu dem der Task gehört. Setzt `project_id` auf das Projekt des Epics. Unbekanntes, beendetes oder archiviertes Epic ⇒ 400 |
 | `priority` | int | | `4` | `1`–`4`; `0` wird auf `4` gesetzt |
 | `visible_from` | string | | `""` | ISO-Datum **oder** deutsche NL-Phrase |
 | `deadline` | string | | `""` | ISO-Datum **oder** deutsche NL-Phrase |
@@ -221,6 +231,11 @@ curl -X POST http://localhost:8080/api/tasks \
 Antwort: `200 OK` und das Task-Objekt; `404` wenn nicht vorhanden.
 
 #### `PATCH /api/tasks/{id}`
+
+`epic_id` folgt derselben Regel wie beim Anlegen: ein gesetztes Epic zieht den
+Task in dessen Projekt, ein leerer String löst die Verknüpfung. Nur `project_id`
+zu ändern, während der Task an einem Epic hängt, ist ⇒ 400 — erst das Epic
+wechseln oder entfernen.
 
 Partial-Update. Jedes Feld ist optional; weggelassene Felder bleiben
 unverändert. **Ein explizit gesetzter Leerstring** (z. B. `"deadline": ""`)
@@ -289,6 +304,8 @@ Soft-Delete: `status = "deleted"`. Antwort: `204 No Content`.
   "description": "Belege liegen im Ordner '2025'.",
   "project_id": "inbox",
   "project_name": "Inbox",
+  "epic_id": "epic_5c2a8e1f3b407d96",
+  "epic_title": "Küche renovieren",
   "status": "open",
   "priority": 2,
   "visible_from": "2026-05-23",
@@ -478,6 +495,127 @@ Projekt zugeordnet, damit historische Beschriftungen erhalten bleiben.
   "color": "#db4c3f",
   "created_at": "2026-04-11T09:02:55Z",
   "updated_at": "2026-04-11T09:02:55Z"
+}
+```
+
+---
+
+### Epics
+
+Ein **Epic** ist eine langlaufende Initiative — die Ebene zwischen Projekt
+(ein Fach, das bleibt) und Task (ein einzelner Schritt). „Küche renovieren"
+oder „ISO-Audit 2027": etwas, das über Monate läuft, Aufgaben bündelt und
+irgendwann beendet ist.
+
+- Ein Epic gehört zu **genau einem Projekt**. Die **Inbox ist ausgeschlossen** —
+  sie ist der Eingangskorb, kein Vorhaben (⇒ 400).
+- `start_date` und `end_date` sind **beide optional**; eine Initiative darf ohne
+  festen Anfang, ohne festes Ende oder ganz ohne Rahmen laufen.
+- `status` ist `active` („laufend") oder `completed` („beendet") und wird
+  **nicht** per `PATCH` gesetzt, sondern nur über `complete` / `reopen`.
+- Ein Task gehört höchstens **einem** Epic (`epic_id`) und liegt dann **immer**
+  im Projekt des Epics — siehe [`POST /api/tasks`](#post-apitasks).
+
+#### `GET /api/epics`
+
+Query-Parameter (alle optional):
+
+| Parameter | Werte | Wirkung |
+| --- | --- | --- |
+| `project_id` | `project_…` | Nur Epics dieses Projekts |
+| `status` | `active`, `completed` | Status-Filter; anderer Wert ⇒ 400 |
+| `include_archived` | `true` | Archivierte Epics werden mitgeliefert |
+
+Antwort: `200 OK`, JSON-Array, sortiert nach `sort_order`, dann `title`.
+
+#### `POST /api/epics`
+
+Body:
+
+| Feld | Typ | Pflicht | Default | Bemerkung |
+| --- | --- | --- | --- | --- |
+| `title` | string | ✓ | — | wird getrimmt; leer ⇒ 400. Slug wird abgeleitet und ist über alle Epics eindeutig |
+| `project_id` | string | ✓ | — | unbekannte ID oder `inbox` ⇒ 400 |
+| `description` | string | | `""` | Markdown wird im Frontend gerendert |
+| `start_date` | string | | `""` | ISO-Datum; leer = offener Anfang |
+| `end_date` | string | | `""` | ISO-Datum; leer = offenes Ende. Vor `start_date` ⇒ 400 |
+| `sort_order` | int | | `0` | Manuelle Sortierung im Frontend |
+
+Datumsangaben werden hier — wie bei Abwesenheiten — **nur als ISO-Datum**
+entgegengenommen; die NL-Eingabe aus 4.7 gilt für Aufgaben.
+
+Antwort: `201 Created`, das vollständige Epic-Objekt.
+
+```bash
+curl -X POST http://localhost:8080/api/epics \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "title": "Küche renovieren",
+    "project_id": "project_5c2a8e1f3b407d96",
+    "start_date": "2026-09-01",
+    "end_date": "2027-03-31"
+  }'
+```
+
+#### `GET /api/epics/{id}`, `PATCH /api/epics/{id}`
+
+`PATCH` akzeptiert `title`, `description`, `project_id`, `start_date`,
+`end_date`, `sort_order` und `archived` (bool — damit lassen sich archivierte
+Epics wieder reaktivieren). **Kein `status`**: der läuft über `complete` und
+`reopen`, damit die Beendigungsregel genau eine Stelle hat.
+
+Der Slug bleibt bei einer Umbenennung stehen, damit geteilte Links weiter
+funktionieren. Ein Projektwechsel **zieht alle Tasks des Epics mit** — sonst
+läge ein Task in einem anderen Projekt als sein Epic.
+
+#### `POST /api/epics/{id}/complete`
+
+Setzt `status = "completed"` und `completed_at`. **Schlägt fehl (400), solange
+noch eine Aufgabe des Epics offen ist** — erledigte und soft-gelöschte Tasks
+blockieren nicht. Ein bereits beendetes Epic ist ein No-op (`200`).
+
+```bash
+curl -X POST http://localhost:8080/api/epics/epic_5c2a8e1f3b407d96/complete
+# {"error":"validation error: epic still has 3 open task(s)"}
+```
+
+#### `POST /api/epics/{id}/reopen`
+
+Setzt `status = "active"` und löscht `completed_at`. Passiert außerdem
+**implizit**, wenn eine Aufgabe eines beendeten Epics über
+`POST /api/tasks/{id}/reopen` wieder geöffnet wird — ein beendetes Epic mit
+offener Aufgabe darunter wäre eine Falle.
+
+#### `DELETE /api/epics/{id}`
+
+Archiviert das Epic (`archived = true`). Tasks behalten ihre `epic_id`, damit
+historische Beschriftungen erhalten bleiben; ein archiviertes Epic nimmt aber
+keine neuen Tasks mehr an (⇒ 400). Antwort `204`, mehrfaches Löschen ist ein
+No-op.
+
+#### Epic-Objekt
+
+`open_tasks` und `done_tasks` sind berechnet, nicht gespeichert:
+soft-gelöschte Tasks zählen in keiner der beiden Zahlen mit.
+
+```json
+{
+  "id": "epic_5c2a8e1f3b407d96",
+  "title": "Küche renovieren",
+  "slug": "kueche-renovieren",
+  "description": "Alles von Fliesen bis Armatur.",
+  "project_id": "project_6b0f0e5b2891b2c0",
+  "project_name": "Renovierung",
+  "status": "active",
+  "start_date": "2026-09-01",
+  "end_date": "2027-03-31",
+  "sort_order": 0,
+  "archived": false,
+  "open_tasks": 3,
+  "done_tasks": 5,
+  "created_at": "2026-09-04T09:57:13Z",
+  "updated_at": "2026-09-04T09:57:13Z",
+  "completed_at": null
 }
 ```
 
@@ -979,7 +1117,7 @@ strukturiertes JSON (snake_case, wie die REST-Objekte) zurück.
 
 | Tool | Beschreibung | Service |
 | --- | --- | --- |
-| `list_tasks` | Tasks auflisten (Filter: `project_id`, `status`, `scope`, `sort`) | `ListTasks` |
+| `list_tasks` | Tasks auflisten (Filter: `project_id`, `epic_id`, `status`, `scope`, `sort`) | `ListTasks` |
 | `get_task` | Einzelnen Task per `id` holen | `GetTask` |
 | `create_task` | Task anlegen (nur `title` Pflicht; Default Inbox/P4) | `CreateTask` |
 | `update_task` | Felder eines Tasks ändern (nur gesetzte Felder) | `UpdateTask` |
@@ -988,6 +1126,13 @@ strukturiertes JSON (snake_case, wie die REST-Objekte) zurück.
 | `delete_task` | Task soft-löschen (`status = deleted`) | `DeleteTask` |
 | `list_projects` | Projekte auflisten (`include_archived`) | `ListProjects` |
 | `create_project` | Projekt anlegen (nur `name` Pflicht) | `CreateProject` |
+| `list_epics` | Epics auflisten (Filter: `project_id`, `status`, `include_archived`) | `ListEpics` |
+| `get_epic` | Einzelnes Epic per `id` holen (inkl. offener/erledigter Tasks) | `GetEpic` |
+| `create_epic` | Epic anlegen (`title` und `project_id` Pflicht, Inbox ausgeschlossen) | `CreateEpic` |
+| `update_epic` | Felder eines Epics ändern (nur gesetzte Felder) | `UpdateEpic` |
+| `complete_epic` | Epic beenden — schlägt fehl, solange Tasks offen sind | `CompleteEpic` |
+| `reopen_epic` | Beendetes Epic wieder öffnen | `ReopenEpic` |
+| `delete_epic` | Epic archivieren (Tasks behalten ihre Verknüpfung) | `DeleteEpic` |
 | `list_absences` | Abwesenheiten auflisten | `ListAbsences` |
 | `create_absence` | Abwesenheit `start_date`..`end_date` anlegen (optional `label`, `comment`) | `CreateAbsence` |
 | `get_absence` | Einzelne Abwesenheit per `id` holen | `GetAbsence` |
@@ -1019,6 +1164,10 @@ goroutines aufgerufen und blockieren keine HTTP-Anfragen.
 | `project.updated` | `PATCH /api/projects/{id}` |
 | `project.deleted` | `DELETE /api/projects/{id}` (Archivierung) |
 | `comment.created` | `POST /api/tasks/{id}/comments` |
+| `epic.created` | `POST /api/epics` |
+| `epic.updated` | `PATCH /api/epics/{id}`, `reopen` (auch implizit beim Wiederöffnen einer Aufgabe) |
+| `epic.completed` | `POST /api/epics/{id}/complete` |
+| `epic.deleted` | `DELETE /api/epics/{id}` (Archivierung) |
 | `absence.created` | `POST /api/absences` |
 | `absence.updated` | `PATCH /api/absences/{id}` |
 | `absence.deleted` | `DELETE /api/absences/{id}` |
@@ -1048,7 +1197,7 @@ keine Auth, keine Filterung pro Event-Typ, kein Retry.
   nach Lastenheft 5.11 — nicht identisch mit den REST-DTOs: die Regel heißt
   hier `recurrence` (statt `recurrence_rule`); `project_name`,
   `recurrence_label`, `comments` und `comment_count` fehlen.
-- Alle übrigen Event-Typen (`comment.*`, `absence.*`) werden **ohne**
+- Alle übrigen Event-Typen (`comment.*`, `absence.*`, `epic.*`) werden **ohne**
   Umformung serialisiert, d. h. mit den Go-Feldnamen in PascalCase,
   `LocalDate` als verschachteltes Objekt und Zeitstempeln in
   Nanosekunden-Auflösung:
@@ -1076,7 +1225,7 @@ keine Auth, keine Filterung pro Event-Typ, kein Retry.
 Bus-Goroutine — eine HTTP-Anfrage wartet also nie auf den Webhook. Fehler und
 Nicht-2xx-Antworten landen im Server-Log.
 
-**Absicherung:** `/api/tasks`, `/api/projects`, `/api/absences`, `/api/audit`
+**Absicherung:** `/api/tasks`, `/api/projects`, `/api/epics`, `/api/absences`, `/api/audit`
 und `/api/parse` tragen keine eigene Authentifizierung — sie liegen hinter der
 BasicAuth des Reverse-Proxys. Token-geschützt und von dieser Auth ausgenommen
 sind nur die Sonderrouten `.ics`, `.html` und `/mcp` (siehe oben).

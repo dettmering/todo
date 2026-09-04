@@ -213,6 +213,7 @@ damit gerendertes Markdown keinen synthetischen Fettschnitt erzeugt.
 | Aufgabentitel im Modal | Sans 600 / `22px` / `-0.018em` | |
 | Aufgabentitel in der Liste | Sans 400 / `15px` / `1.45` / `--text` | |
 | **Rubrikzeile** | Mono / `13px` / `0.06em` / versal; Rubrik 700, Rest 400 | Wochen-, Tages- und Abschnittsköpfe (7.1) |
+| Epic-Rubrik | Sans 600 / `15px` / `-0.012em` / gemischt | **einzige Ausnahme** in einer Rubrikzeile: ein Epic-Titel ist ein gewähltes Wort, kein Ablesewert (7.11) |
 | **Marginalie** | Mono 400 / `12px` / `0.09em` / versal / `--text-muted` | Feldrubriken, Abschnittsköpfe der Sidebar, Hinweise |
 | **Ablesewert** | Mono 400 / `12px` / `0.01–0.03em` / gemischt / `tabular-nums` | Daten, Uhrzeiten, Zeiträume, Zähler |
 
@@ -497,6 +498,48 @@ Grund, mit eigenem, kleinem Tokensatz im Inline-`<style>` von `share.go`.
 
 ---
 
+### 7.11 Epic-Rubrikzeile und Epic-Kopf
+
+Ein Epic ist eine langlaufende Initiative über mehreren Aufgaben. Es tritt an
+drei Stellen auf und nirgends laut.
+
+**In der Sidebar** ist es eine Projektzeile: `.epic-item` teilt sich jede Regel
+mit `.project-item`. Der Punkt trägt die **Farbe des Projekts**, nicht eine
+eigene — ein Epic gehört sichtbar zu seinem Projekt, und eine dritte Farbfamilie
+neben Priorität und Abwesenheit gibt es nicht (§2). In der Liste stehen nur
+laufende Epics; beendete verschwinden, statt die Liste zuwachsen zu lassen.
+
+**In der Projektansicht** trägt es die Rubrikzeile aus 7.1 mit einer einzigen,
+begründeten Abweichung: der **Titel steht in der Sans**, 15 px / 600, gemischt —
+nicht als Mono-Versalie. „KW 35" ist ein ausgerechneter Wert, „Küche renovieren"
+ein gewähltes Wort (§3.1). Zeitraum und Zähler bleiben Mono mit `tabular-nums`;
+der Zähler zeigt `erledigt/gesamt`.
+
+* **Nie eine Registermarke.** Eine Projektansicht kann mehrere Epics zeigen, und
+  die Marke gilt nur, solange es genau eine pro Bildschirm gibt (7.1, §12).
+* Aufgaben ohne Epic stehen unter einer normalen Rubrikzeile „OHNE EPIC" — ein
+  Systemwort, also Mono versal.
+* Hat ein Projekt keine Epics, bleibt seine Liste flach. Eine Funktion, die
+  niemand nutzt, darf keine Überschriften verteilen.
+
+**Der Epic-Kopf** (`.epic-head`) steht zwischen Kopfzeile und Quick-Add:
+Projekt-Punkt und -Name links, Status als Pille daneben, Zeitraum, und der
+Fortschritt („3 / 8 erledigt") rechtsbündig in Mono. Darunter die Beschreibung,
+darunter rechtsbündig `Bearbeiten` und `Beenden` als `.td-btn` — **kein
+gefüllter Button**, das Beenden ist keine Aktion, die man aus Versehen sucht.
+Abgeschlossen mit einer `--border`-Linie, nicht mit einer Fläche.
+
+* **Kein Fortschrittsbalken.** Er wäre die zweite laute Stelle auf der Seite,
+  und die Zahl daneben sagt dasselbe genauer.
+* Die Status-Pille (`.epic-status`) ist eine Pille, weil sie **benennt** und
+  selbst keine Aktion ist (§1, Regel 3): Mono 11 px versal auf `--surface` mit
+  `--border-strong`. Beendet heißt `--text-muted` — leiser, nicht andersfarbig.
+* Fehler beim Beenden stehen inline im Kopf (`.dialog-error`), nicht global.
+
+**Auf der Aufgabenzeile** erscheint der Epic-Name als `.date-item.epic-label` in
+der Datumszeile — in **Sans**, gemischt, aus demselben Grund wie oben, und nur
+in den Ansichten, in denen das Epic nicht ohnehin darübersteht.
+
 ## 8. Icons
 
 Inline-SVG im Lucide-Stil, keine Emojis. Alle Icons:
@@ -516,6 +559,7 @@ Inventar in `app.js`:
 | `ICON.edit` | Edit-Action |
 | `ICON.trash` | Delete-Action |
 | `ICON.hashtag` | (reserviert) Projekt-Indikator |
+| `ICON.epic` | Epic-Marke auf der Aufgabenzeile (Lucide „layers") |
 | `todayIconSVG()` | Kalender mit eingelegter Tageszahl für die „Heute"-Nav |
 
 ---

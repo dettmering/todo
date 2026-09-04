@@ -65,6 +65,7 @@ type taskCreateReq struct {
 	Title            string `json:"title"`
 	Description      string `json:"description"`
 	ProjectID        string `json:"project_id"`
+	EpicID           string `json:"epic_id"`
 	Priority         int    `json:"priority"`
 	VisibleFrom      string `json:"visible_from"`
 	Deadline         string `json:"deadline"`
@@ -125,6 +126,7 @@ func (h *Handler) handleListTasks(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	f := storage.TaskFilter{
 		ProjectID:   q.Get("project_id"),
+		EpicID:      q.Get("epic_id"),
 		OnlyVisible: q.Get("scope") != "all",
 	}
 	switch q.Get("status") {
@@ -188,9 +190,14 @@ func (h *Handler) handleListTasks(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
+	epicNames, err := h.epicTitles(r.Context())
+	if err != nil {
+		writeError(w, err)
+		return
+	}
 	out := make([]taskDTO, 0, len(tasks))
 	for _, t := range tasks {
-		out = append(out, toTaskDTO(t, names[t.ProjectID], commentsByTask[t.ID]))
+		out = append(out, toTaskDTO(t, names[t.ProjectID], epicNames[t.EpicID], commentsByTask[t.ID]))
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -215,6 +222,31 @@ func (h *Handler) projectNames(ctx context.Context) (map[string]string, error) {
 		m[p.ID] = p.Name
 	}
 	return m, nil
+}
+
+// epicTitles maps epic id -> title for the list view. Archived epics are
+// included so a task whose epic was tidied away still shows what it belonged to.
+func (h *Handler) epicTitles(ctx context.Context) (map[string]string, error) {
+	epics, err := h.svc.ListEpics(ctx, storage.EpicFilter{IncludeArchived: true})
+	if err != nil {
+		return nil, err
+	}
+	m := make(map[string]string, len(epics))
+	for _, e := range epics {
+		m[e.ID] = e.Title
+	}
+	return m, nil
+}
+
+func (h *Handler) epicTitle(ctx context.Context, id string) string {
+	if id == "" {
+		return ""
+	}
+	e, err := h.svc.GetEpic(ctx, id)
+	if err != nil {
+		return ""
+	}
+	return e.Title
 }
 
 func (h *Handler) projectName(ctx context.Context, id string) string {
@@ -253,6 +285,7 @@ func (h *Handler) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		Title:            req.Title,
 		Description:      req.Description,
 		ProjectID:        req.ProjectID,
+		EpicID:           req.EpicID,
 		Priority:         domain.Priority(req.Priority),
 		VisibleFrom:      vf,
 		Deadline:         dl,
@@ -265,7 +298,7 @@ func (h *Handler) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, toTaskDTO(t, h.projectName(r.Context(), t.ProjectID), h.commentsFor(r.Context(), t.ID)))
+	writeJSON(w, http.StatusCreated, toTaskDTO(t, h.projectName(r.Context(), t.ProjectID), h.epicTitle(r.Context(), t.EpicID), h.commentsFor(r.Context(), t.ID)))
 }
 
 func (h *Handler) handleGetTask(w http.ResponseWriter, r *http.Request) {
@@ -275,13 +308,14 @@ func (h *Handler) handleGetTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, toTaskDTO(t, h.projectName(r.Context(), t.ProjectID), h.commentsFor(r.Context(), t.ID)))
+	writeJSON(w, http.StatusOK, toTaskDTO(t, h.projectName(r.Context(), t.ProjectID), h.epicTitle(r.Context(), t.EpicID), h.commentsFor(r.Context(), t.ID)))
 }
 
 type taskPatchReq struct {
 	Title            *string `json:"title"`
 	Description      *string `json:"description"`
 	ProjectID        *string `json:"project_id"`
+	EpicID           *string `json:"epic_id"`
 	Priority         *int    `json:"priority"`
 	VisibleFrom      *string `json:"visible_from"`
 	Deadline         *string `json:"deadline"`
@@ -301,6 +335,7 @@ func (h *Handler) handlePatchTask(w http.ResponseWriter, r *http.Request) {
 		Title:          req.Title,
 		Description:    req.Description,
 		ProjectID:      req.ProjectID,
+		EpicID:         req.EpicID,
 		RecurrenceRule: req.RecurrenceRule,
 	}
 	if req.RecurrenceMode != nil {
@@ -340,7 +375,7 @@ func (h *Handler) handlePatchTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, toTaskDTO(t, h.projectName(r.Context(), t.ProjectID), h.commentsFor(r.Context(), t.ID)))
+	writeJSON(w, http.StatusOK, toTaskDTO(t, h.projectName(r.Context(), t.ProjectID), h.epicTitle(r.Context(), t.EpicID), h.commentsFor(r.Context(), t.ID)))
 }
 
 func (h *Handler) handleCompleteTask(w http.ResponseWriter, r *http.Request) {
@@ -350,7 +385,7 @@ func (h *Handler) handleCompleteTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, toTaskDTO(t, h.projectName(r.Context(), t.ProjectID), h.commentsFor(r.Context(), t.ID)))
+	writeJSON(w, http.StatusOK, toTaskDTO(t, h.projectName(r.Context(), t.ProjectID), h.epicTitle(r.Context(), t.EpicID), h.commentsFor(r.Context(), t.ID)))
 }
 
 func (h *Handler) handleReopenTask(w http.ResponseWriter, r *http.Request) {
@@ -360,7 +395,7 @@ func (h *Handler) handleReopenTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, toTaskDTO(t, h.projectName(r.Context(), t.ProjectID), h.commentsFor(r.Context(), t.ID)))
+	writeJSON(w, http.StatusOK, toTaskDTO(t, h.projectName(r.Context(), t.ProjectID), h.epicTitle(r.Context(), t.EpicID), h.commentsFor(r.Context(), t.ID)))
 }
 
 func (h *Handler) handleDeleteTask(w http.ResponseWriter, r *http.Request) {

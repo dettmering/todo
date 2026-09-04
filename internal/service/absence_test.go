@@ -19,7 +19,7 @@ func newTestService(t *testing.T) *Service {
 		t.Fatalf("open store: %v", err)
 	}
 	t.Cleanup(func() { store.Close() })
-	return New(store.Tasks(), store.Projects(), store.Audit(), store.Comments(), store.Absences(), events.NewBus())
+	return New(store.Tasks(), store.Projects(), store.Audit(), store.Comments(), store.Absences(), store.Epics(), events.NewBus())
 }
 
 func date(t *testing.T, s string) domain.LocalDate {

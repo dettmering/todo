@@ -30,17 +30,19 @@ type Service struct {
 	audit    storage.AuditRepo
 	comments storage.CommentRepo
 	absences storage.AbsenceRepo
+	epics    storage.EpicRepo
 	bus      *events.Bus
 	clock    func() time.Time
 }
 
-func New(tasks storage.TaskRepo, projects storage.ProjectRepo, audit storage.AuditRepo, comments storage.CommentRepo, absences storage.AbsenceRepo, bus *events.Bus) *Service {
+func New(tasks storage.TaskRepo, projects storage.ProjectRepo, audit storage.AuditRepo, comments storage.CommentRepo, absences storage.AbsenceRepo, epics storage.EpicRepo, bus *events.Bus) *Service {
 	return &Service{
 		tasks:    tasks,
 		projects: projects,
 		audit:    audit,
 		comments: comments,
 		absences: absences,
+		epics:    epics,
 		bus:      bus,
 		clock:    func() time.Time { return time.Now().UTC() },
 	}
@@ -61,6 +63,7 @@ type TaskInput struct {
 	Title            string
 	Description      string
 	ProjectID        string
+	EpicID           string
 	Priority         domain.Priority
 	VisibleFrom      domain.LocalDate
 	Deadline         domain.LocalDate
@@ -116,6 +119,15 @@ func (s *Service) CreateTask(ctx context.Context, in TaskInput) (*domain.Task, e
 	if in.Title == "" {
 		return nil, fmt.Errorf("%w: title is required", ErrValidation)
 	}
+	// An epic decides the project: a task linked to an initiative always lives
+	// in that initiative's project, whatever project_id the caller submitted.
+	if in.EpicID != "" {
+		e, err := s.resolveEpic(ctx, in.EpicID)
+		if err != nil {
+			return nil, err
+		}
+		in.ProjectID = e.ProjectID
+	}
 	if in.ProjectID == "" {
 		in.ProjectID = domain.InboxID
 	}
@@ -141,6 +153,7 @@ func (s *Service) CreateTask(ctx context.Context, in TaskInput) (*domain.Task, e
 		Title:            in.Title,
 		Description:      in.Description,
 		ProjectID:        in.ProjectID,
+		EpicID:           in.EpicID,
 		Status:           domain.StatusOpen,
 		Priority:         in.Priority,
 		VisibleFrom:      in.VisibleFrom,
@@ -164,6 +177,7 @@ type TaskPatch struct {
 	Title            *string
 	Description      *string
 	ProjectID        *string
+	EpicID           *string
 	Priority         *domain.Priority
 	VisibleFrom      *domain.LocalDate
 	Deadline         *domain.LocalDate
@@ -180,6 +194,7 @@ func (s *Service) UpdateTask(ctx context.Context, id string, p TaskPatch) (*doma
 	oldVisibleFrom := t.VisibleFrom
 	oldDeadline := t.Deadline
 	oldProjectID := t.ProjectID
+	oldEpicID := t.EpicID
 	oldPriority := t.Priority
 
 	if p.Title != nil {
@@ -197,6 +212,29 @@ func (s *Service) UpdateTask(ctx context.Context, id string, p TaskPatch) (*doma
 			return nil, fmt.Errorf("%w: project %q not found", ErrValidation, *p.ProjectID)
 		}
 		t.ProjectID = *p.ProjectID
+	}
+	// Epic and project are applied as a pair, epic last. Linking to an epic
+	// drags the task into the epic's project, so a project_id in the same patch
+	// loses — that is what "the task moves with the epic" means. Changing only
+	// the project of a task that hangs on an epic is refused rather than
+	// silently unlinked: dropping the link behind the user's back would lose
+	// data they never asked to give up.
+	if p.EpicID != nil {
+		if *p.EpicID == "" {
+			t.EpicID = ""
+		} else {
+			e, err := s.resolveEpic(ctx, *p.EpicID)
+			if err != nil {
+				return nil, err
+			}
+			t.EpicID = e.ID
+			t.ProjectID = e.ProjectID
+		}
+	} else if p.ProjectID != nil && t.EpicID != "" {
+		e, err := s.epics.Get(ctx, t.EpicID)
+		if err == nil && e.ProjectID != t.ProjectID {
+			return nil, fmt.Errorf("%w: task belongs to epic %q in another project; change or clear epic_id first", ErrValidation, e.Title)
+		}
 	}
 	if p.Priority != nil {
 		if !p.Priority.Valid() {
@@ -243,6 +281,7 @@ func (s *Service) UpdateTask(ctx context.Context, id string, p TaskPatch) (*doma
 	rescheduled := t.VisibleFrom != oldVisibleFrom
 	deadlineChanged := t.Deadline != oldDeadline
 	projectChanged := t.ProjectID != oldProjectID
+	epicChanged := t.EpicID != oldEpicID
 	priorityChanged := t.Priority != oldPriority
 
 	if rescheduled {
@@ -253,6 +292,9 @@ func (s *Service) UpdateTask(ctx context.Context, id string, p TaskPatch) (*doma
 	}
 	if projectChanged {
 		s.writeAudit(ctx, t, domain.AuditProjectChanged, s.projectNameOrID(ctx, oldProjectID), s.projectNameOrID(ctx, t.ProjectID), now)
+	}
+	if epicChanged {
+		s.writeAudit(ctx, t, domain.AuditEpicChanged, s.epicTitleOrID(ctx, oldEpicID), s.epicTitleOrID(ctx, t.EpicID), now)
 	}
 	if priorityChanged {
 		s.writeAudit(ctx, t, domain.AuditPriorityChanged, priorityLabel(oldPriority), priorityLabel(t.Priority), now)
@@ -287,6 +329,16 @@ func (s *Service) ReopenTask(ctx context.Context, id string) (*domain.Task, erro
 	}
 	s.writeAudit(ctx, t, domain.AuditReopened, "", "", now)
 	s.bus.Publish(ctx, events.TaskUpdated, t)
+	// An epic is only "beendet" while nothing under it is open. Putting work
+	// back on the pile therefore puts the epic back on the pile too — the
+	// alternative, refusing the reopen, would make a finished epic a trap.
+	if t.EpicID != "" {
+		if e, err := s.epics.Get(ctx, t.EpicID); err == nil && e.Status == domain.EpicCompleted {
+			if err := s.reopenEpicEntity(ctx, e); err != nil {
+				slog.Error("reopen epic after task reopen", "epic_id", e.ID, "err", err)
+			}
+		}
+	}
 	return t, nil
 }
 
@@ -368,6 +420,7 @@ func (s *Service) spawnNextInstance(ctx context.Context, prev *domain.Task, now 
 		Title:          prev.Title,
 		Description:    prev.Description,
 		ProjectID:      prev.ProjectID,
+		EpicID:         prev.EpicID,
 		Status:         domain.StatusOpen,
 		Priority:       prev.Priority,
 		VisibleFrom:    nextVisible,

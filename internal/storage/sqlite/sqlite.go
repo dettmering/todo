@@ -112,6 +112,28 @@ var migrations = []migrationStep{
 	{16, `UPDATE tasks SET recurrence_anchor = visible_from
 	      WHERE recurrence_rule != '' AND recurrence_anchor = '';`},
 	{17, `ALTER TABLE absences ADD COLUMN comment TEXT NOT NULL DEFAULT '';`},
+	{18, `CREATE TABLE IF NOT EXISTS epics (
+		id           TEXT PRIMARY KEY,
+		title        TEXT NOT NULL,
+		slug         TEXT NOT NULL DEFAULT '',
+		description  TEXT NOT NULL DEFAULT '',
+		project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE RESTRICT,
+		status       TEXT NOT NULL DEFAULT 'active',
+		start_date   TEXT NOT NULL DEFAULT '',
+		end_date     TEXT NOT NULL DEFAULT '',
+		sort_order   INTEGER NOT NULL DEFAULT 0,
+		archived     INTEGER NOT NULL DEFAULT 0,
+		created_at   TEXT NOT NULL,
+		updated_at   TEXT NOT NULL,
+		completed_at TEXT
+	);`},
+	{19, `CREATE UNIQUE INDEX IF NOT EXISTS idx_epics_slug ON epics(slug) WHERE slug != '';`},
+	{20, `CREATE INDEX IF NOT EXISTS idx_epics_project ON epics(project_id);`},
+	// No foreign key here on purpose: the empty string stands for "no epic"
+	// throughout the codebase (like visible_from and recurrence_rule), and an
+	// empty string would violate a REFERENCES constraint on every task.
+	{21, `ALTER TABLE tasks ADD COLUMN epic_id TEXT NOT NULL DEFAULT '';`},
+	{22, `CREATE INDEX IF NOT EXISTS idx_tasks_epic ON tasks(epic_id);`},
 }
 
 func (s *Store) migrate() error {
@@ -221,6 +243,7 @@ var (
 	_ storage.AuditRepo   = (*AuditRepo)(nil)
 	_ storage.CommentRepo = (*CommentRepo)(nil)
 	_ storage.AbsenceRepo = (*AbsenceRepo)(nil)
+	_ storage.EpicRepo    = (*EpicRepo)(nil)
 )
 
 func (s *Store) Tasks() *TaskRepo       { return &TaskRepo{db: s.db} }
@@ -228,3 +251,4 @@ func (s *Store) Projects() *ProjectRepo { return &ProjectRepo{db: s.db} }
 func (s *Store) Audit() *AuditRepo      { return &AuditRepo{db: s.db} }
 func (s *Store) Comments() *CommentRepo { return &CommentRepo{db: s.db} }
 func (s *Store) Absences() *AbsenceRepo { return &AbsenceRepo{db: s.db} }
+func (s *Store) Epics() *EpicRepo       { return &EpicRepo{db: s.db} }

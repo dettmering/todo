@@ -12,7 +12,11 @@ import (
 // TaskFilter captures the query knobs the list view and API need.
 // All fields are optional; the zero value means "no constraint".
 type TaskFilter struct {
-	ProjectID   string
+	ProjectID string
+	// EpicID narrows to the tasks of one epic. There is deliberately no
+	// "tasks without an epic" mode: the views that need that group a project's
+	// tasks client-side, which they have to load anyway.
+	EpicID      string
 	Status      domain.TaskStatus
 	OnlyVisible bool // applies the visible_from <= today rule
 	Today       domain.LocalDate
@@ -35,7 +39,7 @@ type TaskFilter struct {
 type TaskSort string
 
 const (
-	SortDefault     TaskSort = ""           // Lastenheft 5.6 recommended default
+	SortDefault     TaskSort = "" // Lastenheft 5.6 recommended default
 	SortPriority    TaskSort = "priority"
 	SortDeadline    TaskSort = "deadline"
 	SortVisibleFrom TaskSort = "visible_from"
@@ -56,6 +60,25 @@ type ProjectRepo interface {
 	Update(ctx context.Context, p *domain.Project) error
 	List(ctx context.Context, includeArchived bool) ([]*domain.Project, error)
 	Delete(ctx context.Context, id string) error
+}
+
+// EpicFilter narrows the epic listing. Zero values mean "no constraint";
+// archived epics are hidden unless IncludeArchived is set, mirroring
+// ProjectRepo.List.
+type EpicFilter struct {
+	ProjectID       string
+	Status          domain.EpicStatus
+	IncludeArchived bool
+}
+
+// EpicRepo stores long-running initiatives. There is no Delete: an epic is
+// archived through Update (see service.DeleteEpic), the same way a project is,
+// so tasks keep resolving their epic label.
+type EpicRepo interface {
+	Create(ctx context.Context, e *domain.Epic) error
+	Get(ctx context.Context, id string) (*domain.Epic, error)
+	Update(ctx context.Context, e *domain.Epic) error
+	List(ctx context.Context, f EpicFilter) ([]*domain.Epic, error)
 }
 
 type AbsenceRepo interface {

@@ -46,7 +46,7 @@ func main() {
 		slog.Info("webhook configured", "url", url)
 	}
 
-	svc := service.New(store.Tasks(), store.Projects(), store.Audit(), store.Comments(), store.Absences(), bus)
+	svc := service.New(store.Tasks(), store.Projects(), store.Audit(), store.Comments(), store.Absences(), store.Epics(), bus)
 
 	icalToken := os.Getenv("ICAL_TOKEN")
 	if icalToken != "" {

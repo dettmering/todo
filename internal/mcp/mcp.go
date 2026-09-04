@@ -118,6 +118,36 @@ func (s *server) build() *mcp.Server {
 		Description: "Create a project. Only name is required.",
 	}, s.createProject)
 
+	// ---------- Epics ----------
+	mcp.AddTool(srv, &mcp.Tool{
+		Name:        "list_epics",
+		Description: "List epics (long-running initiatives). Archived ones are excluded unless include_archived is true; narrow with project_id and status.",
+	}, s.listEpics)
+	mcp.AddTool(srv, &mcp.Tool{
+		Name:        "get_epic",
+		Description: "Get a single epic by id, including how many of its tasks are open and done.",
+	}, s.getEpic)
+	mcp.AddTool(srv, &mcp.Tool{
+		Name:        "create_epic",
+		Description: "Create an epic. Title and project_id are required; the Inbox cannot hold epics. Start and end date are optional.",
+	}, s.createEpic)
+	mcp.AddTool(srv, &mcp.Tool{
+		Name:        "update_epic",
+		Description: "Update fields of an epic. Only the fields you set are changed. Moving an epic to another project moves its tasks along.",
+	}, s.updateEpic)
+	mcp.AddTool(srv, &mcp.Tool{
+		Name:        "complete_epic",
+		Description: "Mark an epic as finished. Fails while any task of the epic is still open.",
+	}, s.completeEpic)
+	mcp.AddTool(srv, &mcp.Tool{
+		Name:        "reopen_epic",
+		Description: "Reopen a finished epic.",
+	}, s.reopenEpic)
+	mcp.AddTool(srv, &mcp.Tool{
+		Name:        "delete_epic",
+		Description: "Archive an epic (like projects, epics are archived rather than removed; tasks keep their epic link).",
+	}, s.deleteEpic)
+
 	// ---------- Absences ----------
 	mcp.AddTool(srv, &mcp.Tool{
 		Name:        "list_absences",
@@ -165,6 +195,7 @@ type taskOut struct {
 	Description      string `json:"description,omitempty"`
 	ProjectID        string `json:"project_id"`
 	ProjectName      string `json:"project_name,omitempty"`
+	EpicID           string `json:"epic_id,omitempty"`
 	Status           string `json:"status"`
 	Priority         int    `json:"priority"`
 	VisibleFrom      string `json:"visible_from,omitempty"`
@@ -185,6 +216,7 @@ func toTaskOut(t *domain.Task, projectName string) taskOut {
 		Description:      t.Description,
 		ProjectID:        t.ProjectID,
 		ProjectName:      projectName,
+		EpicID:           t.EpicID,
 		Status:           string(t.Status),
 		Priority:         int(t.Priority),
 		VisibleFrom:      t.VisibleFrom.String(),
@@ -223,6 +255,49 @@ func toProjectOut(p *domain.Project) projectOut {
 	}
 }
 
+type epicOut struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Slug        string `json:"slug"`
+	Description string `json:"description,omitempty"`
+	ProjectID   string `json:"project_id"`
+	ProjectName string `json:"project_name,omitempty"`
+	Status      string `json:"status"`
+	StartDate   string `json:"start_date,omitempty"`
+	EndDate     string `json:"end_date,omitempty"`
+	SortOrder   int    `json:"sort_order"`
+	Archived    bool   `json:"archived"`
+	OpenTasks   int    `json:"open_tasks"`
+	DoneTasks   int    `json:"done_tasks"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+	CompletedAt string `json:"completed_at,omitempty"`
+}
+
+func toEpicOut(e *domain.Epic, projectName string, c domain.EpicCounts) epicOut {
+	o := epicOut{
+		ID:          e.ID,
+		Title:       e.Title,
+		Slug:        e.Slug,
+		Description: e.Description,
+		ProjectID:   e.ProjectID,
+		ProjectName: projectName,
+		Status:      string(e.Status),
+		StartDate:   e.Start.String(),
+		EndDate:     e.End.String(),
+		SortOrder:   e.SortOrder,
+		Archived:    e.Archived,
+		OpenTasks:   c.Open,
+		DoneTasks:   c.Done,
+		CreatedAt:   e.CreatedAt.Format(timeFormat),
+		UpdatedAt:   e.UpdatedAt.Format(timeFormat),
+	}
+	if e.CompletedAt != nil {
+		o.CompletedAt = e.CompletedAt.Format(timeFormat)
+	}
+	return o
+}
+
 type absenceOut struct {
 	ID        string `json:"id"`
 	Type      string `json:"type"`
@@ -253,6 +328,7 @@ func toAbsenceOut(a *domain.Absence) absenceOut {
 
 type listTasksInput struct {
 	ProjectID string `json:"project_id,omitempty" jsonschema:"only tasks in this project id"`
+	EpicID    string `json:"epic_id,omitempty" jsonschema:"only tasks belonging to this epic id"`
 	Status    string `json:"status,omitempty" jsonschema:"one of open (default), completed, deleted, all"`
 	Scope     string `json:"scope,omitempty" jsonschema:"'visible' applies the visible_from<=today rule; default shows all"`
 	Sort      string `json:"sort,omitempty" jsonschema:"one of priority, deadline, visible_from, created_at"`
@@ -265,6 +341,7 @@ type tasksOutput struct {
 func (s *server) listTasks(ctx context.Context, _ *mcp.CallToolRequest, in listTasksInput) (*mcp.CallToolResult, tasksOutput, error) {
 	f := storage.TaskFilter{
 		ProjectID:   in.ProjectID,
+		EpicID:      in.EpicID,
 		OnlyVisible: in.Scope == "visible",
 	}
 	switch in.Status {
@@ -316,6 +393,7 @@ type createTaskInput struct {
 	Title            string `json:"title" jsonschema:"the task title (required)"`
 	Description      string `json:"description,omitempty"`
 	ProjectID        string `json:"project_id,omitempty" jsonschema:"target project id; defaults to inbox"`
+	EpicID           string `json:"epic_id,omitempty" jsonschema:"link the task to this epic; the task is moved into the epic's project"`
 	Priority         int    `json:"priority,omitempty" jsonschema:"1 (highest) to 4 (lowest); defaults to 4"`
 	VisibleFrom      string `json:"visible_from,omitempty" jsonschema:"ISO date or German phrase; when the task starts appearing"`
 	Deadline         string `json:"deadline,omitempty" jsonschema:"ISO date or German phrase; when the task is due"`
@@ -341,6 +419,7 @@ func (s *server) createTask(ctx context.Context, _ *mcp.CallToolRequest, in crea
 		Title:            in.Title,
 		Description:      in.Description,
 		ProjectID:        in.ProjectID,
+		EpicID:           in.EpicID,
 		Priority:         domain.Priority(in.Priority),
 		VisibleFrom:      vf,
 		Deadline:         dl,
@@ -359,6 +438,7 @@ type updateTaskInput struct {
 	Title            *string `json:"title,omitempty"`
 	Description      *string `json:"description,omitempty"`
 	ProjectID        *string `json:"project_id,omitempty"`
+	EpicID           *string `json:"epic_id,omitempty" jsonschema:"epic to link the task to; the task moves into that epic's project. Empty string clears the link"`
 	Priority         *int    `json:"priority,omitempty" jsonschema:"1 (highest) to 4 (lowest)"`
 	VisibleFrom      *string `json:"visible_from,omitempty" jsonschema:"ISO date or German phrase; empty string clears it"`
 	Deadline         *string `json:"deadline,omitempty" jsonschema:"ISO date or German phrase; empty string clears it"`
@@ -372,6 +452,7 @@ func (s *server) updateTask(ctx context.Context, _ *mcp.CallToolRequest, in upda
 		Title:          in.Title,
 		Description:    in.Description,
 		ProjectID:      in.ProjectID,
+		EpicID:         in.EpicID,
 		RecurrenceRule: in.RecurrenceRule,
 	}
 	if in.RecurrenceMode != nil {
@@ -475,6 +556,160 @@ func (s *server) createProject(ctx context.Context, _ *mcp.CallToolRequest, in c
 	}
 	return nil, toProjectOut(p), nil
 }
+
+// ---------- Epics ----------
+
+type listEpicsInput struct {
+	ProjectID       string `json:"project_id,omitempty" jsonschema:"only epics of this project id"`
+	Status          string `json:"status,omitempty" jsonschema:"active (running) or completed (finished); omit for both"`
+	IncludeArchived bool   `json:"include_archived,omitempty" jsonschema:"include archived epics too"`
+}
+
+type epicsOutput struct {
+	Epics []epicOut `json:"epics"`
+}
+
+func (s *server) listEpics(ctx context.Context, _ *mcp.CallToolRequest, in listEpicsInput) (*mcp.CallToolResult, epicsOutput, error) {
+	epics, err := s.svc.ListEpics(ctx, storage.EpicFilter{
+		ProjectID:       in.ProjectID,
+		Status:          domain.EpicStatus(in.Status),
+		IncludeArchived: in.IncludeArchived,
+	})
+	if err != nil {
+		return nil, epicsOutput{}, err
+	}
+	counts, err := s.svc.EpicTaskCounts(ctx)
+	if err != nil {
+		return nil, epicsOutput{}, err
+	}
+	names := s.projectNames(ctx)
+	out := make([]epicOut, 0, len(epics))
+	for _, e := range epics {
+		out = append(out, toEpicOut(e, names[e.ProjectID], counts[e.ID]))
+	}
+	return nil, epicsOutput{Epics: out}, nil
+}
+
+type epicIDInput struct {
+	ID string `json:"id" jsonschema:"the epic id"`
+}
+
+// epicResult renders one epic with its tally, the shape every single-epic tool
+// returns.
+func (s *server) epicResult(ctx context.Context, e *domain.Epic) (epicOut, error) {
+	counts, err := s.svc.EpicTaskCounts(ctx)
+	if err != nil {
+		return epicOut{}, err
+	}
+	return toEpicOut(e, s.projectName(ctx, e.ProjectID), counts[e.ID]), nil
+}
+
+func (s *server) getEpic(ctx context.Context, _ *mcp.CallToolRequest, in epicIDInput) (*mcp.CallToolResult, epicOut, error) {
+	e, err := s.svc.GetEpic(ctx, in.ID)
+	if err != nil {
+		return nil, epicOut{}, err
+	}
+	o, err := s.epicResult(ctx, e)
+	return nil, o, err
+}
+
+type createEpicInput struct {
+	Title       string `json:"title" jsonschema:"the epic title (required)"`
+	Description string `json:"description,omitempty"`
+	ProjectID   string `json:"project_id" jsonschema:"the project the epic belongs to (required); the Inbox is not allowed"`
+	StartDate   string `json:"start_date,omitempty" jsonschema:"ISO date or German phrase; optional"`
+	EndDate     string `json:"end_date,omitempty" jsonschema:"ISO date or German phrase; optional"`
+	SortOrder   int    `json:"sort_order,omitempty"`
+}
+
+func (s *server) createEpic(ctx context.Context, _ *mcp.CallToolRequest, in createEpicInput) (*mcp.CallToolResult, epicOut, error) {
+	start, err := parseDateInput(in.StartDate)
+	if err != nil {
+		return nil, epicOut{}, err
+	}
+	end, err := parseDateInput(in.EndDate)
+	if err != nil {
+		return nil, epicOut{}, err
+	}
+	e, err := s.svc.CreateEpic(ctx, service.EpicInput{
+		Title:       in.Title,
+		Description: in.Description,
+		ProjectID:   in.ProjectID,
+		Start:       start,
+		End:         end,
+		SortOrder:   in.SortOrder,
+	})
+	if err != nil {
+		return nil, epicOut{}, err
+	}
+	o, err := s.epicResult(ctx, e)
+	return nil, o, err
+}
+
+type updateEpicInput struct {
+	ID          string  `json:"id" jsonschema:"the epic id"`
+	Title       *string `json:"title,omitempty"`
+	Description *string `json:"description,omitempty"`
+	ProjectID   *string `json:"project_id,omitempty" jsonschema:"moving the epic moves all its tasks into the new project too"`
+	StartDate   *string `json:"start_date,omitempty" jsonschema:"ISO date or German phrase; empty string clears it"`
+	EndDate     *string `json:"end_date,omitempty" jsonschema:"ISO date or German phrase; empty string clears it"`
+	SortOrder   *int    `json:"sort_order,omitempty"`
+	Archived    *bool   `json:"archived,omitempty" jsonschema:"set false to bring an archived epic back"`
+}
+
+func (s *server) updateEpic(ctx context.Context, _ *mcp.CallToolRequest, in updateEpicInput) (*mcp.CallToolResult, epicOut, error) {
+	patch := service.EpicPatch{
+		Title: in.Title, Description: in.Description, ProjectID: in.ProjectID,
+		SortOrder: in.SortOrder, Archived: in.Archived,
+	}
+	if in.StartDate != nil {
+		d, err := parseDateInput(*in.StartDate)
+		if err != nil {
+			return nil, epicOut{}, err
+		}
+		patch.Start = &d
+	}
+	if in.EndDate != nil {
+		d, err := parseDateInput(*in.EndDate)
+		if err != nil {
+			return nil, epicOut{}, err
+		}
+		patch.End = &d
+	}
+	e, err := s.svc.UpdateEpic(ctx, in.ID, patch)
+	if err != nil {
+		return nil, epicOut{}, err
+	}
+	o, err := s.epicResult(ctx, e)
+	return nil, o, err
+}
+
+func (s *server) completeEpic(ctx context.Context, _ *mcp.CallToolRequest, in epicIDInput) (*mcp.CallToolResult, epicOut, error) {
+	e, err := s.svc.CompleteEpic(ctx, in.ID)
+	if err != nil {
+		return nil, epicOut{}, err
+	}
+	o, err := s.epicResult(ctx, e)
+	return nil, o, err
+}
+
+func (s *server) reopenEpic(ctx context.Context, _ *mcp.CallToolRequest, in epicIDInput) (*mcp.CallToolResult, epicOut, error) {
+	e, err := s.svc.ReopenEpic(ctx, in.ID)
+	if err != nil {
+		return nil, epicOut{}, err
+	}
+	o, err := s.epicResult(ctx, e)
+	return nil, o, err
+}
+
+func (s *server) deleteEpic(ctx context.Context, _ *mcp.CallToolRequest, in epicIDInput) (*mcp.CallToolResult, deleteResult, error) {
+	if err := s.svc.DeleteEpic(ctx, in.ID); err != nil {
+		return nil, deleteResult{}, err
+	}
+	return nil, deleteResult{ID: in.ID, Deleted: true}, nil
+}
+
+// ---------- Absences ----------
 
 type absencesOutput struct {
 	Absences []absenceOut `json:"absences"`
