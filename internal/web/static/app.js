@@ -682,15 +682,23 @@ function fillProjectSelect(id, projects, markArchived) {
 }
 
 // fillEpicSelect populates the task modal's epic dropdown with the running
-// epics of one project, plus an explicit "no epic" entry. A currently linked
-// epic is kept in the list even when it is finished or archived, so opening an
-// old task never silently drops its link.
+// epics of one project, plus an explicit "no epic" entry.
+//
+// Two rules pull in opposite directions here, and the project decides between
+// them. A finished or archived epic is not in the running list, but a task that
+// already hangs on one must not lose the link just by opening the dialog — so
+// it is carried over. An epic of a *different* project is not carried over:
+// picking another project means leaving the epic (the backend does the same),
+// and keeping it selected would send the old epic_id back on save, which wins
+// over project_id and quietly undoes the move.
 function fillEpicSelect(projectId, selectedId) {
   const el = document.getElementById("td-epic");
   if (!el) return;
   const options = activeEpics(projectId);
   const current = selectedId ? epicById(selectedId) : null;
-  if (current && !options.some(e => e.id === current.id)) options.unshift(current);
+  if (current && current.project_id === projectId && !options.some(e => e.id === current.id)) {
+    options.unshift(current);
+  }
   el.innerHTML = "";
   const none = document.createElement("option");
   none.value = "";
@@ -2485,8 +2493,10 @@ function wireTaskDialog() {
     fillEpicSelect(e.target.value, document.getElementById("td-epic").value);
   });
 
-  // Picking an epic pulls the task into that epic's project, which is what the
-  // backend does anyway; showing it here avoids a surprise after saving.
+  // Safety net. The dropdown only ever offers epics of the selected project, so
+  // this normally does nothing — but if an entry from another project ever made
+  // it into the list, saving would send an epic_id that overrides project_id
+  // and undoes the move. Better to move the project field than to lie about it.
   document.getElementById("td-epic").addEventListener("change", (e) => {
     const chosen = epicById(e.target.value);
     if (!chosen) return;
