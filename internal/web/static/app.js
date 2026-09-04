@@ -766,7 +766,13 @@ function defaultEpicForView() {
   return state.view.kind === "epic" ? state.view.id : "";
 }
 
-async function refresh() {
+// Everything above the task list is drawn from cached state *before* the first
+// await: title, epic head, which of the three main sections is on screen. The
+// data behind it is at most one navigation old and gets corrected further down
+// once the fetches land, but the box it sits in has its final height right
+// away. Drawing it afterwards moved the list twice per click — once when the
+// old head vanished, once when the new one arrived half a second later.
+function renderViewChrome() {
   document.getElementById("view-title").textContent = viewTitle();
   document.getElementById("view-subtitle").textContent = new Date().toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "long" });
   // Registermarke am Kopf: die Ansicht "Heute" ist selbst der laufende
@@ -774,23 +780,65 @@ async function refresh() {
   // an der laufenden Woche steht (Styleguide 7.1). Genau eine pro Bildschirm.
   document.querySelector(".main-header").classList.toggle("is-now", state.view.kind === "today");
 
-  setAbsencesViewVisible(false);
-  setEpicHeadVisible(false);
+  switch (state.view.kind) {
+    case "absences": setMainSection("absences"); break;
+    case "activity": setMainSection("activity"); break;
+    default:         setMainSection("tasks"); break;
+  }
+
+  // state.epics carries every epic incl. archived ones, so the head of the
+  // epic you just clicked is already in hand — no reason to wait for the
+  // round trip before reserving its space.
+  const cached = state.view.kind === "epic" ? epicById(state.view.id) : null;
+  if (cached) renderEpicHead(cached);
+  setEpicHeadVisible(!!cached);
+}
+
+// Exactly one of the three main sections is on screen at a time: the task list
+// (with its quick-add), the activity log, or the absences table. One place
+// switches them, so the swap is atomic instead of hiding one section now and
+// showing the other after the fetch.
+function setMainSection(section) {
+  const tasks = section === "tasks";
+  const qa = document.querySelector(".quick-add");
+  const list = document.getElementById("task-list");
+  const empty = document.getElementById("empty-state");
+  const activity = document.getElementById("activity-view");
+  const absences = document.getElementById("absences-view");
+  if (qa) qa.classList.toggle("hidden", !tasks);
+  if (list) list.classList.toggle("hidden", !tasks);
+  // The empty state belongs to the task list; renderTasks decides whether it
+  // comes back.
+  if (empty && !tasks) empty.classList.add("hidden");
+  if (activity) activity.classList.toggle("hidden", section !== "activity");
+  if (absences) absences.classList.toggle("hidden", section !== "absences");
+}
+
+// The view the chrome was last drawn for, so refresh() can tell a navigation
+// (scroll back to the top) from a re-render after a mutation (stay put).
+let lastRenderedView = null;
+
+async function refresh() {
+  const viewKey = state.view.kind + ":" + (state.view.id || "");
+  const navigated = viewKey !== lastRenderedView;
+  lastRenderedView = viewKey;
+  renderViewChrome();
+  if (navigated) {
+    const main = document.querySelector(".main");
+    if (main) main.scrollTop = 0;
+  }
 
   if (state.view.kind === "absences") {
-    setActivityViewVisible(false);
     const allOpen = await api.listTasks({ status: "open", scope: "all" });
     recomputeSidebarCounts(allOpen);
     renderSidebar();
     state.absences = await api.listAbsences();
-    setAbsencesViewVisible(true);
     renderAbsences();
     await renderShareLinks();
     return;
   }
 
   if (state.view.kind === "activity") {
-    setActivityViewVisible(true);
     // The sidebar counts still come from a quick open-task fetch so the
     // sidebar doesn't go blank while you browse history.
     const allOpen = await api.listTasks({ status: "open", scope: "all" });
@@ -799,7 +847,6 @@ async function refresh() {
     await renderActivity();
     return;
   }
-  setActivityViewVisible(false);
 
   const isToday = state.view.kind === "today";
   const isUpcoming = state.view.kind === "upcoming";
@@ -844,6 +891,8 @@ async function refresh() {
       pushView({ kind: "today" }, { replace: true });
       return;
     }
+    // Second pass with the numbers straight from the server. Same shape as
+    // the cached paint in renderViewChrome(), so nothing moves.
     renderEpicHead(epic);
     setEpicHeadVisible(true);
   }
@@ -945,23 +994,6 @@ function recomputeSidebarCounts(allOpen) {
   const inboxCount = state.openCounts["inbox"] || 0;
   const inboxCountEl = document.getElementById("inbox-count");
   if (inboxCountEl) inboxCountEl.textContent = inboxCount > 0 ? inboxCount : "";
-}
-
-function setActivityViewVisible(visible) {
-  const av = document.getElementById("activity-view");
-  const qa = document.querySelector(".quick-add");
-  const list = document.getElementById("task-list");
-  const empty = document.getElementById("empty-state");
-  if (visible) {
-    av.classList.remove("hidden");
-    if (qa) qa.classList.add("hidden");
-    if (list) list.classList.add("hidden");
-    if (empty) empty.classList.add("hidden");
-  } else {
-    av.classList.add("hidden");
-    if (qa) qa.classList.remove("hidden");
-    if (list) list.classList.remove("hidden");
-  }
 }
 
 // ---------- Absences view ----------
@@ -1129,22 +1161,6 @@ function renderAbsenceTimeline(absences, today) {
     `<div class="tl-weeks">${weeks}</div>` +
     `<div class="tl-track">${spans}</div>` +
     `<div class="tl-months">${months}</div></section>`;
-}
-
-function setAbsencesViewVisible(visible) {
-  const av = document.getElementById("absences-view");
-  if (!av) return;
-  const qa = document.querySelector(".quick-add");
-  const list = document.getElementById("task-list");
-  const empty = document.getElementById("empty-state");
-  if (visible) {
-    av.classList.remove("hidden");
-    if (qa) qa.classList.add("hidden");
-    if (list) list.classList.add("hidden");
-    if (empty) empty.classList.add("hidden");
-  } else {
-    av.classList.add("hidden");
-  }
 }
 
 // "Teilen" (Share-Seite) und "iCal" (Feed) in der Abwesenheits-Toolbar. Die

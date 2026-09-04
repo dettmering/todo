@@ -612,6 +612,7 @@ ihren gespeicherten Hex** — die Liste gilt für neue.
 | **Selected vor Hover** | Der Auswahl-Hintergrund bleibt, auch wenn der Cursor das Item verlässt. |
 | **Eine primäre Aktion** | Pro Dialog genau ein gefüllter Button; alles andere ist Outline oder Textbutton. |
 | **Optimistic refresh** | Nach einer Mutation ruft das Frontend `refresh()` — kein clientseitiges Diffing. |
+| **Kopf vor Daten** | Beim Ansichtswechsel wird alles oberhalb der Liste (Titel, Epic-Kopf, sichtbarer Abschnitt) synchron aus dem Cache gezeichnet, bevor die erste Anfrage rausgeht. Die Liste rutscht sonst zweimal: einmal beim Klick, einmal wenn die Daten da sind. |
 | **Fehler inline** | Fehler stehen im jeweiligen Dialog, nicht global. |
 | **Fokus sichtbar** | `:focus-visible` setzt global `2px solid var(--accent)` mit `2px` Offset. |
 
