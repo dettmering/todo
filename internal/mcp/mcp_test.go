@@ -22,7 +22,7 @@ func newTestService(t *testing.T) *service.Service {
 		t.Fatalf("open store: %v", err)
 	}
 	t.Cleanup(func() { store.Close() })
-	return service.New(store.Tasks(), store.Projects(), store.Audit(), store.Comments(), store.Absences(), events.NewBus())
+	return service.New(store.Tasks(), store.Projects(), store.Audit(), store.Comments(), store.Absences(), store.Epics(), events.NewBus())
 }
 
 // connect wires an in-memory MCP client to the todo server and returns a
@@ -85,6 +85,8 @@ func TestToolsRegistered(t *testing.T) {
 		"list_tasks", "get_task", "create_task", "update_task",
 		"complete_task", "reopen_task", "delete_task",
 		"list_projects", "create_project",
+		"list_epics", "get_epic", "create_epic", "update_epic",
+		"complete_epic", "reopen_epic", "delete_epic",
 		"list_absences", "create_absence", "get_absence", "update_absence", "delete_absence",
 		"next_workday", "parse_task",
 	}

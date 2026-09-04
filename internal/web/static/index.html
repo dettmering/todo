@@ -66,6 +66,16 @@
         </div>
         <div class="project-list" id="project-list"></div>
       </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-header">
+          <span>Epics</span>
+          <button class="icon-btn" id="add-epic-btn" title="Epic hinzufügen" aria-label="Epic hinzufügen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+        </div>
+        <div class="project-list" id="epic-list"></div>
+        <div class="sidebar-hint hidden" id="epic-empty">Noch keine Epics.</div>
+      </div>
     </aside>
 
     <main class="main">
@@ -76,6 +86,24 @@
         <h1 id="view-title">Heute</h1>
         <div class="main-meta" id="view-subtitle"></div>
       </header>
+
+      <section class="epic-head hidden" id="epic-head">
+        <div class="epic-head-meta">
+          <a class="epic-head-project" id="eh-project" href="#">
+            <span class="dot" id="eh-project-dot"></span>
+            <span id="eh-project-name"></span>
+          </a>
+          <span class="epic-status" id="eh-status"></span>
+          <span class="epic-head-range" id="eh-range"></span>
+          <span class="epic-head-progress" id="eh-progress"></span>
+        </div>
+        <div class="epic-head-desc" id="eh-desc"></div>
+        <div class="epic-head-actions">
+          <button type="button" class="td-btn" id="eh-edit">Bearbeiten</button>
+          <button type="button" class="td-btn" id="eh-toggle">Beenden</button>
+        </div>
+        <p class="dialog-error hidden" id="eh-error"></p>
+      </section>
 
       <div class="quick-add">
         <form id="quick-add-form">
@@ -180,6 +208,29 @@
     </form>
   </dialog>
 
+  <dialog id="epic-dialog">
+    <form method="dialog">
+      <h2 id="ed-title">Neues Epic</h2>
+      <label>Titel <input type="text" id="ed-name" placeholder="z.B. Küche renovieren" required /></label>
+      <label>Projekt
+        <select id="ed-project"></select>
+      </label>
+      <label>Beschreibung (optional)
+        <textarea id="ed-description" rows="3" placeholder="Worum geht es in dieser Initiative?"></textarea>
+      </label>
+      <div class="row">
+        <label>Von (optional) <input type="date" id="ed-start" /></label>
+        <label>Bis (optional) <input type="date" id="ed-end" /></label>
+      </div>
+      <p class="dialog-error hidden" id="ed-error"></p>
+      <menu>
+        <button value="cancel" type="button" id="ed-cancel">Abbrechen</button>
+        <button value="default" type="button" id="ed-delete" class="danger hidden">Löschen</button>
+        <button value="default" id="ed-save">Speichern</button>
+      </menu>
+    </form>
+  </dialog>
+
   <dialog id="task-dialog" class="task-modal">
     <div class="td-layout">
       <header class="td-topbar">
@@ -221,6 +272,11 @@
         <div class="td-field">
           <div class="td-field-label">Projekt</div>
           <div class="td-field-control"><select id="td-project"></select></div>
+        </div>
+
+        <div class="td-field">
+          <div class="td-field-label">Epic</div>
+          <div class="td-field-control"><select id="td-epic"></select></div>
         </div>
 
         <div class="td-field">

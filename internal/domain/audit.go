@@ -17,6 +17,7 @@ const (
 	AuditDeadlineCleared    AuditAction = "deadline_cleared"
 	AuditDeadlineChanged    AuditAction = "deadline_changed"
 	AuditProjectChanged     AuditAction = "project_changed"
+	AuditEpicChanged        AuditAction = "epic_changed"
 	AuditPriorityChanged    AuditAction = "priority_changed"
 )
 
@@ -25,6 +26,7 @@ const (
 //
 //   - visible_from_*, deadline_*: YYYY-MM-DD or "" for none
 //   - project_changed: project name (snapshot at audit time)
+//   - epic_changed: epic title (snapshot at audit time), "" for none
 //   - priority_changed: priority as "P1".."P4"
 //   - created/completed/reopened/deleted: both empty
 //

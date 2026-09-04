@@ -126,10 +126,14 @@ func (m RecurrenceMode) Valid() bool {
 
 // Task is the central aggregate of the application.
 type Task struct {
-	ID             string
-	Title          string
-	Description    string
-	ProjectID      string
+	ID          string
+	Title       string
+	Description string
+	ProjectID   string
+	// EpicID links the task to a long-running initiative (domain.Epic). Empty
+	// means "no epic". A linked task always lives in the epic's project — the
+	// service enforces that, see Service.UpdateTask.
+	EpicID         string
 	Status         TaskStatus
 	Priority       Priority
 	VisibleFrom    LocalDate      // when the task starts appearing in the list

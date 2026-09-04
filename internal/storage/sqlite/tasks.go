@@ -14,15 +14,15 @@ import (
 
 type TaskRepo struct{ db *sql.DB }
 
-const taskCols = `id, title, description, project_id, status, priority,
+const taskCols = `id, title, description, project_id, epic_id, status, priority,
 	visible_from, deadline, recurrence_rule, recurrence_mode, recurrence_anchor,
 	created_at, updated_at, completed_at`
 
 func (r *TaskRepo) Create(ctx context.Context, t *domain.Task) error {
 	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO tasks (`+taskCols+`)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		t.ID, t.Title, t.Description, t.ProjectID, string(t.Status), int(t.Priority),
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		t.ID, t.Title, t.Description, t.ProjectID, t.EpicID, string(t.Status), int(t.Priority),
 		t.VisibleFrom.String(), t.Deadline.String(), t.RecurrenceRule, string(t.RecurrenceMode),
 		t.RecurrenceAnchor.String(),
 		timeString(t.CreatedAt), timeString(t.UpdatedAt), nullableTime(t.CompletedAt),
@@ -42,11 +42,11 @@ func (r *TaskRepo) Get(ctx context.Context, id string) (*domain.Task, error) {
 func (r *TaskRepo) Update(ctx context.Context, t *domain.Task) error {
 	res, err := r.db.ExecContext(ctx,
 		`UPDATE tasks
-		   SET title = ?, description = ?, project_id = ?, status = ?, priority = ?,
+		   SET title = ?, description = ?, project_id = ?, epic_id = ?, status = ?, priority = ?,
 		       visible_from = ?, deadline = ?, recurrence_rule = ?, recurrence_mode = ?,
 		       recurrence_anchor = ?, updated_at = ?, completed_at = ?
 		 WHERE id = ?`,
-		t.Title, t.Description, t.ProjectID, string(t.Status), int(t.Priority),
+		t.Title, t.Description, t.ProjectID, t.EpicID, string(t.Status), int(t.Priority),
 		t.VisibleFrom.String(), t.Deadline.String(), t.RecurrenceRule, string(t.RecurrenceMode),
 		t.RecurrenceAnchor.String(), timeString(t.UpdatedAt), nullableTime(t.CompletedAt), t.ID,
 	)
@@ -68,6 +68,10 @@ func (r *TaskRepo) List(ctx context.Context, f storage.TaskFilter) ([]*domain.Ta
 	if f.ProjectID != "" {
 		where = append(where, `project_id = ?`)
 		args = append(args, f.ProjectID)
+	}
+	if f.EpicID != "" {
+		where = append(where, `epic_id = ?`)
+		args = append(args, f.EpicID)
 	}
 	if f.Status != "" {
 		where = append(where, `status = ?`)
@@ -178,7 +182,7 @@ func scanTask(s rowScanner) (*domain.Task, error) {
 		completedAt           sql.NullString
 	)
 	if err := s.Scan(
-		&t.ID, &t.Title, &t.Description, &t.ProjectID, &status, &priority,
+		&t.ID, &t.Title, &t.Description, &t.ProjectID, &t.EpicID, &status, &priority,
 		&visibleFrom, &deadline, &t.RecurrenceRule, &recurrenceMode, &recurrenceAnchor,
 		&createdAt, &updatedAt, &completedAt,
 	); err != nil {

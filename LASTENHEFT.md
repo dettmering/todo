@@ -49,6 +49,7 @@ Die Anwendung soll kein etabliertes Produkt vollständig nachbauen, sondern nur 
 * Webhooks
 * Basisdatenhaltung
 * Import/Export optional
+* Epics als langlaufende Initiativen zwischen Projekt und Aufgabe (siehe 4.11 und 5.15)
 * Abwesenheiten und daraus abgeleitete Terminlogik (siehe 4.10 und 5.13)
 * Kommentare und Aktivitätsprotokoll (siehe 4.8, 4.9 und 5.12)
 * iCal-Feed, anonymisierte Share-Seite und MCP-Server (siehe 5.14)
@@ -448,6 +449,70 @@ werden von API, Frontend und den geteilten Sichten gemeinsam genutzt:
 
 ---
 
+## 4.11 Epic
+
+Ein **Epic** ist eine langlaufende Initiative — die Ebene zwischen Projekt und
+Aufgabe. Ein Projekt ist ein Fach, das bleibt („Renovierung", „adesso"); ein
+Epic ist ein Vorhaben darin, das anfängt, läuft und irgendwann fertig ist
+(„Küche renovieren", „ISO-Audit 2027"). Ohne diese Ebene zerfällt ein solches
+Vorhaben in zwanzig lose Aufgaben, und niemand sieht, wie weit es ist.
+
+### Attribute eines Epics
+
+| Attribut       | Beschreibung                                                              |
+| -------------- | ------------------------------------------------------------------------- |
+| `id`           | eindeutige ID (`epic_*`)                                                   |
+| `title`        | Titel, Pflicht; wird getrimmt                                              |
+| `slug`         | URL-sicherer Bezeichner, aus dem Titel abgeleitet, über alle Epics eindeutig, **stabil über Umbenennungen** |
+| `description`  | optionaler Freitext (Markdown)                                             |
+| `project_id`   | Pflicht; genau ein Projekt. **Die Inbox ist ausgeschlossen**               |
+| `status`       | `active` („laufend") oder `completed` („beendet")                          |
+| `start_date`   | optionales ISO-Datum; leer = offener Anfang                                |
+| `end_date`     | optionales ISO-Datum; leer = offenes Ende                                  |
+| `sort_order`   | manuelle Sortierung                                                        |
+| `archived`     | ausgeblendet statt gelöscht (siehe unten)                                  |
+| `created_at` / `updated_at` / `completed_at` | Zeitstempel                              |
+
+### Anforderungen
+
+* Ein Epic gehört zu **genau einem Projekt**. Die Inbox scheidet aus: sie ist
+  der Eingangskorb für Unsortiertes, kein Vorhaben, das man über Monate führt.
+* Start- und Enddatum sind **beide optional** und unabhängig voneinander. Ein
+  gesetztes Ende darf nicht vor einem gesetzten Anfang liegen.
+* Eine Aufgabe gehört **höchstens einem** Epic (`epic_id`, leer = keins) und
+  liegt dann **immer im Projekt des Epics**. Wird einer Aufgabe ein Epic
+  zugewiesen, wandert sie in dessen Projekt; wechselt ein Epic das Projekt,
+  wandern alle seine Aufgaben mit. Nur das Projekt einer verknüpften Aufgabe zu
+  ändern, wird abgelehnt — die Verknüpfung stillschweigend zu kappen wäre
+  Datenverlust, um den niemand gebeten hat.
+* Ein Epic lässt sich **nur beenden, wenn keine seiner Aufgaben mehr offen
+  ist.** Erledigte und soft-gelöschte Aufgaben blockieren nicht — was
+  weggeworfen wurde, ist keine offene Arbeit.
+* Ein **beendetes oder archiviertes** Epic nimmt **keine neuen Aufgaben** an.
+* Wird eine Aufgabe eines beendeten Epics wieder geöffnet, geht das **Epic
+  automatisch zurück auf `active`**. Die Alternative — das Wiederöffnen zu
+  verbieten — machte ein beendetes Epic zur Falle.
+* Epics werden **archiviert, nicht gelöscht** (wie Projekte, anders als
+  Abwesenheiten): Aufgaben behalten ihre `epic_id`, damit historische
+  Beschriftungen weiter auflösen.
+* Der Statuswechsel läuft über eigene Aktionen (`complete` / `reopen`), nicht
+  über das allgemeine Teilupdate — so hat die Beendigungsregel genau eine Stelle.
+* Datumsangaben werden **nur als ISO-Datum** entgegengenommen; die
+  natürlichsprachige Eingabe aus 4.7 gilt für Aufgaben.
+* Epics erzeugen **keine** eigenen Audit-Einträge; das Protokoll aus 4.9
+  beschreibt Aufgaben. Die Zuordnung einer Aufgabe zu einem Epic wird dort
+  allerdings als `epic_changed` festgehalten.
+
+### Abgeleitete Auswertungen
+
+| Auswertung        | Regel                                                                       |
+| ----------------- | --------------------------------------------------------------------------- |
+| **Fortschritt**   | Anzahl erledigter und offener Aufgaben des Epics; soft-gelöschte zählen in keiner der beiden Zahlen |
+| **Beendbarkeit**  | keine Aufgabe des Epics hat den Status `offen`                              |
+| **Laufende Epics**| weder archiviert noch beendet; das ist die Auswahl für Sidebar und Projektgruppierung |
+
+---
+
 ## 5. Funktionale Anforderungen
 
 ## 5.1 Aufgaben erstellen
@@ -590,7 +655,8 @@ Ansichten sind umgesetzt:
 | Heute       | `/today` (Default)   | offene, aktuell sichtbare Aufgaben; zusätzlich heute erledigte (ausgegraut) |
 | Demnächst   | `/upcoming`          | künftige Aufgaben, nach Kalenderwoche gruppiert/hervorgehoben |
 | Inbox       | `/inbox`             | Aufgaben des Standardprojekts                                |
-| Projekt     | `/projects/<slug>`   | Aufgaben eines Projekts                                      |
+| Projekt     | `/projects/<slug>`   | Aufgaben eines Projekts, unter den laufenden Epics des Projekts gruppiert |
+| Epic        | `/epics/<slug>`      | Kopfbereich (Projekt, Status, Zeitraum, Fortschritt) und die Aufgaben eines Epics, erledigte darunter |
 | Aktivität   | `/activity`          | Aktivitätsprotokoll (siehe 4.9), nach Tag gruppiert          |
 | Abwesenheiten | `/absences`        | Abwesenheiten (siehe 4.10) als 12-Wochen-Zeitleiste + vollständige Liste, laufende/künftige oben, vergangene darunter |
 
@@ -717,6 +783,14 @@ GET    /api/projects/{id}
 PATCH  /api/projects/{id}
 DELETE /api/projects/{id}
 
+GET    /api/epics
+POST   /api/epics
+GET    /api/epics/{id}
+PATCH  /api/epics/{id}
+POST   /api/epics/{id}/complete
+POST   /api/epics/{id}/reopen
+DELETE /api/epics/{id}
+
 GET    /api/absences
 POST   /api/absences
 GET    /api/absences/{id}
@@ -740,6 +814,9 @@ POST   /mcp                 MCP-Server (Streamable HTTP)  (MCP_TOKEN)
 
 * `POST /api/tasks/{id}/reopen`, `GET /api/tasks/{id}/audit` und `GET /api/audit`
   sind neu hinzugekommen.
+* Epics (`/api/epics*`) sind ein ganzer Objektbereich, den der ursprüngliche
+  Entwurf nicht kannte — siehe 4.11. `GET /api/tasks` kennt dazu den Filter
+  `epic_id`, das Task-Objekt die Felder `epic_id` und `epic_title`.
 * Abwesenheiten (`/api/absences*`) und die daraus abgeleitete
   Terminlogik (`/api/next-workday`) sind ein ganzer Objektbereich, den der
   ursprüngliche Entwurf nicht kannte — siehe 4.10.
@@ -754,7 +831,10 @@ Parameter aus 5.6/5.7. `GET /api/projects` liefert standardmäßig nur aktive
 Projekte; `include_archived=true` schließt archivierte ein (das Frontend nutzt
 dies, damit historische Projektlabels weiter auflösen). `GET /api/absences`
 kennt zwei Modi: ohne Parameter (bzw. mit `today=`) die Ansichts-Auswahl aus
-4.10, mit `from=`/`to=` die überlappende Zeitraum-Abfrage.
+4.10, mit `from=`/`to=` die überlappende Zeitraum-Abfrage. `GET /api/epics`
+filtert über `project_id` und `status` und blendet archivierte Epics aus,
+solange nicht `include_archived=true` gesetzt ist — dieselbe Regel wie bei
+Projekten, und aus demselben Grund.
 
 ---
 
@@ -823,6 +903,7 @@ Webhook-Ereignisse bei:
 * Projekt gelöscht
 * wiederkehrende Aufgabe erzeugt nächste Instanz
 * Kommentar erstellt
+* Epic erstellt, aktualisiert, beendet, archiviert
 * Abwesenheit erstellt, aktualisiert, gelöscht
 
 ### Event-Typen
@@ -839,6 +920,10 @@ project.created
 project.updated
 project.deleted
 comment.created
+epic.created
+epic.updated
+epic.completed
+epic.deleted
 absence.created
 absence.updated
 absence.deleted
@@ -994,11 +1079,60 @@ außerhalb der Anwendung. Alle drei sind nach demselben Muster token-geschützt
 
 * eingebettet in dasselbe Binary und auf **derselben Service-Schicht** wie die
   REST-API — gleiche Validierung, ID-Vergabe, Zeitstempel und Events
-* deckt Aufgaben, Projekte, Abwesenheiten, den nächsten Arbeitstag und den
-  NL-Parser ab
+* deckt Aufgaben, Projekte, Epics, Abwesenheiten, den nächsten Arbeitstag und
+  den NL-Parser ab
 
 Die vollständige technische Beschreibung (Felder, Parameter, Clientanbindung)
 steht in `README.md`; dieser Abschnitt hält nur die fachliche Anforderung fest.
+
+---
+
+## 5.15 Epics verwalten
+
+### LA-F-014 Langlaufende Initiativen führen
+
+Das System muss erlauben, Epics (siehe 4.11) zu pflegen und Aufgaben darunter
+zu bündeln.
+
+**Muss-Kriterien:**
+
+* Epics sind anlegbar, bearbeitbar, beendbar, wieder öffenbar und archivierbar
+  — über Oberfläche, REST-API und MCP gleichermaßen
+* die Sidebar führt einen eigenen Abschnitt **„Epics"** mit den **laufenden**
+  Epics, je Eintrag ein Punkt in der Farbe seines Projekts, der Titel und die
+  Zahl der offenen Aufgaben. **Beendete und archivierte Epics stehen nicht in
+  der Sidebar** — sie bleiben über ihre URL und die API erreichbar. Eine Liste,
+  die nur wächst, ertränkt die Einträge, auf die es ankommt
+* Klick öffnet das Epic, Doppelklick den Bearbeiten-Dialog — dieselbe Geste wie
+  bei Projekten
+* die **Projektansicht** stellt die laufenden Epics des Projekts **über** die
+  Aufgaben und gruppiert die zugeordneten Aufgaben **unter** ihrem Epic;
+  Aufgaben ohne Epic stehen darunter unter „Ohne Epic". Ein laufendes Epic ohne
+  offene Aufgabe bleibt sichtbar — „hier ist gerade nichts zu tun" ist eine
+  Aussage. Hat ein Projekt gar keine Epics, bleibt seine Liste unverändert flach
+* die **Epic-Ansicht** (`/epics/<slug>`) zeigt einen Kopfbereich mit Projekt,
+  Status, Zeitraum und Fortschritt („3 / 8 erledigt"), darunter die offenen
+  Aufgaben und, davon abgesetzt, die bereits erledigten — eine Initiative liest
+  sich ebenso sehr an dem, was hinter ihr liegt
+* der Quick-Add legt in der Epic-Ansicht direkt **in** dieses Epic an; ein
+  ausdrückliches `#projekt`-Kürzel schlägt das
+* der Aufgabendialog hat ein Feld **Epic** mit den laufenden Epics des
+  gewählten Projekts und einem ausdrücklichen „kein Epic"; die Wahl eines Epics
+  setzt das Projektfeld passend nach
+* in den Ansichten Heute, Demnächst und Inbox trägt eine zugeordnete Aufgabe
+  den Epic-Namen als Marke in ihrer Datumszeile — in Projekt- und Epic-Ansicht
+  nicht, dort steht das Epic ohnehin darüber
+* der Versuch, ein Epic mit offenen Aufgaben zu beenden, wird mit einer
+  **sichtbaren Meldung an Ort und Stelle** abgelehnt, nicht stillschweigend
+
+**Verhalten:**
+
+* die Beendigungsregel ist **serverseitig** die Quelle der Wahrheit, damit
+  Frontend, API- und MCP-Clients dieselbe Antwort bekommen
+* Anlegen, Ändern, Beenden und Archivieren lösen `epic.created`,
+  `epic.updated`, `epic.completed` und `epic.deleted` aus (siehe 5.11)
+* die Zuordnung einer Aufgabe zu einem Epic erscheint im Aktivitätsprotokoll
+  als `epic_changed` (siehe 4.9); das Epic selbst führt kein eigenes Protokoll
 
 ---
 
@@ -1082,6 +1216,7 @@ Empfehlung:
   "title": "Rasen mähen",
   "description": "",
   "project_id": "project_garden",
+  "epic_id": "",
   "status": "open",
   "priority": 2,
   "visible_from": "2026-05-23",
@@ -1094,8 +1229,32 @@ Empfehlung:
 ```
 
 Die API-Antwort (`taskDTO`) reichert dieses Modell zusätzlich an: `project_name`
-(aufgelöster Projektname), `recurrence_label` (deutsche Klartext-Beschreibung der
-Wiederholung), `comment_count` sowie die eingebetteten `comments`.
+(aufgelöster Projektname), `epic_title` (aufgelöster Epic-Titel),
+`recurrence_label` (deutsche Klartext-Beschreibung der Wiederholung),
+`comment_count` sowie die eingebetteten `comments`.
+
+### Epic
+
+```json
+{
+  "id": "epic_123",
+  "title": "Küche renovieren",
+  "slug": "kueche-renovieren",
+  "description": "",
+  "project_id": "project_renovierung",
+  "status": "active",
+  "start_date": "2026-09-01",
+  "end_date": "2027-03-31",
+  "sort_order": 0,
+  "archived": false,
+  "created_at": "2026-09-04T09:57:13Z",
+  "updated_at": "2026-09-04T09:57:13Z",
+  "completed_at": null
+}
+```
+
+Die API-Antwort (`epicDTO`) reichert an: `project_name` sowie `open_tasks` und
+`done_tasks` — berechnet, nicht gespeichert.
 
 ### Comment
 
@@ -1182,6 +1341,15 @@ Die Anwendung umfasst:
 * archivieren/löschen
 * Aufgaben zuordnen
 
+### Epics
+
+* erstellen
+* bearbeiten
+* beenden und wieder öffnen
+* archivieren
+* Aufgaben zuordnen (die Aufgabe wandert dabei ins Projekt des Epics)
+* Fortschritt ablesen
+
 ### Terminlogik
 
 * Erscheinungsdatum
@@ -1250,6 +1418,11 @@ Das System gilt als fachlich abgenommen, wenn folgende Szenarien funktionieren:
 28. Der nächste Arbeitstag überspringt Wochenenden und arbeitsblockierende Abwesenheiten, behandelt eine Dienstreise aber als normalen Arbeitstag.
 29. Fällt das Datum einer Aufgabe in eine Abwesenheit, weist die Eingabe nicht blockierend darauf hin.
 30. Der iCal-Feed und die Share-Seite sind ohne gesetzten Token nicht erreichbar (404) und liefern mit falschem Token 401; die Share-Seite gibt weder Typ noch Label preis.
+31. Ein Epic kann über UI und API angelegt, bearbeitet, beendet, wieder geöffnet und archiviert werden; es gehört immer zu genau einem Projekt und nie zur Inbox.
+32. Ein Epic lässt sich nicht beenden, solange eine seiner Aufgaben offen ist; die Oberfläche zeigt die Begründung an Ort und Stelle.
+33. Wird eine Aufgabe eines beendeten Epics wieder geöffnet, geht das Epic zurück auf „laufend".
+34. Eine Aufgabe mit Epic liegt immer im Projekt ihres Epics — beim Zuordnen wandert sie mit, ein Projektwechsel ohne Epic-Wechsel wird abgelehnt.
+35. Die Sidebar führt die laufenden Epics; die Projektansicht gruppiert die Aufgaben unter ihnen, die Epic-Ansicht zeigt Zeitraum, Status und Fortschritt.
 
 ---
 

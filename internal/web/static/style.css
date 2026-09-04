@@ -189,7 +189,7 @@ strong, b { font-weight: 600; }
 .logo svg { width: 22px; height: 22px; }
 
 .sidebar-nav { display: flex; flex-direction: column; gap: 1px; margin-bottom: 16px; }
-.nav-item, .project-item {
+.nav-item, .project-item, .epic-item {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -209,12 +209,12 @@ strong, b { font-weight: 600; }
 /* Nur auf Geraeten mit echtem Zeiger: auf Touch bleibt :hover nach dem Tap
    haengen und mischt sich als Grau unter die Akzentflaeche. */
 @media (hover: hover) {
-  .nav-item:hover, .project-item:hover { background: var(--hover); }
+  .nav-item:hover, .project-item:hover, .epic-item:hover { background: var(--hover); }
 }
-.nav-item.active, .project-item.active {
+.nav-item.active, .project-item.active, .epic-item.active {
   background: var(--accent-soft);
 }
-.nav-item.active .nav-label, .project-item.active .project-name {
+.nav-item.active .nav-label, .project-item.active .project-name, .epic-item.active .project-name {
   color: var(--accent);
   font-weight: 500;
 }
@@ -284,7 +284,7 @@ strong, b { font-weight: 600; }
 .icon-btn svg { width: 16px; height: 16px; }
 
 .project-list { display: flex; flex-direction: column; gap: 1px; }
-.project-item .dot {
+.project-item .dot, .epic-item .dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
@@ -294,14 +294,25 @@ strong, b { font-weight: 600; }
   margin-left: 7px; /* align with sidebar nav icons (24-10)/2 */
   margin-right: 7px;
 }
-.project-item .project-name {
+.project-item .project-name, .epic-item .project-name {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.project-item.active .project-count { color: var(--accent); }
+.project-item.active .project-count, .epic-item.active .project-count { color: var(--accent); }
+
+/* Marginalie unter einem leeren Abschnitt — dieselbe Rolle wie der
+   Abschnittskopf, nur ohne Unterlinie. */
+.sidebar-hint {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 4px 10px 4px 17px;
+}
 
 /* ---------- Main pane ---------- */
 .main {
@@ -406,6 +417,22 @@ strong, b { font-weight: 600; }
 }
 .date-item.recur-label { color: var(--text-muted); }
 .date-item.recur-label svg { width: 14px; height: 14px; }
+/* Der Epic-Name auf einer Aufgabenzeile ist ein gewaehltes Wort, kein
+   Ablesewert — Sans, gemischt, wie der Projekttag rechts. Er erscheint nur in
+   den Ansichten, in denen das Epic nicht ohnehin darueber steht. */
+.date-item.epic-label {
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  letter-spacing: 0;
+  max-width: 220px;
+}
+.date-item.epic-label span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.date-item.epic-label svg { width: 14px; height: 14px; }
 
 .quick-add-input-wrap {
   position: relative;
@@ -601,6 +628,27 @@ strong, b { font-weight: 600; }
 .group-header .group-absence.type-business_trip { background: var(--absence-business_trip-bg); color: var(--absence-business_trip-fg); }
 .group-header .group-absence.type-sick          { background: var(--absence-sick-bg); color: var(--absence-sick-fg); }
 .group-header .group-absence.type-other         { background: var(--surface); color: var(--text-secondary); }
+
+/* Epic-Rubrikzeile (Styleguide 7.11). Dieselbe Maszlinie wie 7.1, mit einer
+   begruendeten Ausnahme: der Titel ist ein vom Menschen gewaehltes Wort und
+   steht deshalb in der Sans, gemischt — nicht als Mono-Versalie wie "KW 35".
+   Zeitraum und Zaehler bleiben Ablesewerte und damit Mono.
+   Eine Registermarke gibt es hier nie: eine Projektansicht kann mehrere Epics
+   zeigen, und die Marke gilt nur, solange es genau eine pro Bildschirm ist. */
+.group-header.epic { cursor: pointer; }
+.group-header.epic .group-epic-title {
+  order: 1;
+  flex: none;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  text-transform: none;
+  color: var(--text);
+}
+@media (hover: hover) {
+  .group-header.epic:hover .group-epic-title { color: var(--accent); }
+}
 
 .task {
   display: flex;
@@ -1654,6 +1702,82 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
 }
 
 /* ---------- Abwesenheiten ---------- */
+/* ---------- Epic-Kopf (Styleguide 7.11) ----------
+   Sitzt zwischen Kopfzeile und Quick-Add: erst wo die Initiative hingehoert,
+   dann wie sie steht, dann was man mit ihr tun kann. Bewusst ohne
+   Fortschrittsbalken — das waere die zweite laute Stelle auf der Seite. */
+.epic-head {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 14px;
+  margin-bottom: 18px;
+}
+.epic-head-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+.epic-head-project {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  text-decoration: none;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+.epic-head-project:hover { color: var(--accent); }
+.epic-head-project .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--p4);
+  display: inline-block;
+  flex-shrink: 0;
+}
+/* Pille, weil sie benennt und selbst keine Aktion ist (Regel 3). */
+.epic-status {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  color: var(--text-secondary);
+}
+.epic-status.done { color: var(--text-muted); border-color: var(--border); }
+.epic-head-range,
+.epic-head-progress {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+.epic-head-progress { margin-left: auto; }
+.epic-head-desc {
+  margin-top: 10px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.epic-head-desc > :first-child { margin-top: 0; }
+.epic-head-desc > :last-child { margin-bottom: 0; }
+.epic-head-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+.epic-head .dialog-error { margin-top: 10px; }
+@media (max-width: 720px) {
+  /* Auf schmalen Schirmen bricht die Zeile ohnehin — dann darf der Fortschritt
+     nicht mehr nach rechts gedrueckt werden, sonst steht er allein. */
+  .epic-head-progress { margin-left: 0; }
+}
+
 .absences-toolbar {
   display: flex;
   justify-content: flex-end;

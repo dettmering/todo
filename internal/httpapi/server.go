@@ -53,6 +53,14 @@ func (h *Handler) routes() {
 	h.mux.HandleFunc("PATCH /api/projects/{id}", h.handlePatchProject)
 	h.mux.HandleFunc("DELETE /api/projects/{id}", h.handleDeleteProject)
 
+	h.mux.HandleFunc("GET /api/epics", h.handleListEpics)
+	h.mux.HandleFunc("POST /api/epics", h.handleCreateEpic)
+	h.mux.HandleFunc("GET /api/epics/{id}", h.handleGetEpic)
+	h.mux.HandleFunc("PATCH /api/epics/{id}", h.handlePatchEpic)
+	h.mux.HandleFunc("POST /api/epics/{id}/complete", h.handleCompleteEpic)
+	h.mux.HandleFunc("POST /api/epics/{id}/reopen", h.handleReopenEpic)
+	h.mux.HandleFunc("DELETE /api/epics/{id}", h.handleDeleteEpic)
+
 	h.mux.HandleFunc("GET /api/absences", h.handleListAbsences)
 	h.mux.HandleFunc("GET /api/absences.ics", h.handleAbsencesICS)
 	h.mux.HandleFunc("GET /api/absences.html", h.handleAbsencesShare)

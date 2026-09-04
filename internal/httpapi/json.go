@@ -42,6 +42,8 @@ type taskDTO struct {
 	Description      string       `json:"description"`
 	ProjectID        string       `json:"project_id"`
 	ProjectName      string       `json:"project_name"`
+	EpicID           string       `json:"epic_id,omitempty"`
+	EpicTitle        string       `json:"epic_title,omitempty"`
 	Status           string       `json:"status"`
 	Priority         int          `json:"priority"`
 	VisibleFrom      string       `json:"visible_from,omitempty"`
@@ -57,7 +59,7 @@ type taskDTO struct {
 	Comments         []commentDTO `json:"comments"`
 }
 
-func toTaskDTO(t *domain.Task, projectName string, comments []*domain.Comment) taskDTO {
+func toTaskDTO(t *domain.Task, projectName, epicTitle string, comments []*domain.Comment) taskDTO {
 	cs := make([]commentDTO, 0, len(comments))
 	for _, c := range comments {
 		cs = append(cs, toCommentDTO(c))
@@ -68,6 +70,8 @@ func toTaskDTO(t *domain.Task, projectName string, comments []*domain.Comment) t
 		Description:      t.Description,
 		ProjectID:        t.ProjectID,
 		ProjectName:      projectName,
+		EpicID:           t.EpicID,
+		EpicTitle:        epicTitle,
 		Status:           string(t.Status),
 		Priority:         int(t.Priority),
 		VisibleFrom:      t.VisibleFrom.String(),
@@ -145,6 +149,50 @@ func toProjectDTO(p *domain.Project) projectDTO {
 		CreatedAt: p.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt: p.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
+}
+
+type epicDTO struct {
+	ID          string  `json:"id"`
+	Title       string  `json:"title"`
+	Slug        string  `json:"slug"`
+	Description string  `json:"description"`
+	ProjectID   string  `json:"project_id"`
+	ProjectName string  `json:"project_name"`
+	Status      string  `json:"status"`
+	StartDate   string  `json:"start_date,omitempty"`
+	EndDate     string  `json:"end_date,omitempty"`
+	SortOrder   int     `json:"sort_order"`
+	Archived    bool    `json:"archived"`
+	OpenTasks   int     `json:"open_tasks"`
+	DoneTasks   int     `json:"done_tasks"`
+	CreatedAt   string  `json:"created_at"`
+	UpdatedAt   string  `json:"updated_at"`
+	CompletedAt *string `json:"completed_at,omitempty"`
+}
+
+func toEpicDTO(e *domain.Epic, projectName string, c domain.EpicCounts) epicDTO {
+	d := epicDTO{
+		ID:          e.ID,
+		Title:       e.Title,
+		Slug:        e.Slug,
+		Description: e.Description,
+		ProjectID:   e.ProjectID,
+		ProjectName: projectName,
+		Status:      string(e.Status),
+		StartDate:   e.Start.String(),
+		EndDate:     e.End.String(),
+		SortOrder:   e.SortOrder,
+		Archived:    e.Archived,
+		OpenTasks:   c.Open,
+		DoneTasks:   c.Done,
+		CreatedAt:   e.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt:   e.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+	}
+	if e.CompletedAt != nil {
+		s := e.CompletedAt.Format("2006-01-02T15:04:05Z07:00")
+		d.CompletedAt = &s
+	}
+	return d
 }
 
 type absenceDTO struct {

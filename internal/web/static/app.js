@@ -74,6 +74,24 @@ const api = {
   async deleteAbsence(id) {
     return fetch(`/api/absences/${id}`, { method: "DELETE" }).then(jsonOrError);
   },
+  // Epics are loaded with include_archived=true, like projects: a task whose
+  // epic was tidied away still has to be able to name it.
+  async listEpics() { return fetch("/api/epics?include_archived=true").then(jsonOrError); },
+  async createEpic(body) {
+    return fetch("/api/epics", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(jsonOrError);
+  },
+  async patchEpic(id, body) {
+    return fetch(`/api/epics/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(jsonOrError);
+  },
+  async completeEpic(id) {
+    return fetch(`/api/epics/${id}/complete`, { method: "POST" }).then(jsonOrError);
+  },
+  async reopenEpic(id) {
+    return fetch(`/api/epics/${id}/reopen`, { method: "POST" }).then(jsonOrError);
+  },
+  async deleteEpic(id) {
+    return fetch(`/api/epics/${id}`, { method: "DELETE" }).then(jsonOrError);
+  },
   async nextWorkday() { return fetch("/api/next-workday").then(jsonOrError); },
   async shareLinks() { return fetch("/api/share-links").then(jsonOrError); },
 };
@@ -243,13 +261,25 @@ function projectColor(p) {
   return p.id === "inbox" ? "#3a4fa0" : DEFAULT_PROJECT_COLOR;
 }
 function projectById(id) { return state.projects.find(p => p.id === id); }
+function epicById(id) { return state.epics.find(e => e.id === id); }
+
+// Epics that may still take work: not archived, not finished. Optionally
+// narrowed to one project (mirrors domain.ActiveEpics on the server).
+function activeEpics(projectId) {
+  return state.epics
+    .filter(e => !e.archived && e.status === "active")
+    .filter(e => !projectId || e.project_id === projectId)
+    .sort((a, b) => a.sort_order - b.sort_order || a.title.localeCompare(b.title));
+}
 
 const state = {
   projects: [],
+  epics: [], // all of them incl. archived, so old labels still resolve
   absences: [], // loaded on demand when the absences view is open
   shareLinks: null, // { share_url?, ical_url? } from /api/share-links, fetched once
-  view: { kind: "today" }, // or { kind: "project", id }, { kind: "upcoming" }, { kind: "activity" }, { kind: "absences" }
+  view: { kind: "today" }, // or { kind: "project", id }, { kind: "epic", id }, { kind: "upcoming" }, { kind: "activity" }, { kind: "absences" }
   openCounts: {}, // project_id -> number of open tasks
+  epicCounts: {}, // epic_id -> number of open tasks
   activity: { from: null, to: null }, // ISO date range for the activity view
 };
 
@@ -258,10 +288,12 @@ const state = {
 //   /                          → today (canonicalised to /today via replaceState)
 //   /today, /upcoming, /inbox  → standard views
 //   /projects/<slug>           → project view (slug resolved against state.projects)
+//   /epics/<slug>              → epic view (slug resolved against state.epics)
 //   /tasks/<id>                → opens task modal on top of the task's natural background view
 // Unknown paths fall back to /today.
 
 function projectBySlug(slug) { return state.projects.find(p => p.slug === slug); }
+function epicBySlug(slug) { return state.epics.find(e => e.slug === slug); }
 
 function parsePath(pathname) {
   const trimmed = pathname.replace(/\/+$/, "") || "/";
@@ -272,6 +304,8 @@ function parsePath(pathname) {
   if (trimmed === "/absences") return { view: { kind: "absences" } };
   const proj = trimmed.match(/^\/projects\/([^\/]+)$/);
   if (proj) return { view: { kind: "project", slug: decodeURIComponent(proj[1]) } };
+  const epic = trimmed.match(/^\/epics\/([^\/]+)$/);
+  if (epic) return { view: { kind: "epic", slug: decodeURIComponent(epic[1]) } };
   const task = trimmed.match(/^\/tasks\/([^\/]+)$/);
   if (task) return { view: { kind: "today" }, openTaskId: decodeURIComponent(task[1]) };
   return { view: { kind: "today" } };
@@ -288,6 +322,11 @@ function viewToPath(view) {
       const p = projectById(view.id);
       const slug = p && p.slug ? p.slug : view.id;
       return `/projects/${encodeURIComponent(slug)}`;
+    }
+    case "epic": {
+      const e = epicById(view.id);
+      const slug = e && e.slug ? e.slug : view.id;
+      return `/epics/${encodeURIComponent(slug)}`;
     }
   }
   return "/today";
@@ -357,11 +396,20 @@ function resolveViewFromPath(parsedView) {
     if (!p) return { kind: "today" };
     return { kind: "project", id: p.id };
   }
+  if (parsedView.kind === "epic") {
+    const e = epicBySlug(parsedView.slug);
+    if (!e) return { kind: "today" };
+    return { kind: "epic", id: e.id };
+  }
   return parsedView;
 }
 
 // Picks the natural background view for a task: its project, or inbox for inbox tasks.
 function applyBackgroundViewForTask(t) {
+  if (t.epic_id && epicById(t.epic_id)) {
+    state.view = { kind: "epic", id: t.epic_id };
+    return;
+  }
   if (t.project_id === "inbox") {
     state.view = { kind: "inbox" };
   } else {
@@ -499,6 +547,7 @@ const ICON = {
   edit:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
   trash:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>',
   hashtag:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>',
+  epic:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>',
   comment:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>',
 };
 
@@ -528,6 +577,12 @@ function markActiveNav() {
     el.classList.toggle(
       "active",
       state.view.kind === "project" && el.dataset.projectId === state.view.id,
+    );
+  });
+  document.querySelectorAll("#epic-list .epic-item").forEach(el => {
+    el.classList.toggle(
+      "active",
+      state.view.kind === "epic" && el.dataset.epicId === state.view.id,
     );
   });
 }
@@ -567,11 +622,49 @@ function renderSidebar() {
     }
     list.appendChild(el);
   }
+  renderEpicSidebar();
   markActiveNav();
 
   // Task edit: include archived ones so existing tasks still resolve their current project.
   const editProjects = [...state.projects].sort((a, b) => Number(a.archived) - Number(b.archived) || a.sort_order - b.sort_order || a.name.localeCompare(b.name));
   fillProjectSelect("td-project", editProjects, true);
+}
+
+// Only running epics appear here. A finished one has nothing left to do, and a
+// list that only grows would drown the ones that matter — it stays reachable
+// through its URL and the API.
+function renderEpicSidebar() {
+  const list = document.getElementById("epic-list");
+  const empty = document.getElementById("epic-empty");
+  if (!list) return;
+  list.innerHTML = "";
+  const epics = activeEpics();
+  if (empty) empty.classList.toggle("hidden", epics.length > 0);
+  for (const e of epics) {
+    const el = document.createElement("a");
+    el.className = "epic-item";
+    el.href = viewToPath({ kind: "epic", id: e.id });
+    el.dataset.epicId = e.id;
+    if (state.view.kind === "epic" && state.view.id === e.id) el.classList.add("active");
+    const count = state.epicCounts[e.id] || 0;
+    el.title = `${projectName(e.project_id)} — Klick zum Öffnen, Doppelklick zum Bearbeiten`;
+    // The dot carries the project color: an epic is visibly part of its project.
+    el.innerHTML = `
+      <span class="dot" style="background:${escapeHTML(projectColor(projectById(e.project_id)))}"></span>
+      <span class="project-name">${escapeHTML(e.title)}</span>
+      <span class="project-count">${count > 0 ? count : ""}</span>
+    `;
+    el.addEventListener("click", (ev) => {
+      if (ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.button === 1) return;
+      ev.preventDefault();
+      pushView({ kind: "epic", id: e.id });
+    });
+    el.addEventListener("dblclick", (ev) => {
+      ev.preventDefault();
+      openEpicDialog(e);
+    });
+    list.appendChild(el);
+  }
 }
 
 function fillProjectSelect(id, projects, markArchived) {
@@ -588,6 +681,32 @@ function fillProjectSelect(id, projects, markArchived) {
   if (prev) el.value = prev;
 }
 
+// fillEpicSelect populates the task modal's epic dropdown with the running
+// epics of one project, plus an explicit "no epic" entry. A currently linked
+// epic is kept in the list even when it is finished or archived, so opening an
+// old task never silently drops its link.
+function fillEpicSelect(projectId, selectedId) {
+  const el = document.getElementById("td-epic");
+  if (!el) return;
+  const options = activeEpics(projectId);
+  const current = selectedId ? epicById(selectedId) : null;
+  if (current && !options.some(e => e.id === current.id)) options.unshift(current);
+  el.innerHTML = "";
+  const none = document.createElement("option");
+  none.value = "";
+  none.textContent = "— kein Epic —";
+  el.appendChild(none);
+  for (const e of options) {
+    const opt = document.createElement("option");
+    opt.value = e.id;
+    opt.textContent = e.status === "completed" ? `${e.title} (beendet)`
+      : e.archived ? `${e.title} (archiviert)`
+      : e.title;
+    el.appendChild(opt);
+  }
+  el.value = options.some(e => e.id === selectedId) ? selectedId : "";
+}
+
 function viewTitle() {
   switch (state.view.kind) {
     case "today": return "Heute";
@@ -598,6 +717,10 @@ function viewTitle() {
     case "project": {
       const p = state.projects.find(p => p.id === state.view.id);
       return p ? p.name : "Projekt";
+    }
+    case "epic": {
+      const e = epicById(state.view.id);
+      return e ? e.title : "Epic";
     }
   }
   return "";
@@ -614,6 +737,8 @@ function buildTaskQuery() {
       return { status: "open", scope: "all", project_id: "inbox", sort: "priority" };
     case "project":
       return { status: "open", scope: "all", project_id: state.view.id, sort: "priority" };
+    case "epic":
+      return { status: "open", scope: "all", epic_id: state.view.id, sort: "priority" };
   }
   return {};
 }
@@ -621,7 +746,16 @@ function buildTaskQuery() {
 // Project ID that quick-add should target by default for the current view.
 function defaultProjectForView() {
   if (state.view.kind === "project") return state.view.id;
+  if (state.view.kind === "epic") {
+    const e = epicById(state.view.id);
+    if (e) return e.project_id;
+  }
   return "inbox";
+}
+
+// Epic a new task should join by default: only the epic view implies one.
+function defaultEpicForView() {
+  return state.view.kind === "epic" ? state.view.id : "";
 }
 
 async function refresh() {
@@ -633,6 +767,7 @@ async function refresh() {
   document.querySelector(".main-header").classList.toggle("is-now", state.view.kind === "today");
 
   setAbsencesViewVisible(false);
+  setEpicHeadVisible(false);
 
   if (state.view.kind === "absences") {
     setActivityViewVisible(false);
@@ -660,6 +795,8 @@ async function refresh() {
 
   const isToday = state.view.kind === "today";
   const isUpcoming = state.view.kind === "upcoming";
+  const isEpic = state.view.kind === "epic";
+  const isProject = state.view.kind === "project";
   const fetches = [
     api.listTasks(buildTaskQuery()),
     api.listTasks({ status: "open", scope: "all" }),
@@ -672,6 +809,14 @@ async function refresh() {
     // The upcoming view annotates week headers with absences overlapping them.
     fetches.push(api.listAbsences());
   }
+  if (isEpic) {
+    // An initiative is read by what is behind it as much as by what is left,
+    // so the epic view carries its finished tasks along.
+    fetches.push(api.listTasks({ status: "completed", scope: "all", epic_id: state.view.id }));
+  }
+  // Both views that show epics also show their tallies, and those come from the
+  // server — reload them rather than guessing from a partial task list.
+  if (isEpic || isProject) fetches.push(api.listEpics());
   const results = await Promise.all(fetches);
   const tasks = results[0];
   const allOpen = results[1];
@@ -679,18 +824,109 @@ async function refresh() {
     ? (results[2] || []).filter(t => t.completed_at && t.completed_at.slice(0, 10) === todayISO())
     : [];
   if (isUpcoming) state.absences = results[2] || [];
+  const completedInEpic = isEpic ? (results[2] || []) : [];
+  if (isEpic || isProject) state.epics = results[results.length - 1] || state.epics;
 
   recomputeSidebarCounts(allOpen);
   renderSidebar();
-  renderTasks(tasks, completedToday);
+  if (isEpic) {
+    const epic = epicById(state.view.id);
+    if (!epic) {
+      // Epic vanished (archived elsewhere, stale deep link) — don't strand the user.
+      pushView({ kind: "today" }, { replace: true });
+      return;
+    }
+    renderEpicHead(epic);
+    setEpicHeadVisible(true);
+  }
+  renderTasks(tasks, isEpic ? completedInEpic : completedToday);
+}
+
+// ---------- Epic head (shown above the quick-add in the epic view) ----------
+
+function setEpicHeadVisible(visible) {
+  const el = document.getElementById("epic-head");
+  if (el) el.classList.toggle("hidden", !visible);
+}
+
+// epicRangeLabel renders the two optional dates as one readable span.
+// A missing side is spelled out rather than left as a dangling dash.
+function epicRangeLabel(e) {
+  if (e.start_date && e.end_date) return `${formatDate(e.start_date)} – ${formatDate(e.end_date)}`;
+  if (e.start_date) return `seit ${formatDate(e.start_date)}`;
+  if (e.end_date) return `bis ${formatDate(e.end_date)}`;
+  return "ohne Zeitraum";
+}
+
+function renderEpicHead(e) {
+  const project = projectById(e.project_id);
+  const link = document.getElementById("eh-project");
+  link.href = viewToPath({ kind: "project", id: e.project_id });
+  link.onclick = (ev) => {
+    if (ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.button === 1) return;
+    ev.preventDefault();
+    pushView({ kind: "project", id: e.project_id });
+  };
+  document.getElementById("eh-project-dot").style.background = projectColor(project);
+  document.getElementById("eh-project-name").textContent = projectName(e.project_id);
+
+  const status = document.getElementById("eh-status");
+  const finished = e.status === "completed";
+  status.textContent = finished ? "Beendet" : "Laufend";
+  status.classList.toggle("done", finished);
+
+  document.getElementById("eh-range").textContent = epicRangeLabel(e);
+
+  const total = (e.open_tasks || 0) + (e.done_tasks || 0);
+  document.getElementById("eh-progress").textContent =
+    total > 0 ? `${e.done_tasks} / ${total} erledigt` : "noch keine Aufgaben";
+
+  const desc = document.getElementById("eh-desc");
+  if (e.description && e.description.trim()) {
+    desc.innerHTML = renderMarkdown(e.description);
+    desc.classList.remove("hidden");
+  } else {
+    desc.innerHTML = "";
+    desc.classList.add("hidden");
+  }
+
+  const toggle = document.getElementById("eh-toggle");
+  toggle.textContent = finished ? "Wieder öffnen" : "Beenden";
+  // Wired here rather than in boot(), because the handler closes over the epic
+  // currently on screen.
+  toggle.onclick = async () => {
+    hideEpicHeadError();
+    try {
+      if (finished) await api.reopenEpic(e.id);
+      else await api.completeEpic(e.id);
+      state.epics = await api.listEpics();
+      await refresh();
+    } catch (err) {
+      showEpicHeadError(err.message);
+    }
+  };
+  document.getElementById("eh-edit").onclick = () => openEpicDialog(e);
+  hideEpicHeadError();
+}
+
+function showEpicHeadError(msg) {
+  const el = document.getElementById("eh-error");
+  el.textContent = msg;
+  el.classList.remove("hidden");
+}
+
+function hideEpicHeadError() {
+  document.getElementById("eh-error").classList.add("hidden");
 }
 
 function recomputeSidebarCounts(allOpen) {
   const today = todayISO();
   state.openCounts = {};
+  state.epicCounts = {};
   let todayCount = 0;
   for (const t of allOpen) {
     state.openCounts[t.project_id] = (state.openCounts[t.project_id] || 0) + 1;
+    if (t.epic_id) state.epicCounts[t.epic_id] = (state.epicCounts[t.epic_id] || 0) + 1;
     if (!t.visible_from || t.visible_from <= today) todayCount++;
   }
   const todayCountEl = document.getElementById("today-count");
@@ -1415,6 +1651,68 @@ function viewIsGrouped() {
   return state.view.kind === "upcoming";
 }
 
+// A project view groups its tasks under the project's running epics — but only
+// when there are any. A project that does not work with epics keeps the plain
+// flat list it always had; no feature should hand out chrome to people who
+// aren't using it.
+function viewIsGroupedByEpic() {
+  return state.view.kind === "project" && activeEpics(state.view.id).length > 0;
+}
+
+function groupTasksByEpic(tasks) {
+  const epics = activeEpics(state.view.id);
+  const buckets = new Map(epics.map(e => [e.id, []]));
+  const loose = [];
+  for (const t of (tasks || [])) {
+    if (t.epic_id && buckets.has(t.epic_id)) buckets.get(t.epic_id).push(t);
+    else loose.push(t);
+  }
+  const groups = [];
+  for (const e of epics) {
+    const items = buckets.get(e.id);
+    items.sort(compareTasks);
+    // Empty running epics stay visible: "nothing to do here right now" is an
+    // answer, and hiding the epic would make it look like it doesn't exist.
+    groups.push({ key: e.id, epic: e, tasks: items });
+  }
+  loose.sort(compareTasks);
+  if (loose.length) groups.push({ key: "none", epic: null, tasks: loose });
+  return groups;
+}
+
+// createGroupHeader builds the Rubrikzeile (Styleguide 7.1) for one epic group.
+// No register mark is ever set here: a project view can hold several epics, and
+// the mark only means something while there is exactly one per screen.
+function createEpicGroupHeader(group) {
+  const header = document.createElement("li");
+  if (!group.epic) {
+    header.className = "group-header";
+    header.innerHTML = `
+      <span>Ohne Epic</span>
+      <span class="group-count">${group.tasks.length}</span>
+    `;
+    return header;
+  }
+  const e = group.epic;
+  const total = (e.open_tasks || 0) + (e.done_tasks || 0);
+  header.className = "group-header epic";
+  header.innerHTML = `
+    <span class="group-epic-title">${escapeHTML(e.title)}</span>
+    <span class="group-range">${escapeHTML(epicRangeLabel(e))}</span>
+    <span class="group-count" title="${e.done_tasks || 0} von ${total} erledigt">${e.done_tasks || 0}/${total}</span>
+  `;
+  header.title = "Doppelklick zum Bearbeiten";
+  header.addEventListener("click", (ev) => {
+    if (ev.metaKey || ev.ctrlKey || ev.shiftKey) return;
+    pushView({ kind: "epic", id: e.id });
+  });
+  header.addEventListener("dblclick", (ev) => {
+    ev.preventDefault();
+    openEpicDialog(e);
+  });
+  return header;
+}
+
 function createTaskLI(t, today) {
   const li = document.createElement("li");
   li.className = "task";
@@ -1434,6 +1732,11 @@ function createTaskLI(t, today) {
     const label = t.comment_count === 1 ? "1 Kommentar" : `${t.comment_count} Kommentare`;
     dateParts.push(`<span class="date-item comment-count" title="${escapeHTML(label)}">${ICON.comment}<span>${t.comment_count}</span></span>`);
   }
+  // In the project and epic views the epic is already the heading above the
+  // task, so naming it again on every row would only be noise.
+  if (t.epic_title && state.view.kind !== "epic" && state.view.kind !== "project") {
+    dateParts.push(`<span class="date-item epic-label" title="Epic: ${escapeHTML(t.epic_title)}">${ICON.epic}<span>${escapeHTML(t.epic_title)}</span></span>`);
+  }
   const isCompleted = t.status === "completed";
   if (isCompleted) li.classList.add("completed");
   li.innerHTML = `
@@ -1443,7 +1746,7 @@ function createTaskLI(t, today) {
       ${t.description && t.description.trim() ? `<div class="desc">${renderDescPreview(t.description)}</div>` : ""}
       ${dateParts.length ? `<div class="dates">${dateParts.join('<span class="date-sep">·</span>')}</div>` : ""}
     </div>
-    ${state.view.kind === "project" ? "" : `
+    ${state.view.kind === "project" || state.view.kind === "epic" ? "" : `
     <div class="task-project" title="${escapeHTML(projectName(t.project_id))}">
       <span>${escapeHTML(projectName(t.project_id))}</span>
       <span class="task-project-dot" style="background:${escapeHTML(projectColor(projectById(t.project_id)))}"></span>
@@ -1470,14 +1773,21 @@ function renderTasks(tasks, completedToday = []) {
   const empty = document.getElementById("empty-state");
   list.innerHTML = "";
   const noOpen = !tasks || tasks.length === 0;
-  if (noOpen && completedToday.length === 0) {
+  // A project that runs epics still has its headings to show, even with no
+  // open task left under them.
+  if (noOpen && completedToday.length === 0 && !viewIsGroupedByEpic()) {
     empty.classList.remove("hidden");
     return;
   }
   empty.classList.add("hidden");
   const today = todayISO();
 
-  if (viewIsGrouped()) {
+  if (viewIsGroupedByEpic()) {
+    for (const group of groupTasksByEpic(tasks)) {
+      list.appendChild(createEpicGroupHeader(group));
+      for (const t of group.tasks) list.appendChild(createTaskLI(t, today));
+    }
+  } else if (viewIsGrouped()) {
     for (const group of groupTasksByWeek(tasks)) {
       const header = document.createElement("li");
       header.className = "group-header" + (group.past ? " past" : "") + (group.current ? " current" : "");
@@ -1806,8 +2116,12 @@ function wireQuickAdd() {
     title = title.replace(/\s+/g, " ").trim();
     if (!title) return;
 
+    // An explicit #project token beats the view's epic: the user just said
+    // where the task should go.
+    const epicId = projectId ? "" : defaultEpicForView();
     const body = {
       title,
+      epic_id: epicId,
       project_id: projectId || defaultProjectForView(),
       priority: priority || 4,
       visible_from: visibleFrom || "",
@@ -1970,6 +2284,7 @@ function openTaskDialogInternal(t) {
   titleEl.value = t.title;
   document.getElementById("td-description").value = t.description || "";
   document.getElementById("td-project").value = t.project_id;
+  fillEpicSelect(t.project_id, t.epic_id || "");
   document.getElementById("td-priority").value = String(t.priority);
   document.getElementById("td-visible-from").value = t.visible_from || "";
   syncVisibleFromUI();
@@ -2102,6 +2417,7 @@ function wireTaskDialog() {
       title: document.getElementById("td-title").value.trim(),
       description: document.getElementById("td-description").value,
       project_id: document.getElementById("td-project").value,
+      epic_id: document.getElementById("td-epic").value,
       priority: parseInt(document.getElementById("td-priority").value, 10),
       visible_from: document.getElementById("td-visible-from").value || "",
       deadline: document.getElementById("td-deadline").value || "",
@@ -2141,6 +2457,22 @@ function wireTaskDialog() {
   // project or priority inside the modal.
   document.getElementById("td-project").addEventListener("change", (e) => {
     renderTaskDialogBreadcrumb(e.target.value);
+    // Epics belong to one project, so switching project switches the choices —
+    // and drops an epic that no longer applies.
+    fillEpicSelect(e.target.value, document.getElementById("td-epic").value);
+  });
+
+  // Picking an epic pulls the task into that epic's project, which is what the
+  // backend does anyway; showing it here avoids a surprise after saving.
+  document.getElementById("td-epic").addEventListener("change", (e) => {
+    const chosen = epicById(e.target.value);
+    if (!chosen) return;
+    const projectSelect = document.getElementById("td-project");
+    if (projectSelect.value !== chosen.project_id) {
+      projectSelect.value = chosen.project_id;
+      renderTaskDialogBreadcrumb(chosen.project_id);
+      fillEpicSelect(chosen.project_id, chosen.id);
+    }
   });
 
   // Warn when the chosen visible_from falls inside an absence.
@@ -2379,6 +2711,112 @@ function wireProjectDialog() {
   });
 }
 
+// ---------- Epic dialog (create + edit) ----------
+
+let epicDialogState = { mode: "create", id: null };
+
+// Only real, unarchived projects can hold an epic — the Inbox is the unsorted
+// pile, not an undertaking, and the backend refuses it too.
+function fillEpicProjectSelect(selectedId) {
+  const el = document.getElementById("ed-project");
+  const projects = activeProjects()
+    .filter(p => p.id !== "inbox")
+    .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
+  el.innerHTML = "";
+  for (const p of projects) {
+    const opt = document.createElement("option");
+    opt.value = p.id;
+    opt.textContent = p.name;
+    el.appendChild(opt);
+  }
+  if (selectedId) el.value = selectedId;
+}
+
+function openEpicDialog(e) {
+  epicDialogState = { mode: e ? "edit" : "create", id: e ? e.id : null };
+  document.getElementById("ed-title").textContent = e ? "Epic bearbeiten" : "Neues Epic";
+  document.getElementById("ed-name").value = e ? e.title : "";
+  document.getElementById("ed-description").value = e ? (e.description || "") : "";
+  document.getElementById("ed-start").value = e ? (e.start_date || "") : "";
+  document.getElementById("ed-end").value = e ? (e.end_date || "") : "";
+  fillEpicProjectSelect(e ? e.project_id : defaultProjectForEpicDialog());
+  document.getElementById("ed-error").classList.add("hidden");
+  document.getElementById("ed-delete").classList.toggle("hidden", !e);
+  document.getElementById("epic-dialog").showModal();
+  setTimeout(() => document.getElementById("ed-name").focus(), 0);
+}
+
+// A new epic starts in the project you are looking at, if that is a project at
+// all; otherwise in the first real one.
+function defaultProjectForEpicDialog() {
+  if (state.view.kind === "project" && state.view.id !== "inbox") return state.view.id;
+  if (state.view.kind === "epic") {
+    const e = epicById(state.view.id);
+    if (e) return e.project_id;
+  }
+  const first = activeProjects().find(p => p.id !== "inbox");
+  return first ? first.id : "";
+}
+
+function showEpicDialogError(msg) {
+  const el = document.getElementById("ed-error");
+  el.textContent = msg;
+  el.classList.remove("hidden");
+}
+
+function wireEpicDialog() {
+  const dlg = document.getElementById("epic-dialog");
+  document.getElementById("add-epic-btn").addEventListener("click", () => openEpicDialog(null));
+  document.getElementById("ed-cancel").addEventListener("click", () => dlg.close("cancel"));
+
+  document.getElementById("ed-save").addEventListener("click", async (ev) => {
+    ev.preventDefault();
+    const title = document.getElementById("ed-name").value.trim();
+    if (!title) { showEpicDialogError("Titel darf nicht leer sein."); return; }
+    const projectId = document.getElementById("ed-project").value;
+    if (!projectId) { showEpicDialogError("Es gibt noch kein Projekt, zu dem ein Epic gehören könnte."); return; }
+    const start = document.getElementById("ed-start").value || "";
+    const end = document.getElementById("ed-end").value || "";
+    if (start && end && end < start) {
+      showEpicDialogError("Das Ende darf nicht vor dem Anfang liegen.");
+      return;
+    }
+    const body = { title, project_id: projectId, description: document.getElementById("ed-description").value, start_date: start, end_date: end };
+    try {
+      if (epicDialogState.mode === "edit") {
+        await api.patchEpic(epicDialogState.id, body);
+      } else {
+        await api.createEpic(body);
+      }
+      dlg.close();
+      state.epics = await api.listEpics();
+      await refresh();
+    } catch (err) {
+      showEpicDialogError(err.message);
+    }
+  });
+
+  document.getElementById("ed-delete").addEventListener("click", async (ev) => {
+    ev.preventDefault();
+    if (!epicDialogState.id) return;
+    const e = epicById(epicDialogState.id);
+    if (!confirm(`Epic "${e ? e.title : ""}" wirklich löschen? Die Aufgaben bleiben erhalten.`)) return;
+    try {
+      await api.deleteEpic(epicDialogState.id);
+      const wasOpen = state.view.kind === "epic" && state.view.id === epicDialogState.id;
+      dlg.close();
+      state.epics = await api.listEpics();
+      if (wasOpen) {
+        pushView({ kind: "today" });
+      } else {
+        await refresh();
+      }
+    } catch (err) {
+      showEpicDialogError(err.message);
+    }
+  });
+}
+
 // ---------- Navigation ----------
 
 function wireSidebarNav() {
@@ -2448,11 +2886,15 @@ async function boot() {
   wireQuickAdd();
   wireTaskDialog();
   wireProjectDialog();
+  wireEpicDialog();
   wireAbsenceDialog();
   wireActivityControls();
   wireShortcuts();
   window.addEventListener("popstate", () => { handlePopState(); });
   state.projects = await api.listProjects();
+  // Epics up front too: the sidebar shows them in every view, and the router
+  // resolves /epics/<slug> against this list before the first render.
+  try { state.epics = await api.listEpics(); } catch (_) { /* best-effort */ }
   // Load absences up front so the "falls on an absence" warning works in every
   // view (quick-add + task dialog), not just the absences/upcoming views.
   try { state.absences = await api.listAbsences(); } catch (_) { /* best-effort */ }
