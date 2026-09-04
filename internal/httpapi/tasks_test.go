@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -64,4 +65,20 @@ func TestParseISOWeekInvalid(t *testing.T) {
 
 func date(y, m, d int) domain.LocalDate {
 	return domain.LocalDate{Year: y, Month: time.Month(m), Day: d}
+}
+
+// The sidebar reads counts[project] with no guard for a missing container, so
+// the endpoint must answer with empty objects rather than JSON null.
+func TestToCountsDTONeverNull(t *testing.T) {
+	d := toCountsDTO(domain.OpenTaskCounts{VisibleToday: 3})
+	if d.Projects == nil || d.Epics == nil {
+		t.Fatalf("nil maps leak into the response: %+v", d)
+	}
+	body, err := json.Marshal(d)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if got, want := string(body), `{"today":3,"projects":{},"epics":{}}`; got != want {
+		t.Errorf("body = %s, want %s", got, want)
+	}
 }

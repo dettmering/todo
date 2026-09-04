@@ -56,14 +56,26 @@ type taskDTO struct {
 	UpdatedAt        string       `json:"updated_at"`
 	CompletedAt      *string      `json:"completed_at,omitempty"`
 	CommentCount     int          `json:"comment_count,omitempty"`
-	Comments         []commentDTO `json:"comments"`
+	Comments         []commentDTO `json:"comments,omitempty"`
 }
 
+// toTaskDTO builds the full task representation, comment bodies included. Used
+// by the single-task responses, where the caller has asked for exactly one task
+// and can afford them.
 func toTaskDTO(t *domain.Task, projectName, epicTitle string, comments []*domain.Comment) taskDTO {
-	cs := make([]commentDTO, 0, len(comments))
+	d := toTaskListDTO(t, projectName, epicTitle, len(comments))
+	d.Comments = make([]commentDTO, 0, len(comments))
 	for _, c := range comments {
-		cs = append(cs, toCommentDTO(c))
+		d.Comments = append(d.Comments, toCommentDTO(c))
 	}
+	return d
+}
+
+// toTaskListDTO builds the representation a list response uses: the comment
+// count without the comments. A list of a few hundred tasks would otherwise
+// carry every comment body ever written, which no list view renders — the
+// frontend fetches them per task when a task modal opens.
+func toTaskListDTO(t *domain.Task, projectName, epicTitle string, commentCount int) taskDTO {
 	d := taskDTO{
 		ID:               t.ID,
 		Title:            t.Title,
@@ -82,12 +94,31 @@ func toTaskDTO(t *domain.Task, projectName, epicTitle string, comments []*domain
 		RecurrenceLabel:  recurrence.HumanLabel(t.RecurrenceRule, t.RecurrenceMode),
 		CreatedAt:        t.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt:        t.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		CommentCount:     len(cs),
-		Comments:         cs,
+		CommentCount:     commentCount,
 	}
 	if t.CompletedAt != nil {
 		s := t.CompletedAt.Format("2006-01-02T15:04:05Z07:00")
 		d.CompletedAt = &s
+	}
+	return d
+}
+
+// countsDTO is the sidebar's whole payload: three numbers-per-key maps instead
+// of the task list they used to be derived from. Projects and epics without an
+// open task are left out — a missing key reads as zero on both sides.
+type countsDTO struct {
+	Today    int            `json:"today"`
+	Projects map[string]int `json:"projects"`
+	Epics    map[string]int `json:"epics"`
+}
+
+func toCountsDTO(c domain.OpenTaskCounts) countsDTO {
+	d := countsDTO{Today: c.VisibleToday, Projects: c.ByProject, Epics: c.ByEpic}
+	if d.Projects == nil {
+		d.Projects = map[string]int{}
+	}
+	if d.Epics == nil {
+		d.Epics = map[string]int{}
 	}
 	return d
 }

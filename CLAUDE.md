@@ -99,6 +99,18 @@ These choices look unremarkable but are easy to break:
   linked task to a different project clears `epic_id` instead — in a patch that
   names both, the epic wins. `epic_id` is an empty string when unset — no
   foreign key, because '' would violate one.
+- **Tallies are counted, never loaded.** `TaskRepo.CountByEpic` /
+  `CountOpen` and `CommentRepo.CountByTasks` answer with numbers out of a
+  covering index; the epic tallies, the sidebar badges and `comment_count`
+  all go through them. Never go back to "list everything and count in Go" —
+  that made `GET /api/epics` read all 10 000 task rows for a 10 KB answer.
+  Migrations 23/24 (`idx_tasks_epic_status`, `idx_tasks_open_counts`) exist
+  only for these queries, and their column order *is* the query: add a filter
+  column that is not in the index and the plan silently degrades to a table
+  scan. Check with `EXPLAIN QUERY PLAN` — it must say COVERING INDEX.
+- **List responses carry no comment bodies.** `GET /api/tasks` uses
+  `toTaskListDTO` (count only); the single-task responses use `toTaskDTO`
+  (bodies included). The frontend fetches bodies per task when a modal opens.
 - **Task deletion is soft.** `DELETE /api/tasks/{id}` sets
   `status = 'deleted'`; rows are kept. Project archival can therefore
   always succeed.

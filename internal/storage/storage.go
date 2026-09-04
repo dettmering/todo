@@ -52,6 +52,17 @@ type TaskRepo interface {
 	Update(ctx context.Context, t *domain.Task) error
 	List(ctx context.Context, f TaskFilter) ([]*domain.Task, error)
 	Delete(ctx context.Context, id string) error // soft delete
+
+	// CountByEpic tallies open and done tasks per epic id. Same rules as
+	// domain.CountEpicTasks — deleted tasks and tasks without an epic stay out
+	// — but the counting happens in the store, so a tally does not cost one
+	// materialised task per row in the table.
+	CountByEpic(ctx context.Context) (map[string]domain.EpicCounts, error)
+	// CountOpen tallies open tasks per project and per epic, plus how many of
+	// them are visible on the given date. Counting, not listing: the caller
+	// wants numbers, and the numbers must not get more expensive as the
+	// archive grows.
+	CountOpen(ctx context.Context, today domain.LocalDate) (domain.OpenTaskCounts, error)
 }
 
 type ProjectRepo interface {
@@ -110,8 +121,9 @@ type CommentRepo interface {
 	Create(ctx context.Context, c *domain.Comment) error
 	// List returns the comments for one task, newest first.
 	List(ctx context.Context, taskID string) ([]*domain.Comment, error)
-	// ListByTasks returns a task_id -> comments map (each newest first). With no
-	// taskIDs it covers every task; pass a subset to restrict the scan. Tasks
-	// without comments are simply absent from the map.
-	ListByTasks(ctx context.Context, taskIDs ...string) (map[string][]*domain.Comment, error)
+	// CountByTasks returns a task_id -> number of comments map over every task.
+	// Tasks without comments are simply absent from the map. The list views show
+	// nothing but this number; the bodies of one task are fetched through List
+	// when its modal opens.
+	CountByTasks(ctx context.Context) (map[string]int, error)
 }

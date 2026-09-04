@@ -105,6 +105,7 @@ Alle Fehler liefern `{"error": "<text>"}` als Body. Status-Codes:
 | `GET` | `/api/tasks/{id}/comments` | Kommentare eines Tasks listen |
 | `POST` | `/api/tasks/{id}/comments` | Kommentar an einen Task anhängen |
 | `GET` | `/api/tasks/{id}/audit` | Audit-Log eines Tasks |
+| `GET` | `/api/counts` | Zähler für die Sidebar: offene Tasks je Projekt und Epic |
 | `GET` | `/api/audit` | Audit-Log über alle Tasks (gefiltert) |
 | `GET` | `/api/projects` | Projekte listen |
 | `POST` | `/api/projects` | Projekt anlegen |
@@ -340,10 +341,15 @@ Soft-Delete: `status = "deleted"`. Antwort: `204 No Content`.
   dort jede Erledigung neu ankert.
 - `visible_from` und `deadline` sind weggelassen, wenn nicht gesetzt
   (`omitempty`).
-- `comments` ist **immer** vorhanden (leeres Array, wenn es keine gibt) und
-  auch in der Listenantwort von `GET /api/tasks` eingebettet — neueste
-  zuerst. `comment_count` entfällt bei `0` (`omitempty`). Beide Felder sind
-  nur lesbar; geschrieben wird über
+- `comments` steht **nur in Einzel-Antworten** (`GET`/`POST`/`PATCH
+  /api/tasks/{id}` und den Statuswechseln), neueste zuerst, und entfällt,
+  wenn es keine gibt (`omitempty`). Die **Listenantwort von `GET /api/tasks`
+  enthält es nicht** — eine Liste hätte sonst jeden je geschriebenen
+  Kommentartext im Gepäck, den keine Listenansicht zeigt. Dort steht die
+  Anzahl in `comment_count`; die Texte holt man bei Bedarf über
+  [`GET /api/tasks/{id}/comments`](#get-apitasksidcomments).
+- `comment_count` ist in beiden Fällen vorhanden und entfällt bei `0`
+  (`omitempty`). Beide Felder sind nur lesbar; geschrieben wird über
   [`POST /api/tasks/{id}/comments`](#post-apitasksidcomments).
 
 ---
@@ -383,6 +389,48 @@ curl -X POST http://localhost:8080/api/tasks/task_8f3e2c1d4a5b6789/comments \
   "created_at": "2026-05-24T07:11:39Z"
 }
 ```
+
+---
+
+### Zähler
+
+#### `GET /api/counts`
+
+Die Zahlen, die die Sidebar an Projekten, Epics und an „Heute" anschreibt —
+ohne die Tasks dahinter. Gedacht als Ersatz für „alle offenen Tasks holen und
+im Client zählen": die Antwort bleibt gleich groß, egal wie viele erledigte
+Tasks im Archiv liegen.
+
+Query-Parameter (optional):
+
+| Parameter | Werte | Wirkung |
+| --- | --- | --- |
+| `today` | `YYYY-MM-DD` | Stichtag für `today` in der Antwort (Sichtbarkeitsregel `visible_from ≤ heute`, Lastenheft 5.5). Ohne Angabe das UTC-Datum des Servers |
+
+```bash
+curl 'http://localhost:8080/api/counts?today=2026-05-22'
+```
+
+Antwort: `200 OK`
+
+```json
+{
+  "today": 7,
+  "projects": { "inbox": 3, "project_5c2a8e1f3b407d96": 4 },
+  "epics": { "epic_5c2a8e1f3b407d96": 2 }
+}
+```
+
+- Gezählt werden ausschließlich Tasks mit `status = "open"`; erledigte und
+  soft-gelöschte zählen nirgends mit.
+- `today` ist die Zahl der offenen Tasks, die an diesem Tag sichtbar sind
+  (`visible_from` leer oder `≤ today`) — projektübergreifend.
+- `projects` und `epics` zählen **alle** offenen Tasks, auch die erst später
+  sichtbaren; das entspricht den Projekt- und Epic-Ansichten, die mit
+  `scope=all` laden.
+- Projekte und Epics ohne offene Tasks fehlen im Objekt. Ein fehlender
+  Schlüssel ist als `0` zu lesen; die beiden Objekte selbst sind immer da,
+  notfalls leer.
 
 ---
 

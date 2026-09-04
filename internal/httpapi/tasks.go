@@ -185,7 +185,7 @@ func (h *Handler) handleListTasks(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	commentsByTask, err := h.svc.CommentsByTasks(r.Context())
+	commentCounts, err := h.svc.CommentCounts(r.Context())
 	if err != nil {
 		writeError(w, err)
 		return
@@ -197,9 +197,31 @@ func (h *Handler) handleListTasks(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]taskDTO, 0, len(tasks))
 	for _, t := range tasks {
-		out = append(out, toTaskDTO(t, names[t.ProjectID], epicNames[t.EpicID], commentsByTask[t.ID]))
+		out = append(out, toTaskListDTO(t, names[t.ProjectID], epicNames[t.EpicID], commentCounts[t.ID]))
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+// handleCounts serves the tallies the sidebar needs (Lastenheft 5.9). It exists
+// so a view switch does not have to download every open task just to count it:
+// the visibility rule (5.5) needs the client's local date, hence the optional
+// today parameter, which defaults to the server's UTC date.
+func (h *Handler) handleCounts(w http.ResponseWriter, r *http.Request) {
+	var today domain.LocalDate
+	if v := r.URL.Query().Get("today"); v != "" {
+		d, err := domain.ParseDate(v)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, errorResp{Error: "today must be YYYY-MM-DD"})
+			return
+		}
+		today = d
+	}
+	counts, err := h.svc.OpenTaskCounts(r.Context(), today)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, toCountsDTO(counts))
 }
 
 // commentsFor returns one task's comments (newest first), swallowing errors

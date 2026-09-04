@@ -36,6 +36,12 @@ const api = {
     const q = new URLSearchParams({ today: todayISO(), ...params });
     return fetch("/api/tasks?" + q.toString()).then(jsonOrError);
   },
+  // The sidebar tallies. Three number maps instead of every open task — the
+  // counts used to be derived in the browser from a full task dump.
+  async counts() {
+    const q = new URLSearchParams({ today: todayISO() });
+    return fetch("/api/counts?" + q.toString()).then(jsonOrError);
+  },
   async getTask(id) {
     return fetch(`/api/tasks/${id}`).then(jsonOrError);
   },
@@ -829,8 +835,7 @@ async function refresh() {
   }
 
   if (state.view.kind === "absences") {
-    const allOpen = await api.listTasks({ status: "open", scope: "all" });
-    recomputeSidebarCounts(allOpen);
+    applySidebarCounts(await api.counts());
     renderSidebar();
     state.absences = await api.listAbsences();
     renderAbsences();
@@ -839,10 +844,9 @@ async function refresh() {
   }
 
   if (state.view.kind === "activity") {
-    // The sidebar counts still come from a quick open-task fetch so the
-    // sidebar doesn't go blank while you browse history.
-    const allOpen = await api.listTasks({ status: "open", scope: "all" });
-    recomputeSidebarCounts(allOpen);
+    // The sidebar tallies are still refreshed here so the sidebar doesn't go
+    // stale while you browse history.
+    applySidebarCounts(await api.counts());
     renderSidebar();
     await renderActivity();
     return;
@@ -854,7 +858,7 @@ async function refresh() {
   const isProject = state.view.kind === "project";
   const fetches = [
     api.listTasks(buildTaskQuery()),
-    api.listTasks({ status: "open", scope: "all" }),
+    api.counts(),
   ];
   if (isToday) {
     // For the Heute view we additionally show tasks completed today, grayed out.
@@ -874,7 +878,7 @@ async function refresh() {
   if (isEpic || isProject) fetches.push(api.listEpics());
   const results = await Promise.all(fetches);
   const tasks = results[0];
-  const allOpen = results[1];
+  const counts = results[1];
   const completedToday = isToday
     ? (results[2] || []).filter(t => t.completed_at && t.completed_at.slice(0, 10) === todayISO())
     : [];
@@ -882,7 +886,7 @@ async function refresh() {
   const completedInEpic = isEpic ? (results[2] || []) : [];
   if (isEpic || isProject) state.epics = results[results.length - 1] || state.epics;
 
-  recomputeSidebarCounts(allOpen);
+  applySidebarCounts(counts);
   renderSidebar();
   if (isEpic) {
     const epic = epicById(state.view.id);
@@ -979,16 +983,12 @@ function hideEpicHeadError() {
   document.getElementById("eh-error").classList.add("hidden");
 }
 
-function recomputeSidebarCounts(allOpen) {
-  const today = todayISO();
-  state.openCounts = {};
-  state.epicCounts = {};
-  let todayCount = 0;
-  for (const t of allOpen) {
-    state.openCounts[t.project_id] = (state.openCounts[t.project_id] || 0) + 1;
-    if (t.epic_id) state.epicCounts[t.epic_id] = (state.epicCounts[t.epic_id] || 0) + 1;
-    if (!t.visible_from || t.visible_from <= today) todayCount++;
-  }
+// The sidebar badges, straight from GET /api/counts. A missing key means zero,
+// on the server's side as well as here.
+function applySidebarCounts(counts) {
+  state.openCounts = (counts && counts.projects) || {};
+  state.epicCounts = (counts && counts.epics) || {};
+  const todayCount = (counts && counts.today) || 0;
   const todayCountEl = document.getElementById("today-count");
   if (todayCountEl) todayCountEl.textContent = todayCount > 0 ? todayCount : "";
   const inboxCount = state.openCounts["inbox"] || 0;

@@ -45,6 +45,8 @@ func (h *Handler) routes() {
 	h.mux.HandleFunc("GET /api/tasks/{id}/comments", h.handleListComments)
 	h.mux.HandleFunc("POST /api/tasks/{id}/comments", h.handleCreateComment)
 
+	h.mux.HandleFunc("GET /api/counts", h.handleCounts)
+
 	h.mux.HandleFunc("GET /api/audit", h.handleListAudit)
 
 	h.mux.HandleFunc("GET /api/projects", h.handleListProjects)

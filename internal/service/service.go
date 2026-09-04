@@ -710,13 +710,15 @@ func (s *Service) ListComments(ctx context.Context, taskID string) ([]*domain.Co
 	return s.comments.List(ctx, taskID)
 }
 
-// CommentsByTasks returns a task_id -> comments map (each newest first). With no
-// taskIDs it covers every task; pass a subset to restrict the scan.
-func (s *Service) CommentsByTasks(ctx context.Context, taskIDs ...string) (map[string][]*domain.Comment, error) {
+// CommentCounts returns a task_id -> number of comments map. Counting in the
+// store instead of calling len() on every loaded comment: a task list shows the
+// number, never the bodies.
+func (s *Service) CommentCounts(ctx context.Context) (map[string]int, error) {
 	if s.comments == nil {
-		return map[string][]*domain.Comment{}, nil
+		return map[string]int{}, nil
 	}
-	return s.comments.ListByTasks(ctx, taskIDs...)
+	counts, err := s.comments.CountByTasks(ctx)
+	return counts, mapErr(err)
 }
 
 func mapErr(err error) error {

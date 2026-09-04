@@ -100,6 +100,17 @@ func CountEpicTasks(tasks []*Task) map[string]EpicCounts {
 	return out
 }
 
+// OpenTaskCounts are the tallies the sidebar shows, without the tasks behind
+// them: open tasks per project, per epic, and how many of them are visible on
+// the day in question (Task.VisibleOn, Lastenheft 5.5). Epics with no open task
+// are absent from ByEpic, projects with none absent from ByProject — a missing
+// key means zero.
+type OpenTaskCounts struct {
+	ByProject    map[string]int
+	ByEpic       map[string]int
+	VisibleToday int
+}
+
 // EpicCanComplete reports whether an epic whose tasks these are may be closed:
 // no task may still be open. Completed and soft-deleted tasks do not block —
 // a task that was thrown away is not work left to do.

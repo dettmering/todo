@@ -289,15 +289,22 @@ func (s *Service) GetEpic(ctx context.Context, id string) (*domain.Epic, error) 
 	return e, mapErr(err)
 }
 
-// EpicTaskCounts returns an epic_id -> counts map over every task in the
-// system, so a list of epics can be decorated in one query rather than one per
-// epic. Follows the shape of CommentsByTasks.
+// EpicTaskCounts returns an epic_id -> counts map covering every epic in one
+// query. It used to load the whole task table and count in Go, which made
+// GET /api/epics the slowest request of a view switch even though it answers
+// with a handful of numbers; the store counts now.
 func (s *Service) EpicTaskCounts(ctx context.Context) (map[string]domain.EpicCounts, error) {
-	tasks, err := s.tasks.List(ctx, storage.TaskFilter{})
-	if err != nil {
-		return nil, err
-	}
-	return domain.CountEpicTasks(tasks), nil
+	counts, err := s.tasks.CountByEpic(ctx)
+	return counts, mapErr(err)
+}
+
+// OpenTaskCounts returns the tallies the sidebar shows — open tasks per project
+// and per epic, plus how many are visible on `today`. The frontend used to
+// download every open task and count them in the browser; the numbers are the
+// only part it ever showed.
+func (s *Service) OpenTaskCounts(ctx context.Context, today domain.LocalDate) (domain.OpenTaskCounts, error) {
+	counts, err := s.tasks.CountOpen(ctx, today)
+	return counts, mapErr(err)
 }
 
 // resolveEpic loads the epic a task wants to be linked to and rejects the ones

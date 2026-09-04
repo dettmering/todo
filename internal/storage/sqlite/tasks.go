@@ -216,3 +216,75 @@ func scanTask(s rowScanner) (*domain.Task, error) {
 	}
 	return &t, nil
 }
+
+// CountByEpic reads the per-epic tallies out of idx_tasks_epic_status without
+// touching the tasks table. The status split is done here rather than in SQL so
+// the "everything that is not open and not deleted counts as done" rule keeps
+// exactly one definition, the one in domain.CountEpicTasks.
+func (r *TaskRepo) CountByEpic(ctx context.Context) (map[string]domain.EpicCounts, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT epic_id, status, count(*) FROM tasks
+		 WHERE epic_id != '' AND status != ?
+		 GROUP BY epic_id, status`,
+		string(domain.StatusDeleted),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("count tasks by epic: %w", err)
+	}
+	defer rows.Close()
+	out := make(map[string]domain.EpicCounts)
+	for rows.Next() {
+		var epicID, status string
+		var n int
+		if err := rows.Scan(&epicID, &status, &n); err != nil {
+			return nil, err
+		}
+		c := out[epicID]
+		if domain.TaskStatus(status) == domain.StatusOpen {
+			c.Open += n
+		} else {
+			c.Done += n
+		}
+		out[epicID] = c
+	}
+	return out, rows.Err()
+}
+
+// CountOpen tallies the open tasks by project, by epic, and by whether they are
+// visible on `today`. One grouped query covers all three: the visibility rule
+// collapses to a boolean in SQL, so the result has at most a couple of rows per
+// project instead of one per task.
+func (r *TaskRepo) CountOpen(ctx context.Context, today domain.LocalDate) (domain.OpenTaskCounts, error) {
+	out := domain.OpenTaskCounts{
+		ByProject: make(map[string]int),
+		ByEpic:    make(map[string]int),
+	}
+	if today.IsZero() {
+		today = domain.DateOf(time.Now())
+	}
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT project_id, epic_id, (visible_from = '' OR visible_from <= ?) AS visible, count(*)
+		 FROM tasks WHERE status = ?
+		 GROUP BY project_id, epic_id, visible`,
+		today.String(), string(domain.StatusOpen),
+	)
+	if err != nil {
+		return out, fmt.Errorf("count open tasks: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var projectID, epicID string
+		var visible, n int
+		if err := rows.Scan(&projectID, &epicID, &visible, &n); err != nil {
+			return out, err
+		}
+		out.ByProject[projectID] += n
+		if epicID != "" {
+			out.ByEpic[epicID] += n
+		}
+		if visible != 0 {
+			out.VisibleToday += n
+		}
+	}
+	return out, rows.Err()
+}

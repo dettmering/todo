@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/till/todo/internal/domain"
@@ -42,35 +41,6 @@ func (r *CommentRepo) List(ctx context.Context, taskID string) ([]*domain.Commen
 	return out, rows.Err()
 }
 
-func (r *CommentRepo) ListByTasks(ctx context.Context, taskIDs ...string) (map[string][]*domain.Comment, error) {
-	q := `SELECT ` + commentCols + ` FROM comments`
-	var args []any
-	if len(taskIDs) > 0 {
-		ph := strings.Repeat("?,", len(taskIDs))
-		ph = ph[:len(ph)-1]
-		q += ` WHERE task_id IN (` + ph + `)`
-		for _, id := range taskIDs {
-			args = append(args, id)
-		}
-	}
-	// Global DESC order means each task's slice ends up newest-first too.
-	q += ` ORDER BY created_at DESC, id DESC`
-	rows, err := r.db.QueryContext(ctx, q, args...)
-	if err != nil {
-		return nil, fmt.Errorf("list comments by tasks: %w", err)
-	}
-	defer rows.Close()
-	out := make(map[string][]*domain.Comment)
-	for rows.Next() {
-		c, err := scanComment(rows)
-		if err != nil {
-			return nil, err
-		}
-		out[c.TaskID] = append(out[c.TaskID], c)
-	}
-	return out, rows.Err()
-}
-
 func scanComment(s rowScanner) (*domain.Comment, error) {
 	var (
 		c         domain.Comment
@@ -85,4 +55,25 @@ func scanComment(s rowScanner) (*domain.Comment, error) {
 	}
 	c.CreatedAt = t
 	return &c, nil
+}
+
+// CountByTasks reads the per-task comment counts out of idx_comments_task. The
+// list views show nothing but this number, so the bodies never have to leave
+// the database for them.
+func (r *CommentRepo) CountByTasks(ctx context.Context) (map[string]int, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT task_id, count(*) FROM comments GROUP BY task_id`)
+	if err != nil {
+		return nil, fmt.Errorf("count comments by task: %w", err)
+	}
+	defer rows.Close()
+	out := make(map[string]int)
+	for rows.Next() {
+		var taskID string
+		var n int
+		if err := rows.Scan(&taskID, &n); err != nil {
+			return nil, err
+		}
+		out[taskID] = n
+	}
+	return out, rows.Err()
 }

@@ -134,6 +134,13 @@ var migrations = []migrationStep{
 	// empty string would violate a REFERENCES constraint on every task.
 	{21, `ALTER TABLE tasks ADD COLUMN epic_id TEXT NOT NULL DEFAULT '';`},
 	{22, `CREATE INDEX IF NOT EXISTS idx_tasks_epic ON tasks(epic_id);`},
+	// Both of these exist so the tallies can be read straight out of an index
+	// instead of dragging every task row into Go. Column order is the query's
+	// order — drop a column and the plan falls back to a table scan.
+	// CountByEpic: SCAN tasks USING COVERING INDEX idx_tasks_epic_status.
+	{23, `CREATE INDEX IF NOT EXISTS idx_tasks_epic_status ON tasks(epic_id, status);`},
+	// CountOpen: SEARCH tasks USING COVERING INDEX idx_tasks_open_counts (status=?).
+	{24, `CREATE INDEX IF NOT EXISTS idx_tasks_open_counts ON tasks(status, project_id, epic_id, visible_from);`},
 }
 
 func (s *Store) migrate() error {
