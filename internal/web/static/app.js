@@ -698,6 +698,13 @@ function fillProjectSelect(id, projects, markArchived) {
 // picking another project means leaving the epic (the backend does the same),
 // and keeping it selected would send the old epic_id back on save, which wins
 // over project_id and quietly undoes the move.
+//
+// A project without a single epic to offer hides the row entirely — a dropdown
+// whose only entry is "kein Epic" is a choice that isn't one. The carried-over
+// epic counts as an entry, so a task already linked never loses its field.
+// The markup starts hidden and this is the only place that reveals it: a modal
+// opened on a path that forgets to call here shows no epic row at all, rather
+// than the previous task's epics under the new task's name.
 function fillEpicSelect(projectId, selectedId) {
   const el = document.getElementById("td-epic");
   if (!el) return;
@@ -706,6 +713,8 @@ function fillEpicSelect(projectId, selectedId) {
   if (current && current.project_id === projectId && !options.some(e => e.id === current.id)) {
     options.unshift(current);
   }
+  const field = document.getElementById("td-epic-field");
+  if (field) field.classList.toggle("hidden", options.length === 0);
   el.innerHTML = "";
   const none = document.createElement("option");
   none.value = "";
