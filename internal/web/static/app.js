@@ -1860,9 +1860,9 @@ function renderTasks(tasks, completedToday = []) {
         const typeLabel = ABSENCE_TYPE_LABEL[a.type] || a.type;
         // The badge shows the label only ("Kreta"); the type is carried by the
         // badge color, and spelled out in the tooltip — together with the
-        // travel dates, in the Abwesenheiten view's notation.
+        // travel dates and the length, worded exactly as on the timeline.
         const text = a.label || typeLabel;
-        const title = `${typeLabel}${a.label ? " · " + a.label : ""} (${absenceRangeDE(a)})`;
+        const title = `${typeLabel}${a.label ? " · " + a.label : ""} · ${absenceRangeDE(a)} · ${absenceDurationDE(a)}`;
         return `<span class="group-absence type-${escapeHTML(a.type)}" title="${escapeHTML(title)}">${escapeHTML(text)}</span>`;
       }).join("");
       header.innerHTML = `
