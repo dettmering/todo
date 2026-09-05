@@ -510,6 +510,14 @@ function formatAbsenceDate(iso) {
   return y === new Date().getFullYear() ? base : `${base}${String(y).slice(-2)}`;
 }
 
+// An absence's date range in the same notation as the Abwesenheiten view:
+// "Mo 1.10. – Mi 3.10.", collapsed to a single date for one-day absences.
+function absenceRangeDE(a) {
+  return a.start_date === a.end_date
+    ? formatAbsenceDate(a.start_date)
+    : `${formatAbsenceDate(a.start_date)} – ${formatAbsenceDate(a.end_date)}`;
+}
+
 // Relative date label: "Heute", "Morgen", weekday (within next 6 days),
 // then "DD.MM." (current year) or "DD.MM.YYYY" further out.
 function smartDateLabel(iso) {
@@ -1137,10 +1145,7 @@ function renderAbsenceTimeline(absences, today) {
     const e = a.end_date > end ? end : a.end_date;
     const width = (daysBetweenISO(s, e) + 1) * 100 / totalDays;
     const type = ABSENCE_TYPE_LABEL[a.type] || a.type;
-    const range = a.start_date === a.end_date
-      ? formatAbsenceDate(a.start_date)
-      : `${formatAbsenceDate(a.start_date)} – ${formatAbsenceDate(a.end_date)}`;
-    const title = `${type}${a.label ? " · " + a.label : ""} · ${range} · ${absenceDurationDE(a)}`;
+    const title = `${type}${a.label ? " · " + a.label : ""} · ${absenceRangeDE(a)} · ${absenceDurationDE(a)}`;
     spans += `<div class="tl-span type-${escapeHTML(a.type)}" data-id="${escapeHTML(a.id)}"` +
       ` style="left:${pos(s).toFixed(3)}%;width:${width.toFixed(3)}%"` +
       ` title="${escapeHTML(title)}"></div>`;
@@ -1271,9 +1276,7 @@ function createAbsenceRow(a, today, editable) {
   const active = a.start_date <= today && a.end_date >= today;
   row.className = "absence-row" + (active ? " active" : "");
   row.dataset.id = a.id;
-  const range = a.start_date === a.end_date
-    ? formatAbsenceDate(a.start_date)
-    : `${formatAbsenceDate(a.start_date)} – ${formatAbsenceDate(a.end_date)}`;
+  const range = absenceRangeDE(a);
   // Keep the grid column for edit even when read-only, so delete stays aligned.
   const editCell = editable
     ? `<button type="button" class="icon-btn absence-edit" title="Bearbeiten">${ICON.edit}</button>`
@@ -1856,9 +1859,10 @@ function renderTasks(tasks, completedToday = []) {
       const absBadges = (group.absences || []).map(a => {
         const typeLabel = ABSENCE_TYPE_LABEL[a.type] || a.type;
         // The badge shows the label only ("Kreta"); the type is carried by the
-        // badge color, and spelled out in the tooltip.
+        // badge color, and spelled out in the tooltip — together with the
+        // travel dates, in the Abwesenheiten view's notation.
         const text = a.label || typeLabel;
-        const title = a.label ? `${typeLabel} (${a.label})` : typeLabel;
+        const title = `${typeLabel}${a.label ? " · " + a.label : ""} (${absenceRangeDE(a)})`;
         return `<span class="group-absence type-${escapeHTML(a.type)}" title="${escapeHTML(title)}">${escapeHTML(text)}</span>`;
       }).join("");
       header.innerHTML = `
