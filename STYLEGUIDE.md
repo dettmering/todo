@@ -213,7 +213,6 @@ damit gerendertes Markdown keinen synthetischen Fettschnitt erzeugt.
 | Aufgabentitel im Modal | Sans 600 / `22px` / `-0.018em` | |
 | Aufgabentitel in der Liste | Sans 400 / `15px` / `1.45` / `--text` | |
 | **Rubrikzeile** | Mono / `13px` / `0.06em` / versal; Rubrik 700, Rest 400 | Wochen-, Tages- und Abschnittsköpfe (7.1) |
-| Epic-Rubrik | Sans 600 / `15px` / `-0.012em` / gemischt | **einzige Ausnahme** in einer Rubrikzeile: ein Epic-Titel ist ein gewähltes Wort, kein Ablesewert (7.11). Gilt nur für den Gruppenkopf — in der Datumszeile einer Aufgabe bleibt der Epic-Name Mono wie alles daneben |
 | **Marginalie** | Mono 400 / `12px` / `0.09em` / versal / `--text-muted` | Feldrubriken, Abschnittsköpfe der Sidebar, Hinweise |
 | **Ablesewert** | Mono 400 / `12px` / `0.01–0.03em` / gemischt / `tabular-nums` | Daten, Uhrzeiten, Zeiträume, Zähler |
 
@@ -509,16 +508,18 @@ eigene — ein Epic gehört sichtbar zu seinem Projekt, und eine dritte Farbfami
 neben Priorität und Abwesenheit gibt es nicht (§2). In der Liste stehen nur
 laufende Epics; beendete verschwinden, statt die Liste zuwachsen zu lassen.
 
-**In der Projektansicht** trägt es die Rubrikzeile aus 7.1 mit einer einzigen,
-begründeten Abweichung: der **Titel steht in der Sans**, 15 px / 600, gemischt —
-nicht als Mono-Versalie. „KW 35" ist ein ausgerechneter Wert, „Küche renovieren"
-ein gewähltes Wort (§3.1). Zeitraum und Zähler bleiben Mono mit `tabular-nums`;
-der Zähler zeigt `erledigt/gesamt`.
+**In der Projektansicht** trägt es die Rubrikzeile aus 7.1 ohne Abweichung: der
+**Titel ist eine Rubrik wie jede andere** — Mono 700, 13 px, versal. Die
+Faustregel aus §3.1 träte hier für die Sans ein, sie verliert aber gegen den
+Kontext: die Epic-Gruppen und die Gruppe „OHNE EPIC" stehen untereinander in
+derselben Liste, und zwei Schriften auf gleicher Ebene lesen sich als zwei
+Ebenen. Zeitraum und Zähler bleiben Mono mit `tabular-nums`; der Zähler zeigt
+`erledigt/gesamt`.
 
 * **Nie eine Registermarke.** Eine Projektansicht kann mehrere Epics zeigen, und
   die Marke gilt nur, solange es genau eine pro Bildschirm gibt (7.1, §12).
-* Aufgaben ohne Epic stehen unter einer normalen Rubrikzeile „OHNE EPIC" — ein
-  Systemwort, also Mono versal.
+* Aufgaben ohne Epic stehen unter derselben Rubrikzeile, beschriftet
+  „OHNE EPIC".
 * Hat ein Projekt keine Epics, bleibt seine Liste flach. Eine Funktion, die
   niemand nutzt, darf keine Überschriften verteilen.
 

@@ -627,23 +627,14 @@ strong, b { font-weight: 600; }
 .group-header .group-absence.type-sick          { background: var(--absence-sick-bg); color: var(--absence-sick-fg); }
 .group-header .group-absence.type-other         { background: var(--surface); color: var(--text-secondary); }
 
-/* Epic-Rubrikzeile (Styleguide 7.11). Dieselbe Maszlinie wie 7.1, mit einer
-   begruendeten Ausnahme: der Titel ist ein vom Menschen gewaehltes Wort und
-   steht deshalb in der Sans, gemischt — nicht als Mono-Versalie wie "KW 35".
-   Zeitraum und Zaehler bleiben Ablesewerte und damit Mono.
+/* Epic-Rubrikzeile (Styleguide 7.11). Dieselbe Maszlinie wie 7.1, ohne
+   Ausnahme: der Titel wird wie jede andere Rubrik gesetzt, Mono versal — eine
+   Epic-Gruppe und die Gruppe "OHNE EPIC" stehen nebeneinander in derselben
+   Liste, und zwei Schriften auf einer Ebene lesen sich als zwei Ebenen.
+   Zeitraum und Zaehler bleiben Ablesewerte und damit ebenfalls Mono.
    Eine Registermarke gibt es hier nie: eine Projektansicht kann mehrere Epics
    zeigen, und die Marke gilt nur, solange es genau eine pro Bildschirm ist. */
 .group-header.epic { cursor: pointer; }
-.group-header.epic .group-epic-title {
-  order: 1;
-  flex: none;
-  font-family: var(--font-sans);
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: -0.012em;
-  text-transform: none;
-  color: var(--text);
-}
 @media (hover: hover) {
   .group-header.epic:hover .group-epic-title { color: var(--accent); }
 }
