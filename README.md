@@ -1,4 +1,4 @@
-# Todo
+# TODO
 
 Schlanke, persönliche, webbasierte Todo-Anwendung nach den Vorgaben in [LASTENHEFT.md](LASTENHEFT.md).
 
