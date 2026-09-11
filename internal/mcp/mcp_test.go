@@ -88,7 +88,7 @@ func TestToolsRegistered(t *testing.T) {
 		"list_epics", "get_epic", "create_epic", "update_epic",
 		"complete_epic", "reopen_epic", "delete_epic",
 		"list_absences", "create_absence", "get_absence", "update_absence", "delete_absence",
-		"next_workday", "parse_task",
+		"next_workday", "get_availability", "parse_task",
 	}
 	for _, name := range want {
 		if !got[name] {
@@ -206,5 +206,30 @@ func TestBearerAuth(t *testing.T) {
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/mcp?token=nope", nil))
 	if rec.Code != http.StatusUnauthorized {
 		t.Errorf("wrong query token: status = %d, want 401", rec.Code)
+	}
+}
+
+func TestGetAvailability(t *testing.T) {
+	cs := connect(t, newTestService(t))
+
+	callJSON(t, cs, "create_absence", map[string]any{
+		"type": "business_trip", "start_date": "2026-06-11", "end_date": "2026-06-13",
+	}, nil)
+	callJSON(t, cs, "create_absence", map[string]any{
+		"type": "vacation", "start_date": "2026-06-12", "end_date": "2026-06-12",
+	}, nil)
+
+	// Vacation and trip on the same day: away, not working, but on the trip.
+	var out availabilityOutput
+	callJSON(t, cs, "get_availability", map[string]any{"date": "2026-06-12"}, &out)
+	if out.Status != "away" || out.Working || !out.OnBusinessTrip || out.ReturnDate != "2026-06-15" || len(out.Absences) != 2 {
+		t.Fatalf("get_availability 2026-06-12 = %+v", out)
+	}
+
+	// Trip only: working, on trip, no return date.
+	out = availabilityOutput{}
+	callJSON(t, cs, "get_availability", map[string]any{"date": "2026-06-11"}, &out)
+	if out.Status != "business_trip" || !out.Working || !out.OnBusinessTrip || out.ReturnDate != "" || len(out.Absences) != 1 {
+		t.Fatalf("get_availability 2026-06-11 = %+v", out)
 	}
 }

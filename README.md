@@ -132,6 +132,7 @@ Alle Fehler liefern `{"error": "<text>"}` als Body. Status-Codes:
 | `PATCH` | `/api/absences/{id}` | Abwesenheit teilaktualisieren |
 | `DELETE` | `/api/absences/{id}` | Abwesenheit löschen (hart) |
 | `GET` | `/api/next-workday` | Nächsten Arbeitstag berechnen |
+| `GET` | `/api/availability` | Arbeite ich / bin ich auf Dienstreise an einem Tag? (ein Objekt) |
 | `GET` | `/api/share-links` | Fertige Token-URLs für Share-Seite und iCal-Feed (für die interne UI) |
 | `POST` | `/api/parse` | NL-Datums-/Wiederholungs-Eingabe parsen |
 
@@ -717,15 +718,10 @@ curl 'http://localhost:8080/api/absences?today=2026-06-08'
 curl 'http://localhost:8080/api/absences?from=2026-06-01&to=2026-06-30'
 ```
 
-**„Bin ich heute abwesend?"** — `from` und `to` auf denselben Tag setzen:
-
-```bash
-curl 'http://localhost:8080/api/absences?from=2026-06-08&to=2026-06-08'
-```
-
-Leeres Array ⇒ nicht abwesend. Mindestens ein Eintrag ⇒ abwesend; über den
-`type` (siehe Tabelle) erkennt der Client, ob es sich um eine echte (Arbeit
-blockierende) Abwesenheit oder nur eine `business_trip` handelt.
+**„Bin ich heute abwesend?"** — dafür gibt es
+[`GET /api/availability`](#get-apiavailability), das die Frage fertig
+beantwortet. Der Range-Modus mit `from` = `to` liefert nur die rohen Einträge
+des Tages und überlässt die Dienstreise-Unterscheidung dem Client.
 
 #### `GET /api/absences.ics`
 
@@ -999,6 +995,62 @@ nicht). Kein Body. Antwort:
 {"date": "2026-06-09"}
 ```
 
+#### `GET /api/availability`
+
+Beantwortet „wie ist meine Lage an diesem Tag?" in **einem** Objekt — gedacht
+für Automationen (Node-RED, Home Assistant, …), die sonst einen Range-Request
+absetzen und die Einträge selbst nach `type` filtern müssten.
+
+| Parameter | Wirkung |
+| --- | --- |
+| `date` (optional, `YYYY-MM-DD`) | Der abgefragte Tag. Ohne Parameter gilt das Server-„heute". |
+
+```bash
+curl 'http://localhost:8080/api/availability'
+curl 'http://localhost:8080/api/availability?date=2026-06-12'
+```
+
+Antwort `200 OK`:
+
+```json
+{
+  "date": "2026-06-12",
+  "status": "away",
+  "working": false,
+  "on_business_trip": true,
+  "return_date": "2026-06-15",
+  "absences": [
+    { "id": "absence_…", "type": "business_trip", "start_date": "2026-06-11", "end_date": "2026-06-13", "…": "…" },
+    { "id": "absence_…", "type": "vacation",      "start_date": "2026-06-12", "end_date": "2026-06-12", "…": "…" }
+  ]
+}
+```
+
+| Feld | Bedeutung |
+| --- | --- |
+| `status` | `available` \| `away` \| `business_trip` — derselbe Dreiklang wie auf der Share-Seite. Eine Arbeit blockierende Abwesenheit gewinnt immer gegen eine gleichzeitige Dienstreise. |
+| `working` | `false` **nur**, wenn eine Arbeit blockierende Abwesenheit (`vacation`, `holiday`, `sick`, `other`) den Tag abdeckt. Dienstreise allein ⇒ `true`. |
+| `on_business_trip` | `true`, wenn eine `business_trip` den Tag abdeckt — auch dann, wenn zusätzlich Urlaub o. ä. liegt. |
+| `return_date` | Nächster Arbeitstag (Regel wie `GET /api/next-workday`). **Nur vorhanden, wenn `working` = `false`.** |
+| `absences` | Die Abwesenheits-Objekte, die den Tag abdecken (leer bei `available`). |
+
+`working` und `on_business_trip` sind **zwei unabhängige Achsen**, keine
+Gegensätze:
+
+| Situation | `status` | `working` | `on_business_trip` |
+| --- | --- | --- | --- |
+| normaler Tag | `available` | `true` | `false` |
+| Dienstreise | `business_trip` | `true` | `true` |
+| Urlaub / krank / Feiertag / other | `away` | `false` | `false` |
+| Urlaub **und** Dienstreise am selben Tag | `away` | `false` | `true` |
+
+Daraus ableitbar: „komplett abwesend?" ⇒ `!working`; „nur auf Dienstreise?" ⇒
+`working && on_business_trip`; „nicht am Schreibtisch?" ⇒
+`!working || on_business_trip`. Wochenenden fließen hier **nicht** ein — es
+ist ein Abwesenheits-, kein Arbeitszeit-Endpunkt.
+
+Ungültiges `date` ⇒ `400 Bad Request`.
+
 ---
 
 ### `POST /api/parse`
@@ -1194,6 +1246,7 @@ strukturiertes JSON (snake_case, wie die REST-Objekte) zurück.
 | `update_absence` | Felder einer Abwesenheit ändern (nur gesetzte Felder) | `UpdateAbsence` |
 | `delete_absence` | Abwesenheit hart löschen | `DeleteAbsence` |
 | `next_workday` | Nächsten Arbeitstag ermitteln | `NextWorkday` |
+| `get_availability` | Arbeite ich / bin ich auf Dienstreise an `date` (Default heute, auch deutsche Phrase)? Gleiche Felder wie `GET /api/availability` | `Availability` |
 | `parse_task` | Deutsche NL-Phrase in Datum/RRULE parsen (ohne anzulegen) | `nldate.Parse` |
 
 Fehler aus der Service-Schicht (z. B. Validierung, „not found") werden als
@@ -1280,7 +1333,7 @@ keine Auth, keine Filterung pro Event-Typ, kein Retry.
 Bus-Goroutine — eine HTTP-Anfrage wartet also nie auf den Webhook. Fehler und
 Nicht-2xx-Antworten landen im Server-Log.
 
-**Absicherung:** `/api/tasks`, `/api/projects`, `/api/epics`, `/api/absences`, `/api/audit`
+**Absicherung:** `/api/tasks`, `/api/projects`, `/api/epics`, `/api/absences`, `/api/availability`, `/api/audit`
 und `/api/parse` tragen keine eigene Authentifizierung — sie liegen hinter der
 BasicAuth des Reverse-Proxys. Token-geschützt und von dieser Auth ausgenommen
 sind nur die Sonderrouten `.ics`, `.html` und `/mcp` (siehe oben).

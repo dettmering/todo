@@ -223,6 +223,75 @@ func TestCurrentAvailability(t *testing.T) {
 	}
 }
 
+// TestAvailabilityOn pins the situation matrix behind GET /api/availability:
+// Working and OnBusinessTrip are independent axes, a blocking absence wins the
+// status, and the return date is only announced while work is blocked.
+func TestAvailabilityOn(t *testing.T) {
+	day := mustDate(t, "2026-06-12") // a Friday
+	mk := func(typ AbsenceType, start, end string) *Absence {
+		return &Absence{Type: typ, Start: mustDate(t, start), End: mustDate(t, end)}
+	}
+	cases := []struct {
+		name           string
+		in             []*Absence
+		status         AvailabilityStatus
+		working        bool
+		onBusinessTrip bool
+		returnDate     string // "" = zero
+		covering       int
+	}{
+		{"normal day", nil, StatusAvailable, true, false, "", 0},
+		{"absence elsewhere", []*Absence{mk(AbsenceVacation, "2026-07-01", "2026-07-05")}, StatusAvailable, true, false, "", 0},
+		{"business trip", []*Absence{mk(AbsenceBusinessTrip, "2026-06-11", "2026-06-13")}, StatusBusinessTrip, true, true, "", 1},
+		{"vacation", []*Absence{mk(AbsenceVacation, "2026-06-10", "2026-06-15")}, StatusAway, false, false, "2026-06-16", 1},
+		{"sick single day", []*Absence{mk(AbsenceSick, "2026-06-12", "2026-06-12")}, StatusAway, false, false, "2026-06-15", 1},
+		{"vacation and trip same day", []*Absence{
+			mk(AbsenceBusinessTrip, "2026-06-11", "2026-06-13"),
+			mk(AbsenceVacation, "2026-06-12", "2026-06-12"),
+		}, StatusAway, false, true, "2026-06-15", 2},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := AvailabilityOn(c.in, day)
+			if got.Date != day {
+				t.Errorf("Date = %s, want %s", got.Date.String(), day.String())
+			}
+			if got.Status != c.status {
+				t.Errorf("Status = %v, want %v", got.Status, c.status)
+			}
+			if got.Working != c.working {
+				t.Errorf("Working = %v, want %v", got.Working, c.working)
+			}
+			if got.OnBusinessTrip != c.onBusinessTrip {
+				t.Errorf("OnBusinessTrip = %v, want %v", got.OnBusinessTrip, c.onBusinessTrip)
+			}
+			if c.returnDate == "" {
+				if !got.ReturnDate.IsZero() {
+					t.Errorf("ReturnDate = %s, want zero", got.ReturnDate.String())
+				}
+			} else if got.ReturnDate.String() != c.returnDate {
+				t.Errorf("ReturnDate = %s, want %s", got.ReturnDate.String(), c.returnDate)
+			}
+			if len(got.Absences) != c.covering {
+				t.Errorf("len(Absences) = %d, want %d", len(got.Absences), c.covering)
+			}
+		})
+	}
+}
+
+func TestAvailabilityStatusString(t *testing.T) {
+	cases := map[AvailabilityStatus]string{
+		StatusAvailable:    "available",
+		StatusAway:         "away",
+		StatusBusinessTrip: "business_trip",
+	}
+	for st, want := range cases {
+		if got := st.String(); got != want {
+			t.Errorf("%d.String() = %q, want %q", st, got, want)
+		}
+	}
+}
+
 func TestLatestUpdate(t *testing.T) {
 	t.Run("empty", func(t *testing.T) {
 		if _, ok := LatestUpdate(nil); ok {

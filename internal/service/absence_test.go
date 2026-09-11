@@ -143,3 +143,48 @@ func TestServiceNextWorkday(t *testing.T) {
 		t.Fatalf("NextWorkday (vacation) = %s, %v; want 2026-06-22", d.String(), err)
 	}
 }
+
+func TestServiceAvailability(t *testing.T) {
+	ctx := context.Background()
+	svc := newTestService(t)
+	// Pin "today" to Friday 2026-06-12.
+	svc.SetClock(func() time.Time { return time.Date(2026, time.June, 12, 9, 0, 0, 0, time.UTC) })
+
+	// Zero day => service clock; nothing on file => working, no trip.
+	av, err := svc.Availability(ctx, domain.LocalDate{})
+	if err != nil {
+		t.Fatalf("Availability: %v", err)
+	}
+	if av.Date.String() != "2026-06-12" || !av.Working || av.OnBusinessTrip || len(av.Absences) != 0 {
+		t.Fatalf("empty availability = %+v; want working on 2026-06-12", av)
+	}
+
+	if _, err := svc.CreateAbsence(ctx, AbsenceInput{
+		Type: "business_trip", Start: date(t, "2026-06-11"), End: date(t, "2026-06-13"),
+	}); err != nil {
+		t.Fatalf("CreateAbsence trip: %v", err)
+	}
+	if _, err := svc.CreateAbsence(ctx, AbsenceInput{
+		Type: "vacation", Start: date(t, "2026-06-15"), End: date(t, "2026-06-19"),
+	}); err != nil {
+		t.Fatalf("CreateAbsence vacation: %v", err)
+	}
+
+	// Today: only the trip covers => working, on trip, no return date.
+	av, err = svc.Availability(ctx, domain.LocalDate{})
+	if err != nil {
+		t.Fatalf("Availability: %v", err)
+	}
+	if av.Status != domain.StatusBusinessTrip || !av.Working || !av.OnBusinessTrip || !av.ReturnDate.IsZero() || len(av.Absences) != 1 {
+		t.Fatalf("trip availability = %+v; want business_trip/working/on trip", av)
+	}
+
+	// Explicit day inside the vacation => away, back the Monday after.
+	av, err = svc.Availability(ctx, date(t, "2026-06-17"))
+	if err != nil {
+		t.Fatalf("Availability: %v", err)
+	}
+	if av.Status != domain.StatusAway || av.Working || av.OnBusinessTrip || av.ReturnDate.String() != "2026-06-22" {
+		t.Fatalf("vacation availability = %+v; want away, back 2026-06-22", av)
+	}
+}

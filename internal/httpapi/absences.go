@@ -143,3 +143,21 @@ func (h *Handler) handleNextWorkday(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"date": d.String()})
 }
+
+// handleAvailability answers "am I working / on a business trip on this day?"
+// in one object, so automation clients (Node-RED & co.) don't have to fetch a
+// range and filter by type themselves. `date` is optional; the server's today
+// is the default.
+func (h *Handler) handleAvailability(w http.ResponseWriter, r *http.Request) {
+	day, err := domain.ParseDate(r.URL.Query().Get("date"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResp{Error: "invalid date: " + err.Error()})
+		return
+	}
+	av, err := h.svc.Availability(r.Context(), day)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, toAvailabilityDTO(av))
+}

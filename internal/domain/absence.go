@@ -71,6 +71,52 @@ const (
 	StatusBusinessTrip
 )
 
+// String renders the status as the API's snake_case value.
+func (s AvailabilityStatus) String() string {
+	switch s {
+	case StatusAway:
+		return "away"
+	case StatusBusinessTrip:
+		return "business_trip"
+	}
+	return "available"
+}
+
+// Availability is the full answer to "what is my situation on this day?" —
+// the coarse Status plus the two independent booleans a client actually
+// branches on, the return date, and the absences that cover the day.
+//
+// Working and OnBusinessTrip are distinct axes, not opposites: a business trip
+// alone keeps Working true; a vacation on the same day as a trip makes Working
+// false while OnBusinessTrip stays true. See AvailabilityOn.
+type Availability struct {
+	Date           LocalDate
+	Status         AvailabilityStatus
+	Working        bool      // false only when a work-blocking absence covers Date
+	OnBusinessTrip bool      // true when any business trip covers Date
+	ReturnDate     LocalDate // next workday; zero unless Working is false (see ReturnDate)
+	Absences       []*Absence
+}
+
+// AvailabilityOn computes the Availability for `day` from all absences. Only
+// absences covering the day end up in the result's Absences (input order kept).
+func AvailabilityOn(absences []*Absence, day LocalDate) Availability {
+	av := Availability{
+		Date:     day,
+		Status:   CurrentAvailability(absences, day),
+		Absences: AbsencesInRange(absences, day, day),
+	}
+	av.Working = av.Status != StatusAway
+	for _, a := range av.Absences {
+		if a.Type == AbsenceBusinessTrip {
+			av.OnBusinessTrip = true
+			break
+		}
+	}
+	av.ReturnDate = ReturnDate(absences, day)
+	return av
+}
+
 // CurrentAvailability reports the coarse availability on `today`: Away if any
 // work-blocking absence covers today, BusinessTrip if only a (non-blocking)
 // business trip does, otherwise Available. A blocking absence always wins over

@@ -153,3 +153,18 @@ func (s *Service) NextWorkday(ctx context.Context) (domain.LocalDate, error) {
 	today := domain.DateOf(s.clock())
 	return domain.NextWorkday(today, absences), nil
 }
+
+// Availability answers "what is my situation on `day`?" — status, the
+// working / on-business-trip booleans, the return date and the covering
+// absences (see domain.AvailabilityOn). A zero `day` falls back to the service
+// clock, so automation clients can ask without building a date themselves.
+func (s *Service) Availability(ctx context.Context, day domain.LocalDate) (domain.Availability, error) {
+	if day.IsZero() {
+		day = domain.DateOf(s.clock())
+	}
+	all, err := s.absences.List(ctx)
+	if err != nil {
+		return domain.Availability{}, err
+	}
+	return domain.AvailabilityOn(all, day), nil
+}

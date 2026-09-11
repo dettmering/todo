@@ -173,6 +173,10 @@ func (s *server) build() *mcp.Server {
 		Name:        "next_workday",
 		Description: "Return the next working day (skipping weekends and absences).",
 	}, s.nextWorkday)
+	mcp.AddTool(srv, &mcp.Tool{
+		Name:        "get_availability",
+		Description: "Am I working / on a business trip on a given day (default today)? Returns status, the two booleans, the return date while away, and the covering absences.",
+	}, s.getAvailability)
 
 	// ---------- Utilities ----------
 	mcp.AddTool(srv, &mcp.Tool{
@@ -820,6 +824,46 @@ func (s *server) nextWorkday(ctx context.Context, _ *mcp.CallToolRequest, _ empt
 		return nil, nextWorkdayOutput{}, err
 	}
 	return nil, nextWorkdayOutput{Date: d.String()}, nil
+}
+
+type availabilityInput struct {
+	Date string `json:"date,omitempty" jsonschema:"ISO date or German phrase; defaults to today"`
+}
+
+// availabilityOutput mirrors the REST availabilityDTO; see domain.Availability
+// for why working and on_business_trip are independent axes.
+type availabilityOutput struct {
+	Date           string       `json:"date"`
+	Status         string       `json:"status" jsonschema:"available, away or business_trip"`
+	Working        bool         `json:"working" jsonschema:"false only when a work-blocking absence (vacation, sick, holiday, other) covers the day"`
+	OnBusinessTrip bool         `json:"on_business_trip" jsonschema:"true when a business trip covers the day, even alongside a blocking absence"`
+	ReturnDate     string       `json:"return_date,omitempty" jsonschema:"next workday; only set while working is false"`
+	Absences       []absenceOut `json:"absences"`
+}
+
+func (s *server) getAvailability(ctx context.Context, _ *mcp.CallToolRequest, in availabilityInput) (*mcp.CallToolResult, availabilityOutput, error) {
+	day, err := parseDateInput(in.Date)
+	if err != nil {
+		return nil, availabilityOutput{}, err
+	}
+	av, err := s.svc.Availability(ctx, day)
+	if err != nil {
+		return nil, availabilityOutput{}, err
+	}
+	out := availabilityOutput{
+		Date:           av.Date.String(),
+		Status:         av.Status.String(),
+		Working:        av.Working,
+		OnBusinessTrip: av.OnBusinessTrip,
+		Absences:       make([]absenceOut, 0, len(av.Absences)),
+	}
+	if !av.ReturnDate.IsZero() {
+		out.ReturnDate = av.ReturnDate.String()
+	}
+	for _, a := range av.Absences {
+		out.Absences = append(out.Absences, toAbsenceOut(a))
+	}
+	return nil, out, nil
 }
 
 type parseTaskInput struct {

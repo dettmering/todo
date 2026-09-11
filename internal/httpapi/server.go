@@ -72,6 +72,7 @@ func (h *Handler) routes() {
 	h.mux.HandleFunc("PATCH /api/absences/{id}", h.handlePatchAbsence)
 	h.mux.HandleFunc("DELETE /api/absences/{id}", h.handleDeleteAbsence)
 	h.mux.HandleFunc("GET /api/next-workday", h.handleNextWorkday)
+	h.mux.HandleFunc("GET /api/availability", h.handleAvailability)
 
 	h.mux.HandleFunc("POST /api/parse", h.handleParse)
 }

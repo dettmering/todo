@@ -237,6 +237,35 @@ type absenceDTO struct {
 	UpdatedAt string `json:"updated_at"`
 }
 
+// availabilityDTO is the answer of GET /api/availability. `working` and
+// `on_business_trip` are independent axes (see domain.Availability);
+// `return_date` is only present while work is blocked.
+type availabilityDTO struct {
+	Date           string       `json:"date"`
+	Status         string       `json:"status"`
+	Working        bool         `json:"working"`
+	OnBusinessTrip bool         `json:"on_business_trip"`
+	ReturnDate     string       `json:"return_date,omitempty"`
+	Absences       []absenceDTO `json:"absences"`
+}
+
+func toAvailabilityDTO(av domain.Availability) availabilityDTO {
+	out := availabilityDTO{
+		Date:           av.Date.String(),
+		Status:         av.Status.String(),
+		Working:        av.Working,
+		OnBusinessTrip: av.OnBusinessTrip,
+		Absences:       make([]absenceDTO, 0, len(av.Absences)),
+	}
+	if !av.ReturnDate.IsZero() {
+		out.ReturnDate = av.ReturnDate.String()
+	}
+	for _, a := range av.Absences {
+		out.Absences = append(out.Absences, toAbsenceDTO(a))
+	}
+	return out
+}
+
 func toAbsenceDTO(a *domain.Absence) absenceDTO {
 	return absenceDTO{
 		ID:        a.ID,
