@@ -94,12 +94,16 @@ type Availability struct {
 	Status         AvailabilityStatus
 	Working        bool      // false only when a work-blocking absence covers Date
 	OnBusinessTrip bool      // true when any business trip covers Date
-	ReturnDate     LocalDate // next workday; zero unless Working is false (see ReturnDate)
+	ReturnDate     LocalDate // next workday; zero unless Working is false
 	Absences       []*Absence
 }
 
 // AvailabilityOn computes the Availability for `day` from all absences. Only
 // absences covering the day end up in the result's Absences (input order kept).
+//
+// ReturnDate is only announced while work is actually blocked: someone who is
+// available, or merely on a business trip (work goes on), has no return date,
+// and the zero LocalDate stays. Drives the "Back on …" line of the share page.
 func AvailabilityOn(absences []*Absence, day LocalDate) Availability {
 	av := Availability{
 		Date:     day,
@@ -113,7 +117,9 @@ func AvailabilityOn(absences []*Absence, day LocalDate) Availability {
 			break
 		}
 	}
-	av.ReturnDate = ReturnDate(absences, day)
+	if !av.Working {
+		av.ReturnDate = NextWorkday(day, absences)
+	}
 	return av
 }
 
@@ -136,22 +142,6 @@ func CurrentAvailability(absences []*Absence, today LocalDate) AvailabilityStatu
 		return StatusBusinessTrip
 	}
 	return StatusAvailable
-}
-
-// ReturnDate reports when work resumes: the next workday after `today` (see
-// NextWorkday). It only answers while a work-blocking absence actually covers
-// today — someone who is available, or merely on a business trip (work goes on),
-// has no return date to announce, and the zero LocalDate is returned instead.
-// Used for the "Back on …" line of the public share page.
-func ReturnDate(absences []*Absence, today LocalDate) LocalDate {
-	if CurrentAvailability(absences, today) != StatusAway {
-		return LocalDate{}
-	}
-	vals := make([]Absence, 0, len(absences))
-	for _, a := range absences {
-		vals = append(vals, *a)
-	}
-	return NextWorkday(today, vals)
 }
 
 // LatestUpdate returns the most recent UpdatedAt across the given absences, i.e.
@@ -223,7 +213,7 @@ func AbsencesInRange(absences []*Absence, from, to LocalDate) []*Absence {
 // NextWorkday returns the first day strictly after `from` that is neither a
 // weekend nor covered by a blocking absence (business trips are not blocking).
 // The 366-iteration cap guards against an unexpected infinite loop.
-func NextWorkday(from LocalDate, absences []Absence) LocalDate {
+func NextWorkday(from LocalDate, absences []*Absence) LocalDate {
 	d := from
 	for i := 0; i < 366; i++ {
 		d = d.AddDays(1)

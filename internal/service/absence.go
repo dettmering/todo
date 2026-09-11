@@ -142,16 +142,11 @@ func (s *Service) GetAbsence(ctx context.Context, id string) (*domain.Absence, e
 // NextWorkday computes the next workday after today, skipping weekends and
 // blocking absences (business trips count as workdays). See domain.NextWorkday.
 func (s *Service) NextWorkday(ctx context.Context) (domain.LocalDate, error) {
-	list, err := s.absences.List(ctx)
+	all, err := s.absences.List(ctx)
 	if err != nil {
 		return domain.LocalDate{}, err
 	}
-	absences := make([]domain.Absence, 0, len(list))
-	for _, a := range list {
-		absences = append(absences, *a)
-	}
-	today := domain.DateOf(s.clock())
-	return domain.NextWorkday(today, absences), nil
+	return domain.NextWorkday(domain.DateOf(s.clock()), all), nil
 }
 
 // Availability answers "what is my situation on `day`?" — status, the

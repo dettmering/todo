@@ -101,7 +101,9 @@ func TestLocalDateDaysUntil(t *testing.T) {
 	}
 }
 
-func TestReturnDate(t *testing.T) {
+// TestAvailabilityOnReturnDate pins when a return date is announced at all and
+// which day it names (see AvailabilityOn).
+func TestAvailabilityOnReturnDate(t *testing.T) {
 	// Vacation Mon–Fri 2026-06-15..19, so work resumes Monday 2026-06-22.
 	vacation := &Absence{Type: AbsenceVacation, Start: mustDate(t, "2026-06-15"), End: mustDate(t, "2026-06-19")}
 	trip := &Absence{Type: AbsenceBusinessTrip, Start: mustDate(t, "2026-06-15"), End: mustDate(t, "2026-06-19")}
@@ -128,7 +130,7 @@ func TestReturnDate(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := ReturnDate(c.absences, mustDate(t, c.today))
+			got := AvailabilityOn(c.absences, mustDate(t, c.today)).ReturnDate
 			if c.want == "" {
 				if !got.IsZero() {
 					t.Errorf("ReturnDate = %s, want zero date", got.String())
@@ -143,19 +145,19 @@ func TestReturnDate(t *testing.T) {
 }
 
 func TestNextWorkday(t *testing.T) {
-	vacation := Absence{Type: AbsenceVacation, Start: mustDate(t, "2026-06-15"), End: mustDate(t, "2026-06-19")}
-	trip := Absence{Type: AbsenceBusinessTrip, Start: mustDate(t, "2026-06-15"), End: mustDate(t, "2026-06-19")}
+	vacation := &Absence{Type: AbsenceVacation, Start: mustDate(t, "2026-06-15"), End: mustDate(t, "2026-06-19")}
+	trip := &Absence{Type: AbsenceBusinessTrip, Start: mustDate(t, "2026-06-15"), End: mustDate(t, "2026-06-19")}
 
 	cases := []struct {
 		name     string
 		from     string
-		absences []Absence
+		absences []*Absence
 		want     string
 	}{
-		{"weekday no absence", "2026-06-10", nil, "2026-06-11"},                    // Wed -> Thu
-		{"friday skips weekend", "2026-06-12", nil, "2026-06-15"},                  // Fri -> Mon
-		{"vacation whole week", "2026-06-12", []Absence{vacation}, "2026-06-22"},   // Fri -> Mon after vacation week
-		{"business trip not skipped", "2026-06-12", []Absence{trip}, "2026-06-15"}, // Fri -> Mon (trip day allowed)
+		{"weekday no absence", "2026-06-10", nil, "2026-06-11"},                     // Wed -> Thu
+		{"friday skips weekend", "2026-06-12", nil, "2026-06-15"},                   // Fri -> Mon
+		{"vacation whole week", "2026-06-12", []*Absence{vacation}, "2026-06-22"},   // Fri -> Mon after vacation week
+		{"business trip not skipped", "2026-06-12", []*Absence{trip}, "2026-06-15"}, // Fri -> Mon (trip day allowed)
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

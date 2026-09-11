@@ -152,7 +152,7 @@ func TestBuildAbsencesSharePage_BackOnTomorrow(t *testing.T) {
 }
 
 func TestBuildAbsencesSharePage_BackOnOmittedWhenZero(t *testing.T) {
-	// Available or on a business trip => domain.ReturnDate yields a zero date and
+	// Available or on a business trip => domain.AvailabilityOn yields a zero return date and
 	// the line disappears rather than rendering an empty or bogus date.
 	for _, status := range []domain.AvailabilityStatus{domain.StatusAvailable, domain.StatusBusinessTrip} {
 		out := buildAbsencesSharePage(nil, status, "Till", shareToday, domain.LocalDate{}, shareUpdated)

@@ -35,9 +35,10 @@ func (h *Handler) handleAbsencesShare(w http.ResponseWriter, r *http.Request) {
 	// draws: what starts beyond it is left off the page entirely, list included.
 	_, windowEnd := domain.ShareWindow(today)
 	upcoming := domain.AbsencesInRange(domain.UpcomingAbsences(all, today), domain.LocalDate{}, windowEnd)
-	status := domain.CurrentAvailability(all, today)
-	// Zero while reachable — the page then omits the "Back on" line entirely.
-	backOn := domain.ReturnDate(all, today)
+	// Same status and return date as GET /api/availability — the share page
+	// and the API never disagree. ReturnDate is zero while reachable; the page
+	// then omits the "Back on" line entirely.
+	av := domain.AvailabilityOn(all, today)
 	// "Last updated" reflects the actual last change to the absence data, not the
 	// request time. Rendered in the server's local zone (TZ, e.g. Europe/Berlin);
 	// stored timestamps are UTC.
@@ -51,7 +52,7 @@ func (h *Handler) handleAbsencesShare(w http.ResponseWriter, r *http.Request) {
 	// along in the Referer header — and with it access to the page. The document
 	// links nowhere today, but that's one edit away from being untrue.
 	w.Header().Set("Referrer-Policy", "no-referrer")
-	_, _ = io.WriteString(w, buildAbsencesSharePage(upcoming, status, h.shareName, today, backOn, lastUpdated))
+	_, _ = io.WriteString(w, buildAbsencesSharePage(upcoming, av.Status, h.shareName, today, av.ReturnDate, lastUpdated))
 }
 
 // shareLinksResponse carries the ready-to-use URLs of the two token-guarded
@@ -103,7 +104,7 @@ func availabilityPhrase(status domain.AvailabilityStatus, name string) (text, cl
 // drives the prominent current-availability banner, `name` personalizes it,
 // `today` marks the running absence and anchors the twelve-week timeline
 // strip, `backOn` adds the "Back on …" line below
-// the banner (zero = omit, see domain.ReturnDate), and `lastUpdated`
+// the banner (zero = omit, see domain.AvailabilityOn), and `lastUpdated`
 // (already in the target zone) fills the "Last updated" footer — a zero value
 // omits it too (all parameters so tests stay deterministic).
 //
@@ -332,7 +333,7 @@ func absenceTimelineHTML(absences []*domain.Absence, today domain.LocalDate) str
 // the status banner while the user is away. The distance leads because that's
 // the part the reader is after; the exact date follows so a forwarded screenshot
 // still says something true. A zero date (they're reachable — see
-// domain.ReturnDate) renders nothing.
+// domain.AvailabilityOn) renders nothing.
 func backOnHTML(today, backOn domain.LocalDate) string {
 	if backOn.IsZero() {
 		return ""
