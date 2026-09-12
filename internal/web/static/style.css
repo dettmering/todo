@@ -257,7 +257,12 @@ strong, b { font-weight: 600; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 10px 5px;
+  /* Rechts nur 3px: das Plus soll mit den Zaehlern darunter fluchten. Die
+     enden 10px vor dem Rand; im 22px-Knopf sitzt das 16px-Icon 3px eingerueckt
+     und der Strich des Pluszeichens endet nochmal 3px vor dem Iconrand
+     (viewBox 24, Linie bis 19); die Ziffer hat ihrerseits ~1px Nachbreite --
+     3 + 3 + 3 = 9 ~ 10 - 1. */
+  padding: 6px 3px 5px 10px;
   margin-bottom: 4px;
   font-family: var(--font-mono);
   font-size: 12px;
