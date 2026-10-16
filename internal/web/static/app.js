@@ -64,6 +64,9 @@ const api = {
     const q = new URLSearchParams(params);
     return fetch("/api/audit?" + q.toString()).then(jsonOrError);
   },
+  async listTaskAudit(taskId) {
+    return fetch(`/api/tasks/${taskId}/audit`).then(jsonOrError);
+  },
   async listComments(taskId) {
     return fetch(`/api/tasks/${taskId}/comments`).then(jsonOrError);
   },
@@ -2341,6 +2344,94 @@ async function loadComments(taskId) {
   }
 }
 
+// ---------- Task history ----------
+
+// A past timestamp as the phrase you'd say out loud: "gerade eben",
+// "vor 20 Min.", "vor 3 Std.", "gestern, 14:22", "vor 5 Tagen",
+// "vor 2 Wochen", "vor 4 Monaten", "vor einem Jahr". Hours only within the
+// same calendar day — past midnight it's "gestern", however close.
+function relativeTimeDE(iso, now = new Date()) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const mins = Math.floor((now - d) / 60000);
+  if (mins < 1) return "gerade eben";
+  const midnight = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate());
+  const days = Math.round((midnight(now) - midnight(d)) / 86400000);
+  if (days === 0) {
+    if (mins < 60) return `vor ${mins} Min.`;
+    return `vor ${Math.floor(mins / 60)} Std.`;
+  }
+  if (days === 1) {
+    return "gestern, " + d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  }
+  if (days < 7) return `vor ${days} Tagen`;
+  if (days < 14) return "vor einer Woche";
+  if (days < 30) return `vor ${Math.floor(days / 7)} Wochen`;
+  const months = Math.floor(days / 30.44);
+  if (months < 2) return "vor einem Monat";
+  if (months < 12) return `vor ${months} Monaten`;
+  const years = Math.floor(days / 365.25);
+  return years < 2 ? "vor einem Jahr" : `vor ${years} Jahren`;
+}
+
+// The collapsed history line: "erstellt vor 3 Tagen · geändert vor 2 Std.".
+// "geändert" carries more than the audit log does — title and description
+// edits bump updated_at without leaving an entry. A task that was never
+// touched after creation shows only "erstellt".
+function renderTaskHistoryMeta(t) {
+  const el = document.getElementById("td-history-meta");
+  const part = (label, iso) =>
+    `<span title="${escapeHTML(formatCommentTime(iso))}">${label} ${escapeHTML(relativeTimeDE(iso))}</span>`;
+  const parts = [];
+  if (t.created_at) parts.push(part("erstellt", t.created_at));
+  if (t.updated_at && new Date(t.updated_at) - new Date(t.created_at) > 1000) {
+    parts.push(part("geändert", t.updated_at));
+  }
+  el.innerHTML = parts.join(' <span class="td-history-sep">·</span> ');
+}
+
+// One audit entry, laid out like a row in the Aktivität view minus the task
+// title — the modal already says which task this is.
+function createHistoryLI(e) {
+  const li = document.createElement("li");
+  li.className = "td-history-entry";
+  const icon = activityIconFor(e.action);
+  const diff = activityDiffHTML(e);
+  li.innerHTML = `
+    <span class="td-history-time" title="${escapeHTML(formatCommentTime(e.at))}">${escapeHTML(relativeTimeDE(e.at))}</span>
+    <span class="activity-icon ${icon.cls}">${icon.svg}</span>
+    <span class="activity-body">
+      <span class="activity-action">${escapeHTML(activityLabelFor(e))}</span>
+      ${diff ? " " + diff : ""}
+    </span>
+  `;
+  return li;
+}
+
+// Fetch the task's audit log (newest first) into the open history section.
+// Fetched on expand, not on open: most openings never look at it.
+async function loadTaskHistory(taskId) {
+  const dlg = document.getElementById("task-dialog");
+  const list = document.getElementById("td-history-list");
+  const empty = document.getElementById("td-history-empty");
+  list.innerHTML = "";
+  empty.classList.add("hidden");
+  let entries;
+  try {
+    entries = await api.listTaskAudit(taskId);
+  } catch (err) {
+    entries = null;
+  }
+  // The modal may have moved on to another task while we waited.
+  if (dlg.dataset.id !== taskId) return;
+  if (!entries || entries.length === 0) {
+    empty.textContent = entries ? "Noch keine Einträge." : "Verlauf konnte nicht geladen werden.";
+    empty.classList.remove("hidden");
+    return;
+  }
+  for (const e of entries) list.appendChild(createHistoryLI(e));
+}
+
 // openTaskDialogInternal opens the modal without touching browser history.
 // Used by popstate/boot when the URL itself caused the modal to open.
 function openTaskDialogInternal(t) {
@@ -2372,6 +2463,11 @@ function openTaskDialogInternal(t) {
   document.getElementById("td-comment-input").value = "";
   document.getElementById("td-comment-error").classList.add("hidden");
   loadComments(t.id);
+  // History: every opening starts collapsed; the list loads on expand.
+  document.getElementById("td-history").open = false;
+  document.getElementById("td-history-list").innerHTML = "";
+  document.getElementById("td-history-empty").classList.add("hidden");
+  renderTaskHistoryMeta(t);
   // Reset the mobile "more details" collapse so every opening starts compact.
   const layout = dlg.querySelector(".td-layout");
   if (layout) layout.classList.remove("show-extra");
@@ -2618,6 +2714,10 @@ function wireTaskDialog() {
     setRecurrenceMode(btn.dataset.mode);
     syncRecurrenceModeUI();
   });
+  document.getElementById("td-history").addEventListener("toggle", (e) => {
+    if (e.target.open && dlg.dataset.id) loadTaskHistory(dlg.dataset.id);
+  });
+
   // Comments: submit on form submit (button) or Ctrl/Cmd+Enter in the textarea.
   const commentForm = document.getElementById("td-comment-form");
   const commentInput = document.getElementById("td-comment-input");

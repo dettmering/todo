@@ -1195,6 +1195,87 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
 .td-comment-body > :first-child { margin-top: 0; }
 .td-comment-body > :last-child { margin-bottom: 0; }
 
+/* ---------- History ---------- */
+/* Dieselbe Rubrik mit Unterlinie wie "Kommentare", nur klickbar: rechts
+   daneben die Ablesewerte (erstellt/geändert, gemischt statt versal), ganz
+   außen der Winkel, der beim Aufklappen kippt. */
+.td-history {
+  margin-top: 30px;
+}
+.td-history-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.td-history-header::-webkit-details-marker { display: none; }
+.td-history-rubric {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.td-history-meta {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  text-align: right;
+}
+/* Auf dem Handy bricht die Zeile zwischen "erstellt …" und "geändert …",
+   nicht mitten in "vor einem Monat". */
+.td-history-meta > span:not(.td-history-sep) { white-space: nowrap; }
+.td-history-sep { margin: 0 1px; }
+.td-history-chevron {
+  align-self: center;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+  transition: transform 0.15s ease;
+}
+.td-history[open] .td-history-chevron { transform: rotate(180deg); }
+.td-history-header:hover .td-history-rubric,
+.td-history-header:hover .td-history-chevron { color: var(--text); }
+.td-history-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.td-history-entry {
+  display: grid;
+  grid-template-columns: 112px 22px 1fr;
+  align-items: baseline;
+  gap: 10px;
+  padding: 5px 4px;
+}
+.td-history-time {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.td-history-entry .activity-icon { align-self: center; }
+.td-history-entry .activity-body { font-size: 14px; }
+.td-history-empty {
+  margin: 10px 0 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 .td-sidebar {
   background: var(--surface);
   border-left: 1px solid var(--border-strong);

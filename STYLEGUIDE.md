@@ -426,6 +426,11 @@ md2pdf den druckenden Bereich eines Blattes bemaßt.
   Freitext („morgen, +5, ende juni") und bleibt deshalb Sans.
 * Kommentare: Karte auf `--surface` mit `--radius`, Zeitstempel in Mono,
   Abschnittskopf „KOMMENTARE" als Marginalie mit Unterlinie.
+* Verlauf darunter: derselbe Abschnittskopf, aber aufklappbar (`<details>`);
+  rechts davon „erstellt … · geändert …" als Ablesewert (gemischt), außen ein
+  Winkel. Aufgeklappt die Zeilen der Aktivität-Ansicht ohne Aufgabentitel.
+  Zeiten relativ („vor 3 Std.", „gestern, 14:22"), der exakte Zeitpunkt
+  steht im `title`.
 * Code in gerenderten Beschreibungen: `--font-mono` auf `--surface` mit
   1 px `--border` — dasselbe Bild wie ein Codeblock in einem md2pdf-Dokument.
 
