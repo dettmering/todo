@@ -429,8 +429,9 @@ md2pdf den druckenden Bereich eines Blattes bemaßt.
 * Verlauf darunter: derselbe Abschnittskopf, aber aufklappbar (`<details>`);
   rechts davon „erstellt … · geändert …" als Ablesewert (gemischt), außen ein
   Winkel. Aufgeklappt die Zeilen der Aktivität-Ansicht ohne Aufgabentitel.
-  Zeiten relativ („vor 3 Std.", „gestern, 14:22"), der exakte Zeitpunkt
-  steht im `title`.
+  Zeiten relativ („vor 3 Std.", „gestern, 14:22"), in den Einträgen ab
+  einem Monat als Datum („09.10.", fremdes Jahr „12.03.2025"); die
+  Kopfzeile bleibt relativ. Der exakte Zeitpunkt steht im `title`.
 * Code in gerenderten Beschreibungen: `--font-mono` auf `--surface` mit
   1 px `--border` — dasselbe Bild wie ein Codeblock in einem md2pdf-Dokument.
 

@@ -2374,6 +2374,19 @@ function relativeTimeDE(iso, now = new Date()) {
   return years < 2 ? "vor einem Jahr" : `vor ${years} Jahren`;
 }
 
+// Time column of a history entry: relative up to "vor 3 Wochen", from a month
+// on the date itself ("09.10.", with the year once it isn't this year's) —
+// "vor 4 Monaten" can't be pinned down without a hover, and phones have none.
+function historyTimeDE(iso, now = new Date()) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const midnight = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate());
+  const days = Math.round((midnight(now) - midnight(d)) / 86400000);
+  if (days < 30) return relativeTimeDE(iso, now);
+  const dm = `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.`;
+  return d.getFullYear() === now.getFullYear() ? dm : dm + d.getFullYear();
+}
+
 // The collapsed history line: "erstellt vor 3 Tagen · geändert vor 2 Std.".
 // "geändert" carries more than the audit log does — title and description
 // edits bump updated_at without leaving an entry. A task that was never
@@ -2398,7 +2411,7 @@ function createHistoryLI(e) {
   const icon = activityIconFor(e.action);
   const diff = activityDiffHTML(e);
   li.innerHTML = `
-    <span class="td-history-time" title="${escapeHTML(formatCommentTime(e.at))}">${escapeHTML(relativeTimeDE(e.at))}</span>
+    <span class="td-history-time" title="${escapeHTML(formatCommentTime(e.at))}">${escapeHTML(historyTimeDE(e.at))}</span>
     <span class="activity-icon ${icon.cls}">${icon.svg}</span>
     <span class="activity-body">
       <span class="activity-action">${escapeHTML(activityLabelFor(e))}</span>
