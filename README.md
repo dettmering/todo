@@ -539,11 +539,6 @@ Projekt zugeordnet, damit historische Beschriftungen erhalten bleiben.
 
 #### Projekt-Objekt
 
-`open_tasks` ist berechnet, nicht gespeichert: die Zahl der Tasks mit
-`status = "open"` im Projekt, auch der erst später sichtbaren. Es ist dieselbe
-Zahl wie `projects[id]` in [`GET /api/counts`](#get-apicounts); jede
-Projekt-Antwort trägt sie, auch `POST` und `PATCH`.
-
 ```json
 {
   "id": "project_5c2a8e1f3b407d96",
@@ -553,7 +548,6 @@ Projekt-Antwort trägt sie, auch `POST` und `PATCH`.
   "sort_order": 2,
   "archived": false,
   "color": "#db4c3f",
-  "open_tasks": 4,
   "created_at": "2026-04-11T09:02:55Z",
   "updated_at": "2026-04-11T09:02:55Z"
 }
@@ -1237,7 +1231,7 @@ strukturiertes JSON (snake_case, wie die REST-Objekte) zurück.
 | `complete_task` | Task abschließen (spawnt ggf. nächste Instanz) | `CompleteTask` |
 | `reopen_task` | Abgeschlossenen Task wieder öffnen | `ReopenTask` |
 | `delete_task` | Task soft-löschen (`status = deleted`) | `DeleteTask` |
-| `list_projects` | Projekte auflisten (`include_archived`), je Projekt mit `open_tasks` | `ListProjects` |
+| `list_projects` | Projekte auflisten (`include_archived`) | `ListProjects` |
 | `create_project` | Projekt anlegen (nur `name` Pflicht) | `CreateProject` |
 | `list_epics` | Epics auflisten (Filter: `project_id`, `status`, `include_archived`) | `ListEpics` |
 | `get_epic` | Einzelnes Epic per `id` holen (inkl. offener/erledigter Tasks) | `GetEpic` |

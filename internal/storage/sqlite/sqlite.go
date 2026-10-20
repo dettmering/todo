@@ -139,7 +139,7 @@ var migrations = []migrationStep{
 	// order — drop a column and the plan falls back to a table scan.
 	// CountByEpic: SCAN tasks USING COVERING INDEX idx_tasks_epic_status.
 	{23, `CREATE INDEX IF NOT EXISTS idx_tasks_epic_status ON tasks(epic_id, status);`},
-	// CountOpen, CountOpenByProject: SEARCH tasks USING COVERING INDEX idx_tasks_open_counts (status=?).
+	// CountOpen: SEARCH tasks USING COVERING INDEX idx_tasks_open_counts (status=?).
 	{24, `CREATE INDEX IF NOT EXISTS idx_tasks_open_counts ON tasks(status, project_id, epic_id, visible_from);`},
 }
 

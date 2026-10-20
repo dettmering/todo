@@ -131,7 +131,6 @@ type projectDTO struct {
 	SortOrder   int    `json:"sort_order"`
 	Archived    bool   `json:"archived"`
 	Color       string `json:"color"`
-	OpenTasks   int    `json:"open_tasks"`
 	CreatedAt   string `json:"created_at"`
 	UpdatedAt   string `json:"updated_at"`
 }
@@ -174,10 +173,10 @@ func toCommentDTO(c *domain.Comment) commentDTO {
 	}
 }
 
-func toProjectDTO(p *domain.Project, openTasks int) projectDTO {
+func toProjectDTO(p *domain.Project) projectDTO {
 	return projectDTO{
 		ID: p.ID, Name: p.Name, Slug: p.Slug, Description: p.Description,
-		SortOrder: p.SortOrder, Archived: p.Archived, Color: p.Color, OpenTasks: openTasks,
+		SortOrder: p.SortOrder, Archived: p.Archived, Color: p.Color,
 		CreatedAt: p.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt: p.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}

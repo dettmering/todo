@@ -246,15 +246,14 @@ type projectOut struct {
 	SortOrder   int    `json:"sort_order"`
 	Archived    bool   `json:"archived"`
 	Color       string `json:"color,omitempty"`
-	OpenTasks   int    `json:"open_tasks"`
 	CreatedAt   string `json:"created_at"`
 	UpdatedAt   string `json:"updated_at"`
 }
 
-func toProjectOut(p *domain.Project, openTasks int) projectOut {
+func toProjectOut(p *domain.Project) projectOut {
 	return projectOut{
 		ID: p.ID, Name: p.Name, Slug: p.Slug, Description: p.Description,
-		SortOrder: p.SortOrder, Archived: p.Archived, Color: p.Color, OpenTasks: openTasks,
+		SortOrder: p.SortOrder, Archived: p.Archived, Color: p.Color,
 		CreatedAt: p.CreatedAt.Format(timeFormat),
 		UpdatedAt: p.UpdatedAt.Format(timeFormat),
 	}
@@ -537,13 +536,9 @@ func (s *server) listProjects(ctx context.Context, _ *mcp.CallToolRequest, in li
 	if err != nil {
 		return nil, projectsOutput{}, err
 	}
-	counts, err := s.svc.ProjectOpenCounts(ctx)
-	if err != nil {
-		return nil, projectsOutput{}, err
-	}
 	out := make([]projectOut, 0, len(projects))
 	for _, p := range projects {
-		out = append(out, toProjectOut(p, counts[p.ID]))
+		out = append(out, toProjectOut(p))
 	}
 	return nil, projectsOutput{Projects: out}, nil
 }
@@ -563,8 +558,7 @@ func (s *server) createProject(ctx context.Context, _ *mcp.CallToolRequest, in c
 	if err != nil {
 		return nil, projectOut{}, err
 	}
-	// A project that did not exist a moment ago has no tasks yet.
-	return nil, toProjectOut(p, 0), nil
+	return nil, toProjectOut(p), nil
 }
 
 // ---------- Epics ----------
