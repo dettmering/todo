@@ -63,6 +63,9 @@ type TaskRepo interface {
 	// wants numbers, and the numbers must not get more expensive as the
 	// archive grows.
 	CountOpen(ctx context.Context, today domain.LocalDate) (domain.OpenTaskCounts, error)
+	// CountOpenByProject tallies open tasks per project id — the number every
+	// project response carries. Projects without open tasks are missing.
+	CountOpenByProject(ctx context.Context) (map[string]int, error)
 }
 
 type ProjectRepo interface {

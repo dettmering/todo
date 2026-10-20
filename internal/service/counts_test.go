@@ -129,6 +129,49 @@ func TestOpenTaskCountsAgreeWithListing(t *testing.T) {
 	}
 }
 
+// The project responses and GET /api/counts answer the same question from two
+// queries; the sidebar badge and a project's open_tasks must never disagree.
+func TestProjectOpenCountsMatchSidebarCounts(t *testing.T) {
+	ctx := context.Background()
+	svc := newTestService(t)
+	p := newTestProject(t, svc, "Renovierung")
+	empty := newTestProject(t, svc, "Leer")
+	svc.CreateTask(ctx, TaskInput{Title: "a", ProjectID: p.ID})
+	svc.CreateTask(ctx, TaskInput{Title: "später", ProjectID: p.ID, VisibleFrom: date(t, "2099-01-01")})
+	svc.CreateTask(ctx, TaskInput{Title: "inbox"})
+	done, _ := svc.CreateTask(ctx, TaskInput{Title: "fertig", ProjectID: p.ID})
+	gone, _ := svc.CreateTask(ctx, TaskInput{Title: "geloescht", ProjectID: p.ID})
+	if _, err := svc.CompleteTask(ctx, done.ID); err != nil {
+		t.Fatalf("CompleteTask: %v", err)
+	}
+	if err := svc.DeleteTask(ctx, gone.ID); err != nil {
+		t.Fatalf("DeleteTask: %v", err)
+	}
+
+	got, err := svc.ProjectOpenCounts(ctx)
+	if err != nil {
+		t.Fatalf("ProjectOpenCounts: %v", err)
+	}
+	sidebar, err := svc.OpenTaskCounts(ctx, date(t, "2026-09-04"))
+	if err != nil {
+		t.Fatalf("OpenTaskCounts: %v", err)
+	}
+	if len(got) != len(sidebar.ByProject) {
+		t.Fatalf("got %+v, sidebar has %+v", got, sidebar.ByProject)
+	}
+	for id, n := range sidebar.ByProject {
+		if got[id] != n {
+			t.Errorf("project %s: got %d, sidebar says %d", id, got[id], n)
+		}
+	}
+	if got[p.ID] != 2 {
+		t.Errorf("project: got %d open tasks, want 2", got[p.ID])
+	}
+	if _, ok := got[empty.ID]; ok {
+		t.Errorf("project without open tasks should be absent from the map")
+	}
+}
+
 func TestOpenTaskCountsEmptyStore(t *testing.T) {
 	svc := newTestService(t)
 	counts, err := svc.OpenTaskCounts(context.Background(), date(t, "2026-09-04"))

@@ -288,3 +288,27 @@ func (r *TaskRepo) CountOpen(ctx context.Context, today domain.LocalDate) (domai
 	}
 	return out, rows.Err()
 }
+
+// CountOpenByProject tallies the open tasks per project. It reads the leading
+// (status, project_id) columns of idx_tasks_open_counts, so it stays a covering
+// index search however many tasks are done or deleted.
+func (r *TaskRepo) CountOpenByProject(ctx context.Context) (map[string]int, error) {
+	out := make(map[string]int)
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT project_id, count(*) FROM tasks WHERE status = ? GROUP BY project_id`,
+		string(domain.StatusOpen),
+	)
+	if err != nil {
+		return out, fmt.Errorf("count open tasks by project: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var projectID string
+		var n int
+		if err := rows.Scan(&projectID, &n); err != nil {
+			return out, err
+		}
+		out[projectID] = n
+	}
+	return out, rows.Err()
+}

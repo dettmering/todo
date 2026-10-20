@@ -609,6 +609,13 @@ func (s *Service) ListProjects(ctx context.Context, includeArchived bool) ([]*do
 	return s.projects.List(ctx, includeArchived)
 }
 
+// ProjectOpenCounts returns a project_id -> open task count map covering every
+// project in one query. A missing key means zero.
+func (s *Service) ProjectOpenCounts(ctx context.Context) (map[string]int, error) {
+	counts, err := s.tasks.CountOpenByProject(ctx)
+	return counts, mapErr(err)
+}
+
 func (s *Service) GetProject(ctx context.Context, id string) (*domain.Project, error) {
 	pr, err := s.projects.Get(ctx, id)
 	return pr, mapErr(err)

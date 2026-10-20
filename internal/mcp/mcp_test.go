@@ -100,6 +100,28 @@ func TestToolsRegistered(t *testing.T) {
 	}
 }
 
+func TestListProjectsCarriesOpenTasks(t *testing.T) {
+	cs := connect(t, newTestService(t))
+
+	var p projectOut
+	callJSON(t, cs, "create_project", map[string]any{"name": "Garten"}, &p)
+	if p.OpenTasks != 0 {
+		t.Errorf("new project: open_tasks = %d, want 0", p.OpenTasks)
+	}
+	callJSON(t, cs, "create_task", map[string]any{"title": "a", "project_id": p.ID}, nil)
+	var done taskOut
+	callJSON(t, cs, "create_task", map[string]any{"title": "b", "project_id": p.ID}, &done)
+	callJSON(t, cs, "complete_task", map[string]any{"id": done.ID}, nil)
+
+	var list projectsOutput
+	callJSON(t, cs, "list_projects", map[string]any{}, &list)
+	for _, got := range list.Projects {
+		if got.ID == p.ID && got.OpenTasks != 1 {
+			t.Errorf("open_tasks = %d, want 1", got.OpenTasks)
+		}
+	}
+}
+
 func TestCreateAndListTask(t *testing.T) {
 	cs := connect(t, newTestService(t))
 

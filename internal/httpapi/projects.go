@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/till/todo/internal/domain"
 	"github.com/till/todo/internal/service"
 )
 
@@ -22,6 +23,17 @@ type projectPatchReq struct {
 	Color       *string `json:"color"`
 }
 
+// writeProject answers with one project and its open task count, like
+// writeEpic does for epics: every project response carries the same shape.
+func (h *Handler) writeProject(w http.ResponseWriter, r *http.Request, p *domain.Project, status int) {
+	counts, err := h.svc.ProjectOpenCounts(r.Context())
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, status, toProjectDTO(p, counts[p.ID]))
+}
+
 func (h *Handler) handleListProjects(w http.ResponseWriter, r *http.Request) {
 	includeArchived := r.URL.Query().Get("include_archived") == "true"
 	ps, err := h.svc.ListProjects(r.Context(), includeArchived)
@@ -29,9 +41,14 @@ func (h *Handler) handleListProjects(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
+	counts, err := h.svc.ProjectOpenCounts(r.Context())
+	if err != nil {
+		writeError(w, err)
+		return
+	}
 	out := make([]projectDTO, 0, len(ps))
 	for _, p := range ps {
-		out = append(out, toProjectDTO(p))
+		out = append(out, toProjectDTO(p, counts[p.ID]))
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -49,7 +66,7 @@ func (h *Handler) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, toProjectDTO(p))
+	h.writeProject(w, r, p, http.StatusCreated)
 }
 
 func (h *Handler) handleGetProject(w http.ResponseWriter, r *http.Request) {
@@ -59,7 +76,7 @@ func (h *Handler) handleGetProject(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, toProjectDTO(p))
+	h.writeProject(w, r, p, http.StatusOK)
 }
 
 func (h *Handler) handlePatchProject(w http.ResponseWriter, r *http.Request) {
@@ -76,7 +93,7 @@ func (h *Handler) handlePatchProject(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, toProjectDTO(p))
+	h.writeProject(w, r, p, http.StatusOK)
 }
 
 func (h *Handler) handleDeleteProject(w http.ResponseWriter, r *http.Request) {
