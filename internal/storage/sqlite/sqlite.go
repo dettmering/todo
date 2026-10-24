@@ -141,6 +141,9 @@ var migrations = []migrationStep{
 	{23, `CREATE INDEX IF NOT EXISTS idx_tasks_epic_status ON tasks(epic_id, status);`},
 	// CountOpen: SEARCH tasks USING COVERING INDEX idx_tasks_open_counts (status=?).
 	{24, `CREATE INDEX IF NOT EXISTS idx_tasks_open_counts ON tasks(status, project_id, epic_id, visible_from);`},
+	// Eisenhower matrix: urgency is the second axis next to priority, on the
+	// same 1..4 scale. Existing tasks start as "not urgent".
+	{25, `ALTER TABLE tasks ADD COLUMN urgency INTEGER NOT NULL DEFAULT 4;`},
 }
 
 func (s *Store) migrate() error {

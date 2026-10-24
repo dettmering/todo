@@ -136,6 +136,7 @@ type Task struct {
 	EpicID         string
 	Status         TaskStatus
 	Priority       Priority
+	Urgency        Urgency        // Eisenhower axis next to Priority, see eisenhower.go
 	VisibleFrom    LocalDate      // when the task starts appearing in the list
 	Deadline       LocalDate      // when it must be done
 	RecurrenceRule string         // RRULE-compatible, empty if not recurring

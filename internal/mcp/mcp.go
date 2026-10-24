@@ -202,6 +202,8 @@ type taskOut struct {
 	EpicID           string `json:"epic_id,omitempty"`
 	Status           string `json:"status"`
 	Priority         int    `json:"priority"`
+	Urgency          int    `json:"urgency"`
+	Quadrant         string `json:"quadrant"`
 	VisibleFrom      string `json:"visible_from,omitempty"`
 	Deadline         string `json:"deadline,omitempty"`
 	RecurrenceRule   string `json:"recurrence_rule,omitempty"`
@@ -223,6 +225,8 @@ func toTaskOut(t *domain.Task, projectName string) taskOut {
 		EpicID:           t.EpicID,
 		Status:           string(t.Status),
 		Priority:         int(t.Priority),
+		Urgency:          int(t.Urgency),
+		Quadrant:         string(t.Quadrant()),
 		VisibleFrom:      t.VisibleFrom.String(),
 		Deadline:         t.Deadline.String(),
 		RecurrenceRule:   t.RecurrenceRule,
@@ -398,7 +402,8 @@ type createTaskInput struct {
 	Description      string `json:"description,omitempty"`
 	ProjectID        string `json:"project_id,omitempty" jsonschema:"target project id; defaults to inbox"`
 	EpicID           string `json:"epic_id,omitempty" jsonschema:"link the task to this epic; the task is moved into the epic's project"`
-	Priority         int    `json:"priority,omitempty" jsonschema:"1 (highest) to 4 (lowest); defaults to 4"`
+	Priority         int    `json:"priority,omitempty" jsonschema:"importance, 1 (highest) to 4 (lowest); defaults to 4"`
+	Urgency          int    `json:"urgency,omitempty" jsonschema:"Eisenhower urgency, 1 (most urgent) to 4 (least); defaults to 4"`
 	VisibleFrom      string `json:"visible_from,omitempty" jsonschema:"ISO date or German phrase; when the task starts appearing"`
 	Deadline         string `json:"deadline,omitempty" jsonschema:"ISO date or German phrase; when the task is due"`
 	RecurrenceRule   string `json:"recurrence_rule,omitempty" jsonschema:"RRULE, e.g. FREQ=WEEKLY;BYDAY=MO"`
@@ -425,6 +430,7 @@ func (s *server) createTask(ctx context.Context, _ *mcp.CallToolRequest, in crea
 		ProjectID:        in.ProjectID,
 		EpicID:           in.EpicID,
 		Priority:         domain.Priority(in.Priority),
+		Urgency:          domain.Urgency(in.Urgency),
 		VisibleFrom:      vf,
 		Deadline:         dl,
 		RecurrenceRule:   in.RecurrenceRule,
@@ -443,7 +449,9 @@ type updateTaskInput struct {
 	Description      *string `json:"description,omitempty"`
 	ProjectID        *string `json:"project_id,omitempty"`
 	EpicID           *string `json:"epic_id,omitempty" jsonschema:"epic to link the task to; the task moves into that epic's project. Empty string clears the link"`
-	Priority         *int    `json:"priority,omitempty" jsonschema:"1 (highest) to 4 (lowest)"`
+	Priority         *int    `json:"priority,omitempty" jsonschema:"importance, 1 (highest) to 4 (lowest)"`
+	Urgency          *int    `json:"urgency,omitempty" jsonschema:"Eisenhower urgency, 1 (most urgent) to 4 (least)"`
+	Quadrant         *string `json:"quadrant,omitempty" jsonschema:"move into an Eisenhower quadrant (do, schedule, delegate, eliminate) by adjusting priority/urgency minimally; not combinable with priority or urgency"`
 	VisibleFrom      *string `json:"visible_from,omitempty" jsonschema:"ISO date or German phrase; empty string clears it"`
 	Deadline         *string `json:"deadline,omitempty" jsonschema:"ISO date or German phrase; empty string clears it"`
 	RecurrenceRule   *string `json:"recurrence_rule,omitempty"`
@@ -473,6 +481,14 @@ func (s *server) updateTask(ctx context.Context, _ *mcp.CallToolRequest, in upda
 	if in.Priority != nil {
 		p := domain.Priority(*in.Priority)
 		patch.Priority = &p
+	}
+	if in.Urgency != nil {
+		u := domain.Urgency(*in.Urgency)
+		patch.Urgency = &u
+	}
+	if in.Quadrant != nil {
+		q := domain.Quadrant(*in.Quadrant)
+		patch.Quadrant = &q
 	}
 	if in.VisibleFrom != nil {
 		d, err := parseDateInput(*in.VisibleFrom)

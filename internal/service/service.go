@@ -65,6 +65,7 @@ type TaskInput struct {
 	ProjectID        string
 	EpicID           string
 	Priority         domain.Priority
+	Urgency          domain.Urgency
 	VisibleFrom      domain.LocalDate
 	Deadline         domain.LocalDate
 	RecurrenceRule   string
@@ -140,6 +141,13 @@ func (s *Service) CreateTask(ctx context.Context, in TaskInput) (*domain.Task, e
 	if !in.Priority.Valid() {
 		return nil, fmt.Errorf("%w: priority must be 1..4", ErrValidation)
 	}
+	// Like priority, an unset urgency means the lowest step.
+	if in.Urgency == 0 {
+		in.Urgency = domain.U4
+	}
+	if !in.Urgency.Valid() {
+		return nil, fmt.Errorf("%w: urgency must be 1..4", ErrValidation)
+	}
 	rec, err := normalizeRecurrence(recurrenceFields{
 		Rule: in.RecurrenceRule, Mode: in.RecurrenceMode, Anchor: in.RecurrenceAnchor,
 	}, in.VisibleFrom)
@@ -156,6 +164,7 @@ func (s *Service) CreateTask(ctx context.Context, in TaskInput) (*domain.Task, e
 		EpicID:           in.EpicID,
 		Status:           domain.StatusOpen,
 		Priority:         in.Priority,
+		Urgency:          in.Urgency,
 		VisibleFrom:      in.VisibleFrom,
 		Deadline:         in.Deadline,
 		RecurrenceRule:   rec.Rule,
@@ -174,11 +183,16 @@ func (s *Service) CreateTask(ctx context.Context, in TaskInput) (*domain.Task, e
 
 // TaskPatch carries optional updates; nil pointer = leave field unchanged.
 type TaskPatch struct {
-	Title            *string
-	Description      *string
-	ProjectID        *string
-	EpicID           *string
-	Priority         *domain.Priority
+	Title       *string
+	Description *string
+	ProjectID   *string
+	EpicID      *string
+	Priority    *domain.Priority
+	Urgency     *domain.Urgency
+	// Quadrant moves the task into an Eisenhower cell by adjusting priority
+	// and urgency as little as needed (domain.MoveToQuadrant). It cannot be
+	// combined with Priority or Urgency in the same patch.
+	Quadrant         *domain.Quadrant
 	VisibleFrom      *domain.LocalDate
 	Deadline         *domain.LocalDate
 	RecurrenceRule   *string
@@ -196,6 +210,7 @@ func (s *Service) UpdateTask(ctx context.Context, id string, p TaskPatch) (*doma
 	oldProjectID := t.ProjectID
 	oldEpicID := t.EpicID
 	oldPriority := t.Priority
+	oldUrgency := t.Urgency
 
 	if p.Title != nil {
 		title := strings.TrimSpace(*p.Title)
@@ -240,6 +255,21 @@ func (s *Service) UpdateTask(ctx context.Context, id string, p TaskPatch) (*doma
 		}
 		t.Priority = *p.Priority
 	}
+	if p.Urgency != nil {
+		if !p.Urgency.Valid() {
+			return nil, fmt.Errorf("%w: urgency must be 1..4", ErrValidation)
+		}
+		t.Urgency = *p.Urgency
+	}
+	if p.Quadrant != nil {
+		if p.Priority != nil || p.Urgency != nil {
+			return nil, fmt.Errorf("%w: quadrant cannot be combined with priority or urgency", ErrValidation)
+		}
+		if !p.Quadrant.Valid() {
+			return nil, fmt.Errorf("%w: quadrant must be do, schedule, delegate or eliminate", ErrValidation)
+		}
+		t.Priority, t.Urgency = domain.MoveToQuadrant(t.Priority, t.Urgency, *p.Quadrant)
+	}
 	if p.VisibleFrom != nil {
 		t.VisibleFrom = *p.VisibleFrom
 	}
@@ -281,6 +311,7 @@ func (s *Service) UpdateTask(ctx context.Context, id string, p TaskPatch) (*doma
 	projectChanged := t.ProjectID != oldProjectID
 	epicChanged := t.EpicID != oldEpicID
 	priorityChanged := t.Priority != oldPriority
+	urgencyChanged := t.Urgency != oldUrgency
 
 	if rescheduled {
 		s.auditDateChange(ctx, t, domain.AuditVisibleFromSet, domain.AuditVisibleFromCleared, domain.AuditVisibleFromChanged, oldVisibleFrom, t.VisibleFrom, now)
@@ -296,6 +327,9 @@ func (s *Service) UpdateTask(ctx context.Context, id string, p TaskPatch) (*doma
 	}
 	if priorityChanged {
 		s.writeAudit(ctx, t, domain.AuditPriorityChanged, priorityLabel(oldPriority), priorityLabel(t.Priority), now)
+	}
+	if urgencyChanged {
+		s.writeAudit(ctx, t, domain.AuditUrgencyChanged, urgencyLabel(oldUrgency), urgencyLabel(t.Urgency), now)
 	}
 
 	s.bus.Publish(ctx, events.TaskUpdated, t)
@@ -421,6 +455,7 @@ func (s *Service) spawnNextInstance(ctx context.Context, prev *domain.Task, now 
 		EpicID:         prev.EpicID,
 		Status:         domain.StatusOpen,
 		Priority:       prev.Priority,
+		Urgency:        prev.Urgency,
 		VisibleFrom:    nextVisible,
 		Deadline:       nextDeadline,
 		RecurrenceRule: prev.RecurrenceRule,
@@ -663,6 +698,11 @@ func (s *Service) projectNameOrID(ctx context.Context, id string) string {
 // priorityLabel renders a priority as "P1".."P4" for audit display.
 func priorityLabel(p domain.Priority) string {
 	return fmt.Sprintf("P%d", int(p))
+}
+
+// urgencyLabel renders an urgency as "D1".."D4" (Dringlichkeit) for audit display.
+func urgencyLabel(u domain.Urgency) string {
+	return fmt.Sprintf("D%d", int(u))
 }
 
 // ListAudit returns audit entries matching the given filter.

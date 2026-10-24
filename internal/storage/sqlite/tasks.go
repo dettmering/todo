@@ -14,15 +14,15 @@ import (
 
 type TaskRepo struct{ db *sql.DB }
 
-const taskCols = `id, title, description, project_id, epic_id, status, priority,
+const taskCols = `id, title, description, project_id, epic_id, status, priority, urgency,
 	visible_from, deadline, recurrence_rule, recurrence_mode, recurrence_anchor,
 	created_at, updated_at, completed_at`
 
 func (r *TaskRepo) Create(ctx context.Context, t *domain.Task) error {
 	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO tasks (`+taskCols+`)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		t.ID, t.Title, t.Description, t.ProjectID, t.EpicID, string(t.Status), int(t.Priority),
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		t.ID, t.Title, t.Description, t.ProjectID, t.EpicID, string(t.Status), int(t.Priority), int(t.Urgency),
 		t.VisibleFrom.String(), t.Deadline.String(), t.RecurrenceRule, string(t.RecurrenceMode),
 		t.RecurrenceAnchor.String(),
 		timeString(t.CreatedAt), timeString(t.UpdatedAt), nullableTime(t.CompletedAt),
@@ -42,11 +42,11 @@ func (r *TaskRepo) Get(ctx context.Context, id string) (*domain.Task, error) {
 func (r *TaskRepo) Update(ctx context.Context, t *domain.Task) error {
 	res, err := r.db.ExecContext(ctx,
 		`UPDATE tasks
-		   SET title = ?, description = ?, project_id = ?, epic_id = ?, status = ?, priority = ?,
+		   SET title = ?, description = ?, project_id = ?, epic_id = ?, status = ?, priority = ?, urgency = ?,
 		       visible_from = ?, deadline = ?, recurrence_rule = ?, recurrence_mode = ?,
 		       recurrence_anchor = ?, updated_at = ?, completed_at = ?
 		 WHERE id = ?`,
-		t.Title, t.Description, t.ProjectID, t.EpicID, string(t.Status), int(t.Priority),
+		t.Title, t.Description, t.ProjectID, t.EpicID, string(t.Status), int(t.Priority), int(t.Urgency),
 		t.VisibleFrom.String(), t.Deadline.String(), t.RecurrenceRule, string(t.RecurrenceMode),
 		t.RecurrenceAnchor.String(), timeString(t.UpdatedAt), nullableTime(t.CompletedAt), t.ID,
 	)
@@ -174,7 +174,7 @@ func scanTask(s rowScanner) (*domain.Task, error) {
 	var (
 		t                     domain.Task
 		status                string
-		priority              int
+		priority, urgency     int
 		visibleFrom, deadline string
 		recurrenceMode        string
 		recurrenceAnchor      string
@@ -182,7 +182,7 @@ func scanTask(s rowScanner) (*domain.Task, error) {
 		completedAt           sql.NullString
 	)
 	if err := s.Scan(
-		&t.ID, &t.Title, &t.Description, &t.ProjectID, &t.EpicID, &status, &priority,
+		&t.ID, &t.Title, &t.Description, &t.ProjectID, &t.EpicID, &status, &priority, &urgency,
 		&visibleFrom, &deadline, &t.RecurrenceRule, &recurrenceMode, &recurrenceAnchor,
 		&createdAt, &updatedAt, &completedAt,
 	); err != nil {
@@ -190,6 +190,7 @@ func scanTask(s rowScanner) (*domain.Task, error) {
 	}
 	t.Status = domain.TaskStatus(status)
 	t.Priority = domain.Priority(priority)
+	t.Urgency = domain.Urgency(urgency)
 	t.RecurrenceMode = domain.RecurrenceMode(recurrenceMode)
 	var err error
 	if t.VisibleFrom, err = domain.ParseDate(visibleFrom); err != nil {

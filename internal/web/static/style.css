@@ -1625,6 +1625,96 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
 
 /* Tablet hochkant (iPad Air ~820px, iPad Pro ~1024px): Desktop-Grid bleibt,
    aber die Sidebar-Spalte ist ~1cm schmaler als am Desktop. */
+/* ---------- Eisenhower-Matrix (Styleguide 7.12) ----------
+   Vier Flächen in einem Raster, die Achsen stehen als Mono-Rubriken am Rand.
+   Laut ist nur "Sofort erledigen": es ist das "jetzt" dieser Ansicht und
+   trägt deshalb als einzige Zelle die Registermarke und die Prozessfarbe. */
+.main.is-wide { padding-left: max(60px, (100% - 1120px) / 2); padding-right: max(60px, (100% - 1120px) / 2); }
+.matrix {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  grid-template-rows: auto 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+.matrix-axis {
+  display: flex;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.matrix-axis-x { grid-column: 2; grid-row: 1; }
+.matrix-axis-x span { flex: 1; text-align: center; }
+.matrix-axis-y {
+  grid-column: 1; grid-row: 2;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  flex-direction: row-reverse;
+}
+.matrix-axis-y span { flex: 1; text-align: center; }
+.matrix-grid {
+  grid-column: 2; grid-row: 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-auto-rows: minmax(220px, auto);
+  gap: 12px;
+}
+.matrix-cell {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px 12px;
+  min-width: 0;
+  transition: border-color .12s, background .12s;
+}
+.matrix-cell.drop-target {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+.matrix-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-strong);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.matrix-head .matrix-title { flex: 1; }
+.matrix-head .matrix-count { font-weight: 400; color: var(--text-muted); }
+.matrix-cell[data-quadrant="do"] .matrix-head { color: var(--accent); border-bottom-color: var(--accent-line); }
+.matrix-cell[data-quadrant="do"] .matrix-head::before {
+  content: ""; width: 8px; height: 8px; background: var(--accent-line); flex: none;
+}
+.matrix-cell[data-quadrant="do"] .matrix-count { color: var(--accent); }
+.matrix-cell[data-quadrant="eliminate"] .matrix-head { color: var(--text-secondary); }
+.matrix-cell.is-empty .matrix-list::after {
+  content: "Ziehe Aufgaben hierher";
+  display: block;
+  padding: 18px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.matrix-list .task { cursor: grab; }
+.matrix-list .task:last-child { border-bottom: none; }
+.matrix-list .task.dragging { opacity: 0.4; }
+.matrix-list .task-project { display: none; }
+.task .date-item.urgency {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+.task .date-item.urgency.u1 { color: var(--p1); }
+.task .date-item.urgency.u2 { color: var(--p2); }
+
 @media (min-width: 721px) and (max-width: 1024px) {
   .app { grid-template-columns: 242px 1fr; }
 }
@@ -1633,6 +1723,10 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
   /* ---------- Layout ---------- */
   .app { grid-template-columns: 1fr; }
   .main { padding: 16px 16px 96px; max-width: none; }
+  .main.is-wide { padding-left: 16px; padding-right: 16px; }
+  .matrix { grid-template-columns: 1fr; }
+  .matrix-axis { display: none; }
+  .matrix-grid { grid-column: 1; grid-template-columns: 1fr; grid-auto-rows: auto; }
   .main-header { margin: 0 0 16px; }
   .main-header h1 { font-size: 25px; }
 

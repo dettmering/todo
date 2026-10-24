@@ -211,7 +211,8 @@ Body:
 | `description` | string | | `""` | Markdown wird im Frontend gerendert |
 | `project_id` | string | | `"inbox"` | unbekannte ID ⇒ 400; wird von `epic_id` überstimmt |
 | `epic_id` | string | | `""` | Epic, zu dem der Task gehört. Setzt `project_id` auf das Projekt des Epics. Unbekanntes, beendetes oder archiviertes Epic ⇒ 400 |
-| `priority` | int | | `4` | `1`–`4`; `0` wird auf `4` gesetzt |
+| `priority` | int | | `4` | Wichtigkeit, `1`–`4`; `0` wird auf `4` gesetzt |
+| `urgency` | int | | `4` | Dringlichkeit, `1` (am dringendsten) – `4`; `0` wird auf `4` gesetzt. Zweite Achse der [Eisenhower-Matrix](#eisenhower-matrix) |
 | `visible_from` | string | | `""` | ISO-Datum **oder** deutsche NL-Phrase |
 | `deadline` | string | | `""` | ISO-Datum **oder** deutsche NL-Phrase |
 | `recurrence_rule` | string | | `""` | RRULE-Subset, siehe [Wiederholungen](#wiederholungen) |
@@ -250,9 +251,14 @@ unverändert. **Ein explizit gesetzter Leerstring** (z. B. `"deadline": ""`)
 löscht das Datum.
 
 Akzeptierte Felder: `title`, `description`, `project_id`, `priority`,
-`visible_from`, `deadline`, `recurrence_rule`, `recurrence_mode`,
-`recurrence_anchor`. Selbe Validierungen wie bei
+`urgency`, `quadrant`, `visible_from`, `deadline`, `recurrence_rule`,
+`recurrence_mode`, `recurrence_anchor`. Selbe Validierungen wie bei
 `POST`.
+
+`quadrant` (`do`, `schedule`, `delegate`, `eliminate`) verschiebt den Task in
+ein Feld der [Eisenhower-Matrix](#eisenhower-matrix), indem `priority` und
+`urgency` so wenig wie möglich geändert werden. Es lässt sich nicht mit
+`priority` oder `urgency` im selben Request kombinieren (400).
 
 ```bash
 # Nur Titel umbenennen
@@ -264,10 +270,34 @@ curl -X PATCH http://localhost:8080/api/tasks/task_abc... \
 curl -X PATCH http://localhost:8080/api/tasks/task_abc... \
   -H 'Content-Type: application/json' \
   -d '{"deadline": ""}'
+
+# In "Einplanen" ziehen (wichtig, nicht dringend)
+curl -X PATCH http://localhost:8080/api/tasks/task_abc... \
+  -H 'Content-Type: application/json' \
+  -d '{"quadrant": "schedule"}'
 ```
 
 Ein geänderter `visible_from` löst zusätzlich ein `task.rescheduled`-Event aus,
 ein geänderter `deadline` ein `task.deadline_changed`-Event.
+
+#### Eisenhower-Matrix
+
+Jeder Task trägt zwei unabhängige Bewertungen auf derselben Skala 1–4:
+`priority` (Wichtigkeit) und `urgency` (Dringlichkeit). Die obere Hälfte jeder
+Skala (1–2) zählt als wichtig bzw. dringend. Daraus leitet der Server das
+schreibgeschützte Feld `quadrant` ab:
+
+| `quadrant` | wichtig (`priority` ≤ 2) | dringend (`urgency` ≤ 2) | Bedeutung |
+| --- | --- | --- | --- |
+| `do` | ✓ | ✓ | sofort erledigen |
+| `schedule` | ✓ | | einplanen |
+| `delegate` | | ✓ | delegieren |
+| `eliminate` | | | streichen |
+
+Die Dringlichkeit wird von Hand gesetzt, nicht aus der `deadline` abgeleitet.
+Ein `PATCH` mit `quadrant` behält eine Bewertung, die schon auf der richtigen
+Seite liegt (ein P1 bleibt P1), und setzt eine, die die Seite wechseln muss,
+auf die Stufe direkt an der Mitte (2 bzw. 3).
 
 #### `POST /api/tasks/{id}/complete`
 
@@ -276,7 +306,7 @@ Aufruf liefert den Task unverändert).
 
 **Wenn der Task eine `recurrence_rule` hat**, wird automatisch eine neue offene
 Folge-Instanz angelegt. Sie erbt Titel, Beschreibung, Projekt, Priorität,
-Recurrence (Regel **und** Modus) und die Deadline-Spanne. Woher ihr
+Dringlichkeit, Recurrence (Regel **und** Modus) und die Deadline-Spanne. Woher ihr
 `visible_from` kommt, entscheidet `recurrence_mode`:
 
 - **`fixed`** (Default): nächste Regel-Belegung nach dem **`recurrence_anchor`**
@@ -316,6 +346,8 @@ Soft-Delete: `status = "deleted"`. Antwort: `204 No Content`.
   "epic_title": "Küche renovieren",
   "status": "open",
   "priority": 2,
+  "urgency": 1,
+  "quadrant": "do",
   "visible_from": "2026-05-23",
   "deadline": "2026-05-27",
   "recurrence_rule": "FREQ=YEARLY;BYMONTH=5;BYMONTHDAY=27",
@@ -445,7 +477,7 @@ Antwort: `200 OK`
 Das Audit-Log protokolliert Task-Änderungen. Einträge werden von der
 Service-Schicht geschrieben — bei `create`, `complete`, `reopen`, `delete`,
 beim Recurrence-Spawn sowie bei `PATCH`-Änderungen an `visible_from`,
-`deadline`, `project_id` und `priority`. Titel- und Beschreibungsänderungen
+`deadline`, `project_id`, `priority` und `urgency`. Titel- und Beschreibungsänderungen
 werden **nicht** protokolliert. Das Log ist append-only und wird nie
 aufgeräumt.
 
@@ -504,6 +536,7 @@ opake Strings, deren Bedeutung von `action` abhängt:
 | `deadline_set`, `deadline_cleared`, `deadline_changed` | `YYYY-MM-DD` bzw. leer |
 | `project_changed` | Projekt**name** (Snapshot), nicht die ID |
 | `priority_changed` | `"P1"` … `"P4"` |
+| `urgency_changed` | `"D1"` … `"D4"` (Dringlichkeit) |
 
 ---
 

@@ -44,6 +44,12 @@
           <span class="nav-label">Inbox</span>
           <span class="nav-count" id="inbox-count"></span>
         </a>
+        <a class="nav-item" data-view="matrix" href="/matrix">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 3v18"/><path d="M3 12h18"/></svg>
+          </span>
+          <span class="nav-label">Matrix</span>
+        </a>
         <a class="nav-item" data-view="activity" href="/activity">
           <span class="nav-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 10 9 10"/><polyline points="12 7 12 12 15 14"/></svg>
@@ -124,6 +130,33 @@
 
       <ul class="task-list" id="task-list"></ul>
       <div id="empty-state" class="empty hidden">Keine offenen Aufgaben.</div>
+
+      <section class="matrix hidden" id="matrix-view" aria-label="Eisenhower-Matrix">
+        <div class="matrix-axis matrix-axis-x" aria-hidden="true">
+          <span>dringend</span><span>nicht dringend</span>
+        </div>
+        <div class="matrix-axis matrix-axis-y" aria-hidden="true">
+          <span>wichtig</span><span>nicht wichtig</span>
+        </div>
+        <div class="matrix-grid">
+          <div class="matrix-cell" data-quadrant="do">
+            <div class="matrix-head"><span class="matrix-title">Sofort erledigen</span><span class="matrix-count"></span></div>
+            <ul class="task-list matrix-list"></ul>
+          </div>
+          <div class="matrix-cell" data-quadrant="schedule">
+            <div class="matrix-head"><span class="matrix-title">Einplanen</span><span class="matrix-count"></span></div>
+            <ul class="task-list matrix-list"></ul>
+          </div>
+          <div class="matrix-cell" data-quadrant="delegate">
+            <div class="matrix-head"><span class="matrix-title">Delegieren</span><span class="matrix-count"></span></div>
+            <ul class="task-list matrix-list"></ul>
+          </div>
+          <div class="matrix-cell" data-quadrant="eliminate">
+            <div class="matrix-head"><span class="matrix-title">Streichen</span><span class="matrix-count"></span></div>
+            <ul class="task-list matrix-list"></ul>
+          </div>
+        </div>
+      </section>
 
       <section class="activity hidden" id="activity-view">
         <div class="activity-controls">
@@ -330,6 +363,17 @@
             <button type="button" class="td-prio p4" data-priority="4">P4</button>
           </div>
           <input type="hidden" id="td-priority" value="4" />
+        </div>
+
+        <div class="td-field">
+          <div class="td-field-label">Dringlichkeit</div>
+          <div class="td-priority-buttons" id="td-urgency-buttons">
+            <button type="button" class="td-prio p1" data-urgency="1">D1</button>
+            <button type="button" class="td-prio p2" data-urgency="2">D2</button>
+            <button type="button" class="td-prio p3" data-urgency="3">D3</button>
+            <button type="button" class="td-prio p4" data-urgency="4">D4</button>
+          </div>
+          <input type="hidden" id="td-urgency" value="4" />
         </div>
 
         <div class="td-field hidden" id="td-epic-field">

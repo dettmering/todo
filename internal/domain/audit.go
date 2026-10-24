@@ -19,6 +19,7 @@ const (
 	AuditProjectChanged     AuditAction = "project_changed"
 	AuditEpicChanged        AuditAction = "epic_changed"
 	AuditPriorityChanged    AuditAction = "priority_changed"
+	AuditUrgencyChanged     AuditAction = "urgency_changed"
 )
 
 // AuditEntry is one row in the audit log. OldValue/NewValue are opaque strings
@@ -28,6 +29,7 @@ const (
 //   - project_changed: project name (snapshot at audit time)
 //   - epic_changed: epic title (snapshot at audit time), "" for none
 //   - priority_changed: priority as "P1".."P4"
+//   - urgency_changed: urgency as "D1".."D4" (Dringlichkeit)
 //   - created/completed/reopened/deleted: both empty
 //
 // TaskTitle is snapshotted so the log keeps meaning even when the task title

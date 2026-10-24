@@ -286,7 +286,7 @@ const state = {
   epics: [], // all of them incl. archived, so old labels still resolve
   absences: [], // loaded on demand when the absences view is open
   shareLinks: null, // { share_url?, ical_url? } from /api/share-links, fetched once
-  view: { kind: "today" }, // or { kind: "project", id }, { kind: "epic", id }, { kind: "upcoming" }, { kind: "activity" }, { kind: "absences" }
+  view: { kind: "today" }, // or { kind: "project", id }, { kind: "epic", id }, { kind: "upcoming" }, { kind: "matrix" }, { kind: "activity" }, { kind: "absences" }
   openCounts: {}, // project_id -> number of open tasks
   epicCounts: {}, // epic_id -> number of open tasks
   activity: { from: null, to: null }, // ISO date range for the activity view
@@ -310,6 +310,7 @@ function parsePath(pathname) {
   if (trimmed === "/upcoming") return { view: { kind: "upcoming" } };
   if (trimmed === "/inbox") return { view: { kind: "inbox" } };
   if (trimmed === "/activity") return { view: { kind: "activity" } };
+  if (trimmed === "/matrix") return { view: { kind: "matrix" } };
   if (trimmed === "/absences") return { view: { kind: "absences" } };
   const proj = trimmed.match(/^\/projects\/([^\/]+)$/);
   if (proj) return { view: { kind: "project", slug: decodeURIComponent(proj[1]) } };
@@ -327,6 +328,7 @@ function viewToPath(view) {
     case "inbox":    return "/inbox";
     case "activity": return "/activity";
     case "absences": return "/absences";
+    case "matrix":   return "/matrix";
     case "project": {
       const p = projectById(view.id);
       const slug = p && p.slug ? p.slug : view.id;
@@ -749,6 +751,7 @@ function viewTitle() {
     case "inbox": return "Inbox";
     case "activity": return "Aktivität";
     case "absences": return "Abwesenheiten";
+    case "matrix": return "Eisenhower-Matrix";
     case "project": {
       const p = state.projects.find(p => p.id === state.view.id);
       return p ? p.name : "Projekt";
@@ -774,6 +777,10 @@ function buildTaskQuery() {
       return { status: "open", scope: "all", project_id: state.view.id, sort: "priority" };
     case "epic":
       return { status: "open", scope: "all", epic_id: state.view.id, sort: "priority" };
+    case "matrix":
+      // Like "Heute": only what is visible today. A task planned for next
+      // month has no place yet in the question "what do I do now?".
+      return { status: "open", sort: "priority" };
   }
   return {};
 }
@@ -810,6 +817,7 @@ function renderViewChrome() {
   switch (state.view.kind) {
     case "absences": setMainSection("absences"); break;
     case "activity": setMainSection("activity"); break;
+    case "matrix":   setMainSection("matrix"); break;
     default:         setMainSection("tasks"); break;
   }
 
@@ -827,13 +835,19 @@ function renderViewChrome() {
 // showing the other after the fetch.
 function setMainSection(section) {
   const tasks = section === "tasks";
+  const matrix = section === "matrix";
   const qa = document.querySelector(".quick-add");
   const list = document.getElementById("task-list");
   const empty = document.getElementById("empty-state");
   const activity = document.getElementById("activity-view");
   const absences = document.getElementById("absences-view");
-  if (qa) qa.classList.toggle("hidden", !tasks);
+  const matrixView = document.getElementById("matrix-view");
+  // The matrix keeps the quick-add: a new task lands in "Streichen" (P4/D4)
+  // and gets dragged to where it belongs.
+  if (qa) qa.classList.toggle("hidden", !tasks && !matrix);
   if (list) list.classList.toggle("hidden", !tasks);
+  if (matrixView) matrixView.classList.toggle("hidden", !matrix);
+  document.querySelector(".main").classList.toggle("is-wide", matrix);
   // The empty state belongs to the task list; renderTasks decides whether it
   // comes back.
   if (empty && !tasks) empty.classList.add("hidden");
@@ -874,6 +888,14 @@ async function refresh({ epicsAreFresh = false } = {}) {
     applySidebarCounts(await api.counts());
     renderSidebar();
     await renderActivity();
+    return;
+  }
+
+  if (state.view.kind === "matrix") {
+    const [tasks, counts] = await Promise.all([api.listTasks(buildTaskQuery()), api.counts()]);
+    applySidebarCounts(counts);
+    renderSidebar();
+    renderMatrix(tasks);
     return;
   }
 
@@ -1424,6 +1446,7 @@ const ACTIVITY_LABEL = {
   deadline_changed:      "Deadline geändert",
   project_changed:       "Projekt geändert",
   priority_changed:      "Priorität geändert",
+  urgency_changed:       "Dringlichkeit geändert",
   epic_changed:          "Epic gewechselt",
 };
 
@@ -1459,6 +1482,7 @@ function activityIconFor(action) {
   if (action.startsWith("deadline"))     return { svg: ACTIVITY_ICON.deadline, cls: "deadline" };
   if (action === "project_changed")      return { svg: ACTIVITY_ICON.project, cls: "project" };
   if (action === "priority_changed")     return { svg: ACTIVITY_ICON.priority, cls: "priority" };
+  if (action === "urgency_changed")      return { svg: ACTIVITY_ICON.priority, cls: "priority" };
   if (action === "epic_changed")         return { svg: ACTIVITY_ICON.epic, cls: "project" };
   return { svg: ACTIVITY_ICON.date, cls: "" };
 }
@@ -1793,6 +1817,11 @@ function createTaskLI(t, today) {
     const overdue = t.deadline < today;
     dateParts.push(`<span class="date-item ${overdue ? "overdue" : "deadline"}">${ICON.flag}<span>${escapeHTML(smartDateLabel(t.deadline))}</span></span>`);
   }
+  // Urgency only speaks up when it is on the urgent half of the scale — or in
+  // the matrix, where the exact step is what decides the order in a cell.
+  if (t.urgency && (t.urgency <= 2 || state.view.kind === "matrix")) {
+    dateParts.push(`<span class="date-item urgency u${t.urgency}" title="Dringlichkeit D${t.urgency}">D${t.urgency}</span>`);
+  }
   if (t.recurrence_label) {
     dateParts.push(`<span class="date-item recur-label">${ICON.repeat}<span>${escapeHTML(t.recurrence_label)}</span></span>`);
   }
@@ -1893,6 +1922,78 @@ function renderTasks(tasks, completedToday = []) {
     list.appendChild(header);
     for (const t of sorted) list.appendChild(createTaskLI(t, today));
   }
+}
+
+// ---------- Eisenhower matrix ----------
+// Four cells, one per quadrant. The server names each task's quadrant; a drop
+// sends only the target quadrant and lets the service move priority and
+// urgency as little as needed (domain.MoveToQuadrant).
+
+const QUADRANTS = ["do", "schedule", "delegate", "eliminate"];
+
+// Inside a cell: the more urgent first, then the more important, then the
+// earlier deadline — the order in which the cell is worked off.
+function compareMatrixTasks(a, b) {
+  return (a.urgency || 4) - (b.urgency || 4)
+    || a.priority - b.priority
+    || (a.deadline || "9999").localeCompare(b.deadline || "9999")
+    || (a.created_at || "").localeCompare(b.created_at || "");
+}
+
+function renderMatrix(tasks) {
+  const today = todayISO();
+  const byQuadrant = Object.fromEntries(QUADRANTS.map(q => [q, []]));
+  for (const t of tasks || []) (byQuadrant[t.quadrant] || byQuadrant.eliminate).push(t);
+  for (const q of QUADRANTS) {
+    const cell = document.querySelector(`.matrix-cell[data-quadrant="${q}"]`);
+    const list = cell.querySelector(".matrix-list");
+    list.innerHTML = "";
+    const items = byQuadrant[q].sort(compareMatrixTasks);
+    cell.querySelector(".matrix-count").textContent = items.length || "";
+    cell.classList.toggle("is-empty", items.length === 0);
+    for (const t of items) {
+      const li = createTaskLI(t, today);
+      li.draggable = true;
+      li.dataset.taskId = t.id;
+      li.dataset.quadrant = q;
+      li.addEventListener("dragstart", (e) => {
+        e.dataTransfer.setData("text/plain", t.id);
+        e.dataTransfer.effectAllowed = "move";
+        li.classList.add("dragging");
+      });
+      li.addEventListener("dragend", () => li.classList.remove("dragging"));
+      list.appendChild(li);
+    }
+  }
+}
+
+function wireMatrix() {
+  document.querySelectorAll(".matrix-cell").forEach(cell => {
+    cell.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      cell.classList.add("drop-target");
+    });
+    cell.addEventListener("dragleave", (e) => {
+      if (!cell.contains(e.relatedTarget)) cell.classList.remove("drop-target");
+    });
+    cell.addEventListener("drop", async (e) => {
+      e.preventDefault();
+      cell.classList.remove("drop-target");
+      const id = e.dataTransfer.getData("text/plain");
+      const quadrant = cell.dataset.quadrant;
+      const dragged = document.querySelector(`.matrix-list li[data-task-id="${CSS.escape(id)}"]`);
+      if (!id || (dragged && dragged.dataset.quadrant === quadrant)) return;
+      // Move the row right away; the refresh corrects it with the server's
+      // new priority/urgency a moment later.
+      if (dragged) cell.querySelector(".matrix-list").appendChild(dragged);
+      try {
+        await api.patchTask(id, { quadrant });
+      } finally {
+        refresh();
+      }
+    });
+  });
 }
 
 // ---------- Quick add ----------
@@ -2237,6 +2338,14 @@ function updateTaskDialogPriorityButtons(priority) {
   });
 }
 
+// Sync the urgency button group with the current value.
+function updateTaskDialogUrgencyButtons(urgency) {
+  const u = String(urgency || 4);
+  document.querySelectorAll("#td-urgency-buttons .td-prio").forEach(btn => {
+    btn.classList.toggle("selected", btn.dataset.urgency === u);
+  });
+}
+
 // Render user-supplied Markdown to *sanitized* HTML. marked converts Markdown to
 // HTML but does NOT strip embedded raw HTML — the `sanitize` option was removed
 // in marked v8+, so `<img src=x onerror=…>` in a description/comment would pass
@@ -2468,6 +2577,8 @@ function openTaskDialogInternal(t) {
   renderTaskDialogBreadcrumb(t.project_id);
   updateTaskDialogCheckbox(t.priority);
   updateTaskDialogPriorityButtons(t.priority);
+  document.getElementById("td-urgency").value = String(t.urgency || 4);
+  updateTaskDialogUrgencyButtons(t.urgency);
   renderTaskDescription(t.description || "");
   // Make sure the editor is hidden whenever we (re)open the modal.
   document.getElementById("td-description").classList.add("hidden");
@@ -2594,6 +2705,7 @@ function wireTaskDialog() {
       project_id: document.getElementById("td-project").value,
       epic_id: document.getElementById("td-epic").value,
       priority: parseInt(document.getElementById("td-priority").value, 10),
+      urgency: parseInt(document.getElementById("td-urgency").value, 10),
       visible_from: document.getElementById("td-visible-from").value || "",
       deadline: document.getElementById("td-deadline").value || "",
       recurrence_rule: readRecurrence("td-recurrence", "td-recur-custom"),
@@ -2661,6 +2773,13 @@ function wireTaskDialog() {
       document.getElementById("td-priority").value = String(p);
       updateTaskDialogPriorityButtons(p);
       updateTaskDialogCheckbox(p);
+    });
+  });
+  document.querySelectorAll("#td-urgency-buttons .td-prio").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const u = parseInt(btn.dataset.urgency, 10);
+      document.getElementById("td-urgency").value = String(u);
+      updateTaskDialogUrgencyButtons(u);
     });
   });
 
@@ -3070,6 +3189,7 @@ async function boot() {
   wireEpicDialog();
   wireAbsenceDialog();
   wireActivityControls();
+  wireMatrix();
   wireShortcuts();
   window.addEventListener("popstate", () => { handlePopState(); });
   // Three lists the first render needs, and none of them depends on the others:

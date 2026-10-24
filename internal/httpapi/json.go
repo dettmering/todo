@@ -46,6 +46,8 @@ type taskDTO struct {
 	EpicTitle        string       `json:"epic_title,omitempty"`
 	Status           string       `json:"status"`
 	Priority         int          `json:"priority"`
+	Urgency          int          `json:"urgency"`
+	Quadrant         string       `json:"quadrant"`
 	VisibleFrom      string       `json:"visible_from,omitempty"`
 	Deadline         string       `json:"deadline,omitempty"`
 	RecurrenceRule   string       `json:"recurrence_rule,omitempty"`
@@ -86,6 +88,8 @@ func toTaskListDTO(t *domain.Task, projectName, epicTitle string, commentCount i
 		EpicTitle:        epicTitle,
 		Status:           string(t.Status),
 		Priority:         int(t.Priority),
+		Urgency:          int(t.Urgency),
+		Quadrant:         string(t.Quadrant()),
 		VisibleFrom:      t.VisibleFrom.String(),
 		Deadline:         t.Deadline.String(),
 		RecurrenceRule:   t.RecurrenceRule,

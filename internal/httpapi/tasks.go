@@ -67,6 +67,7 @@ type taskCreateReq struct {
 	ProjectID        string `json:"project_id"`
 	EpicID           string `json:"epic_id"`
 	Priority         int    `json:"priority"`
+	Urgency          int    `json:"urgency"`
 	VisibleFrom      string `json:"visible_from"`
 	Deadline         string `json:"deadline"`
 	RecurrenceRule   string `json:"recurrence_rule"`
@@ -309,6 +310,7 @@ func (h *Handler) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		ProjectID:        req.ProjectID,
 		EpicID:           req.EpicID,
 		Priority:         domain.Priority(req.Priority),
+		Urgency:          domain.Urgency(req.Urgency),
 		VisibleFrom:      vf,
 		Deadline:         dl,
 		RecurrenceRule:   req.RecurrenceRule,
@@ -339,6 +341,8 @@ type taskPatchReq struct {
 	ProjectID        *string `json:"project_id"`
 	EpicID           *string `json:"epic_id"`
 	Priority         *int    `json:"priority"`
+	Urgency          *int    `json:"urgency"`
+	Quadrant         *string `json:"quadrant"`
 	VisibleFrom      *string `json:"visible_from"`
 	Deadline         *string `json:"deadline"`
 	RecurrenceRule   *string `json:"recurrence_rule"`
@@ -375,6 +379,14 @@ func (h *Handler) handlePatchTask(w http.ResponseWriter, r *http.Request) {
 	if req.Priority != nil {
 		p := domain.Priority(*req.Priority)
 		patch.Priority = &p
+	}
+	if req.Urgency != nil {
+		u := domain.Urgency(*req.Urgency)
+		patch.Urgency = &u
+	}
+	if req.Quadrant != nil {
+		q := domain.Quadrant(*req.Quadrant)
+		patch.Quadrant = &q
 	}
 	if req.VisibleFrom != nil {
 		d, err := parseDateInput(*req.VisibleFrom)

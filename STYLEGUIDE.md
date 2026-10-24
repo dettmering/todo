@@ -550,6 +550,21 @@ Zeile unter dem Aufgabentitel ist ein Block, in dem Datum, Deadline,
 Wiederholung, Kommentare und Epic denselben Schnitt teilen. Ein abweichender
 Schnitt mitten in dieser Zeile fällt mehr auf, als der Unterschied wert ist.
 
+### 7.12 Eisenhower-Matrix (Prototyp)
+
+Vier Flächen (`--surface`, `--radius`) im 2×2-Raster; die Ansicht verlässt dafür
+den 680-px-Satzspiegel und nimmt bis zu 1120 px (`.main.is-wide`). Die Achsen
+„dringend / nicht dringend" und „wichtig / nicht wichtig" stehen als
+Mono-Rubriken am Rand. Laut ist nur „Sofort erledigen": Registermarke und
+Prozessfarbe, wie die laufende Woche in 7.1 — genau eine pro Bildschirm. Eine
+Zelle, über der eine Aufgabe gezogen wird, nimmt `--accent-soft` an.
+
+Die **Dringlichkeit** (D1–D4) teilt sich die Prioritätsleiter aus §2.4: D1 in
+`--p1`, D2 in `--p2`, als Mono-700-Kürzel in der Datumszeile. Außerhalb der
+Matrix erscheint das Kürzel nur für D1/D2 — eine nicht dringende Aufgabe hat
+dazu nichts zu sagen. Im Dialog stehen D1–D4 als zweite `.td-prio`-Reihe unter
+der Priorität.
+
 ## 8. Icons
 
 Inline-SVG im Lucide-Stil, keine Emojis. Alle Icons:
