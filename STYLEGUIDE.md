@@ -511,8 +511,12 @@ drei Stellen auf und nirgends laut.
 **In der Sidebar** ist es eine Projektzeile: `.epic-item` teilt sich jede Regel
 mit `.project-item`. Der Punkt trägt die **Farbe des Projekts**, nicht eine
 eigene — ein Epic gehört sichtbar zu seinem Projekt, und eine dritte Farbfamilie
-neben Priorität und Abwesenheit gibt es nicht (§2). In der Liste stehen nur
-laufende Epics; beendete verschwinden, statt die Liste zuwachsen zu lassen.
+neben Priorität und Abwesenheit gibt es nicht (§2). Es steht **eingerückt
+direkt unter seinem Projekt**, nicht in einem eigenen Abschnitt: der Punkt
+(6 px statt 10 px) beginnt bündig mit dem Projektnamen, die Schrift ist 14 px.
+Angelegt wird es über das „layers"-Icon im Kopf „PROJEKTE", links neben dem
+Plus. In der Liste stehen nur laufende Epics; beendete verschwinden, statt die
+Liste zuwachsen zu lassen.
 
 **In der Projektansicht** trägt es die Rubrikzeile aus 7.1 ohne Abweichung: der
 **Titel ist eine Rubrik wie jede andere** — Mono 700, 13 px, versal. Die

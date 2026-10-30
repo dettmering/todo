@@ -272,6 +272,7 @@ strong, b { font-weight: 600; }
   color: var(--text-muted);
   border-bottom: 1px solid var(--border);
 }
+.sidebar-section-actions { display: inline-flex; align-items: center; gap: 2px; }
 .icon-btn {
   background: transparent;
   border: 0;
@@ -307,6 +308,17 @@ strong, b { font-weight: 600; }
   white-space: nowrap;
 }
 .project-item.active .project-count, .epic-item.active .project-count { color: var(--accent); }
+/* Ein Epic steht eingerueckt unter seinem Projekt: der Punkt beginnt buendig
+   mit dem Projektnamen (10 + 7 + 10 + 7 + 10 = 44px), der Titel rueckt eine
+   Stufe weiter. Kleiner Punkt, gleiche Farbe -- Teil des Projekts, nicht ein
+   zweites. */
+.epic-item { padding-left: 44px; font-size: 14px; }
+.epic-item .dot {
+  width: 6px;
+  height: 6px;
+  margin-left: 0;
+  margin-right: 0;
+}
 
 /* Marginalie unter einem leeren Abschnitt — dieselbe Rolle wie der
    Abschnittskopf, nur ohne Unterlinie. */

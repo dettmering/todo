@@ -597,7 +597,7 @@ function markActiveNav() {
       state.view.kind === "project" && el.dataset.projectId === state.view.id,
     );
   });
-  document.querySelectorAll("#epic-list .epic-item").forEach(el => {
+  document.querySelectorAll("#project-list .epic-item").forEach(el => {
     el.classList.toggle(
       "active",
       state.view.kind === "epic" && el.dataset.epicId === state.view.id,
@@ -639,8 +639,8 @@ function renderSidebar() {
       });
     }
     list.appendChild(el);
+    for (const epicEl of epicSidebarItems(p.id)) list.appendChild(epicEl);
   }
-  renderEpicSidebar();
   markActiveNav();
 
   // Task edit: include archived ones so existing tasks still resolve their current project.
@@ -648,24 +648,21 @@ function renderSidebar() {
   fillProjectSelect("td-project", editProjects, true);
 }
 
-// Only running epics appear here. A finished one has nothing left to do, and a
-// list that only grows would drown the ones that matter — it stays reachable
-// through its URL and the API.
-function renderEpicSidebar() {
-  const list = document.getElementById("epic-list");
-  const empty = document.getElementById("epic-empty");
-  if (!list) return;
-  list.innerHTML = "";
-  const epics = activeEpics();
-  if (empty) empty.classList.toggle("hidden", epics.length > 0);
-  for (const e of epics) {
+// epicSidebarItems builds the indented rows that follow a project in the
+// sidebar. Only running epics appear here. A finished one has nothing left to
+// do, and a list that only grows would drown the ones that matter — it stays
+// reachable through its URL and the API. The Inbox cannot hold epics, so every
+// epic lands under a project row; one whose project is archived disappears
+// along with it.
+function epicSidebarItems(projectId) {
+  return activeEpics(projectId).map(e => {
     const el = document.createElement("a");
     el.className = "epic-item";
     el.href = viewToPath({ kind: "epic", id: e.id });
     el.dataset.epicId = e.id;
     if (state.view.kind === "epic" && state.view.id === e.id) el.classList.add("active");
     const count = state.epicCounts[e.id] || 0;
-    el.title = `${projectName(e.project_id)} — Klick zum Öffnen, Doppelklick zum Bearbeiten`;
+    el.title = "Klick zum Öffnen, Doppelklick zum Bearbeiten";
     // The dot carries the project color: an epic is visibly part of its project.
     el.innerHTML = `
       <span class="dot" style="background:${escapeHTML(projectColor(projectById(e.project_id)))}"></span>
@@ -681,8 +678,8 @@ function renderEpicSidebar() {
       ev.preventDefault();
       openEpicDialog(e);
     });
-    list.appendChild(el);
-  }
+    return el;
+  });
 }
 
 function fillProjectSelect(id, projects, markArchived) {
