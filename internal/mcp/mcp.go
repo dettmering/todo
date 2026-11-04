@@ -18,11 +18,11 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/till/todo/internal/domain"
-	"github.com/till/todo/internal/nldate"
-	"github.com/till/todo/internal/recurrence"
-	"github.com/till/todo/internal/service"
-	"github.com/till/todo/internal/storage"
+	"github.com/dettmering/todo/internal/domain"
+	"github.com/dettmering/todo/internal/nldate"
+	"github.com/dettmering/todo/internal/recurrence"
+	"github.com/dettmering/todo/internal/service"
+	"github.com/dettmering/todo/internal/storage"
 )
 
 // New returns an http.Handler serving the MCP endpoint over Streamable HTTP,

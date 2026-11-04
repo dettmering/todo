@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/till/todo/internal/domain"
-	"github.com/till/todo/internal/storage"
+	"github.com/dettmering/todo/internal/domain"
+	"github.com/dettmering/todo/internal/storage"
 )
 
 // at pins the service clock to 09:00 on the given day.

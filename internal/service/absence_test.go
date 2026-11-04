@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/till/todo/internal/domain"
-	"github.com/till/todo/internal/events"
-	"github.com/till/todo/internal/storage/sqlite"
+	"github.com/dettmering/todo/internal/domain"
+	"github.com/dettmering/todo/internal/events"
+	"github.com/dettmering/todo/internal/storage/sqlite"
 )
 
 func newTestService(t *testing.T) *Service {

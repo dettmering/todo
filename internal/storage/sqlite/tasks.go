@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/till/todo/internal/domain"
-	"github.com/till/todo/internal/storage"
+	"github.com/dettmering/todo/internal/domain"
+	"github.com/dettmering/todo/internal/storage"
 )
 
 type TaskRepo struct{ db *sql.DB }

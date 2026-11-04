@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/till/todo/internal/domain"
-	"github.com/till/todo/internal/nldate"
+	"github.com/dettmering/todo/internal/domain"
+	"github.com/dettmering/todo/internal/nldate"
 )
 
 type parseReq struct {

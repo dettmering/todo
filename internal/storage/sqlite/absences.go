@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/till/todo/internal/domain"
+	"github.com/dettmering/todo/internal/domain"
 )
 
 type AbsenceRepo struct{ db *sql.DB }

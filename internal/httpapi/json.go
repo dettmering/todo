@@ -5,9 +5,9 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/till/todo/internal/domain"
-	"github.com/till/todo/internal/recurrence"
-	"github.com/till/todo/internal/service"
+	"github.com/dettmering/todo/internal/domain"
+	"github.com/dettmering/todo/internal/recurrence"
+	"github.com/dettmering/todo/internal/service"
 )
 
 type errorResp struct {

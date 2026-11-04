@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/till/todo/internal/domain"
+	"github.com/dettmering/todo/internal/domain"
 )
 
 type Freq string

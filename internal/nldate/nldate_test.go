@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/till/todo/internal/domain"
+	"github.com/dettmering/todo/internal/domain"
 )
 
 // 2026-05-21 = Thursday. Used as `today` in all examples so the test

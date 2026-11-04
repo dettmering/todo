@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/till/todo/internal/domain"
-	"github.com/till/todo/internal/events"
+	"github.com/dettmering/todo/internal/domain"
+	"github.com/dettmering/todo/internal/events"
 )
 
 type AbsenceInput struct {

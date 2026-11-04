@@ -1,9 +1,15 @@
 .git
 .gitignore
 *.md
+!THIRD_PARTY_NOTICES.md
 Dockerfile
 .dockerignore
 .gitea
+.github
+.claude
+.agent.yml
+scripts
+third_party
 data/
 *.db
 *.db-wal

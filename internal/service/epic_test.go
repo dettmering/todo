@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/till/todo/internal/domain"
-	"github.com/till/todo/internal/storage"
+	"github.com/dettmering/todo/internal/domain"
+	"github.com/dettmering/todo/internal/storage"
 )
 
 // newTestProject creates a real project to hang epics off — the Inbox is

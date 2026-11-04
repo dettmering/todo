@@ -8,10 +8,10 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/till/todo/internal/domain"
-	"github.com/till/todo/internal/nldate"
-	"github.com/till/todo/internal/service"
-	"github.com/till/todo/internal/storage"
+	"github.com/dettmering/todo/internal/domain"
+	"github.com/dettmering/todo/internal/nldate"
+	"github.com/dettmering/todo/internal/service"
+	"github.com/dettmering/todo/internal/storage"
 )
 
 // parseISOWeek parses an ISO-8601 week string like "2026-W21" and returns the

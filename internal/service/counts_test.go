@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/till/todo/internal/domain"
-	"github.com/till/todo/internal/storage"
+	"github.com/dettmering/todo/internal/domain"
+	"github.com/dettmering/todo/internal/storage"
 )
 
 // The per-epic tallies are computed in SQL now, while domain.CountEpicTasks

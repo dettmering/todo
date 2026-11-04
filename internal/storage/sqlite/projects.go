@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/till/todo/internal/domain"
+	"github.com/dettmering/todo/internal/domain"
 )
 
 type ProjectRepo struct{ db *sql.DB }

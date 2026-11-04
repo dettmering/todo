@@ -9,8 +9,8 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/till/todo/internal/domain"
-	"github.com/till/todo/internal/storage"
+	"github.com/dettmering/todo/internal/domain"
+	"github.com/dettmering/todo/internal/storage"
 )
 
 type Store struct {

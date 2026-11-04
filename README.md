@@ -1,12 +1,36 @@
 # TODO
 
-Schlanke, persönliche, webbasierte Todo-Anwendung nach den Vorgaben in [LASTENHEFT.md](LASTENHEFT.md).
+Eine schlanke, persönliche Todo-App für eine Person: ein einzelnes Go-Binary mit
+eingebetteter Weboberfläche und SQLite als Speicher. Sie ist mein täglicher
+Arbeitsplatz, die Anforderungen stehen in [LASTENHEFT.md](LASTENHEFT.md).
 
-- **Backend:** Go, stdlib `net/http`, pure-Go SQLite (`modernc.org/sqlite`)
-- **Frontend:** Vanilla HTML/CSS/JS, an gaengigen Task-Managern orientiert, in das Binary eingebettet
-- **Umfang:** Tasks, Projekte, Epics (langlaufende Initiativen), Kommentare, Aktivitätsprotokoll, Abwesenheiten mit Arbeitstag-Logik, Wiederholungen, deutscher NL-Datums-Parser, REST-API, Webhooks, MCP-Server, iCal-Feed und anonymisierte Share-Seite.
+> **English summary:** A self-hosted, single-user task manager written in Go with
+> an embedded vanilla-JS frontend and SQLite storage. It has projects, epics,
+> recurring tasks, absences, a REST API, webhooks and an MCP server. The UI and
+> the natural-language date parser are German, and so is this documentation.
+
+![Die Ansicht „Heute" mit Aufgaben aus mehreren Projekten](docs/screenshot.png)
+
+- **Aufgaben:** Projekte, Epics für langlaufende Vorhaben, Prioritäten,
+  Wiederholungen, Kommentare und ein Aktivitätsprotokoll
+- **Eingabe:** Schnellerfassung mit deutschem Datums-Parser (`morgen`, `Freitag`,
+  `27.5.`)
+- **Abwesenheiten:** mit Arbeitstag-Logik, iCal-Feed und anonymisierter
+  Share-Seite
+- **Automatisierung:** REST-API, Webhooks und MCP-Server
+- **Technik:** Go mit stdlib `net/http`, pure-Go SQLite (`modernc.org/sqlite`),
+  Vanilla HTML/CSS/JS ohne Build-Schritt
 
 ## Starten
+
+Mit Docker, das fertige Image liegt auf Docker Hub (`latest` = `master`, sonst der
+Git-Tag):
+
+```bash
+docker run -d --name todo -p 127.0.0.1:8080:8080 -v todo-data:/data dettmering/todo
+```
+
+Aus dem Quellcode, dafür ist Go 1.25 oder neuer nötig:
 
 ```bash
 go run ./cmd/server
@@ -14,7 +38,33 @@ go run ./cmd/server
 go run ./cmd/server -addr :8080 -db ./todo.db
 ```
 
-Dann http://localhost:8080 öffnen.
+Dann http://localhost:8080 öffnen. Alle Daten liegen in einer SQLite-Datei, im
+Container unter `/data/todo.db`. Das Image rechnet mit der Zeitzone
+`Europe/Berlin`; andere Zeitzonen setzt man über `TZ`.
+
+## Sicherheit und Datenschutz
+
+**Weboberfläche und REST-API haben keine Anmeldung.** Wer den Port erreicht, kann
+alle Aufgaben lesen und ändern. Deshalb bindet das Beispiel oben nur an
+`127.0.0.1`. Der Server gehört in ein vertrauenswürdiges Netz oder hinter einen
+Reverse-Proxy mit eigener Authentifizierung und TLS.
+
+Die optionalen Routen für iCal-Feed, Share-Seite und MCP-Server sind nur mit
+ihrem jeweiligen Token aktiv. Dieser Token ist dann ihr einziger Schutz und steht
+beim iCal-Feed, bei der Share-Seite und optional beim MCP-Server in der URL, also
+auch in Proxy-Logs. Details stehen bei den jeweiligen Endpunkten.
+
+Weboberfläche und Share-Seite laden die Schriften Inter und JetBrains Mono von
+Google Fonts. Dabei erhält Google die IP-Adresse des Browsers, bei der Share-Seite
+also auch die der Personen, denen du den Link gibst. Der Share-Token bleibt davon
+unberührt (`Referrer-Policy: no-referrer`). Ist Google nicht erreichbar, greifen
+System-Schriften.
+
+## Mitwirken
+
+Das ist ein persönliches Projekt. Die Entwicklung läuft auf einem privaten Gitea,
+dieses Repository ist ein automatischer Spiegel. Pull Requests werden hier daher
+nicht gemergt. Wer eine andere Richtung braucht, kann gern forken.
 
 ## Architektur
 
@@ -1204,7 +1254,7 @@ ID-Vergabe, Timestamps und Events.
 Client-Anbindung **Claude Code / Desktop** (Header):
 
 ```bash
-claude mcp add --transport http todo https://todo.till.fi/mcp \
+claude mcp add --transport http todo https://todo.example.com/mcp \
   --header "Authorization: Bearer <MCP_TOKEN>"
 ```
 
@@ -1213,7 +1263,7 @@ Den Token stattdessen in die URL hängen und das OAuth-Feld leer lassen — bei
 gültigem Token challengt der Server nie, also wird kein OAuth-Flow ausgelöst:
 
 ```
-https://todo.till.fi/mcp?token=<MCP_TOKEN>
+https://todo.example.com/mcp?token=<MCP_TOKEN>
 ```
 
 ### Tools
@@ -1337,3 +1387,8 @@ Nicht-2xx-Antworten landen im Server-Log.
 und `/api/parse` tragen keine eigene Authentifizierung — sie liegen hinter der
 BasicAuth des Reverse-Proxys. Token-geschützt und von dieser Auth ausgenommen
 sind nur die Sonderrouten `.ics`, `.html` und `/mcp` (siehe oben).
+
+## Lizenz
+
+[MIT](LICENSE). Die Lizenzen der enthaltenen Fremdkomponenten stehen in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

@@ -14,13 +14,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/till/todo/internal/events"
-	"github.com/till/todo/internal/httpapi"
-	"github.com/till/todo/internal/mcp"
-	"github.com/till/todo/internal/service"
-	"github.com/till/todo/internal/storage/sqlite"
-	"github.com/till/todo/internal/web"
-	"github.com/till/todo/internal/webhook"
+	"github.com/dettmering/todo/internal/events"
+	"github.com/dettmering/todo/internal/httpapi"
+	"github.com/dettmering/todo/internal/mcp"
+	"github.com/dettmering/todo/internal/service"
+	"github.com/dettmering/todo/internal/storage/sqlite"
+	"github.com/dettmering/todo/internal/web"
+	"github.com/dettmering/todo/internal/webhook"
 )
 
 func main() {

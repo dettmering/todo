@@ -10,9 +10,9 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/till/todo/internal/events"
-	"github.com/till/todo/internal/service"
-	"github.com/till/todo/internal/storage/sqlite"
+	"github.com/dettmering/todo/internal/events"
+	"github.com/dettmering/todo/internal/service"
+	"github.com/dettmering/todo/internal/storage/sqlite"
 )
 
 func newTestService(t *testing.T) *service.Service {

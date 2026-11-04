@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/till/todo/internal/service"
+	"github.com/dettmering/todo/internal/service"
 )
 
 type projectCreateReq struct {

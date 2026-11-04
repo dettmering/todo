@@ -1,4 +1,4 @@
-module github.com/till/todo
+module github.com/dettmering/todo
 
 go 1.25.0
 

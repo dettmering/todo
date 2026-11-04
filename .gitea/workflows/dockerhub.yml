@@ -20,7 +20,7 @@ jobs:
             -v $(pwd):/src \
             -w /src \
             -e CGO_ENABLED=0 \
-            golang:1.25-alpine \
+            golang:1.27-alpine \
             go test ./...
 
       - name: Login to DockerHub

@@ -37,13 +37,21 @@ go test ./...
 docker build -t todo:dev .
 docker run --rm -p 8080:8080 -v todo-data:/data todo:dev
 
-# CI workflows (Gitea, not GitHub):
+# Regenerate the license notices (after changing go.mod or an embedded library)
+scripts/third-party-notices.sh
+
+# CI workflows:
 #   .gitea/workflows/dockerhub.yml      — push to master / tag pushes dettmering/todo
 #   .gitea/workflows/build-binary.yml   — workflow_dispatch, uploads todo-linux-amd64
+#   .github/workflows/ci.yml            — vet, test, build on the GitHub mirror
 ```
 
-Go toolchain: `modernc.org/sqlite` v1.50.x requires Go ≥ 1.25. The `go.mod`
-declares `go 1.24`; the toolchain will auto-upgrade on first build.
+Gitea is the main repo. GitHub (`github.com/dettmering/todo`) is a push mirror
+of it: never commit there directly, the next sync would overwrite it. Gitea runs
+only `.gitea/workflows/`, GitHub only `.github/workflows/`.
+
+Go toolchain: `modernc.org/sqlite` v1.50.x requires Go ≥ 1.25, which is what
+`go.mod` declares. The Dockerfile and the Gitea workflows build with Go 1.27.
 
 ## Architecture
 
@@ -133,16 +141,17 @@ These choices look unremarkable but are easy to break:
 
 - **No build step.** `internal/web/static/{index.html, style.css, app.js}`
   are embedded via `go:embed` (`all:static`) in `internal/web/web.go`. Edit
-  and rebuild. IBM Plex comes from Google Fonts (link in the `<head>`), not
+  and rebuild. Inter and JetBrains Mono come from Google Fonts (link in the `<head>`), not
   from `/static` — self-hosting it cost six extra requests per load against
   the app's own host, and the reverse proxy's rate limit then rejected
   `app.js`.
 - **Icons are inline SVG strings** in `app.js` (object `ICON`). Lucide
   stroke style, `currentColor`. The "Heute" sidebar icon is generated
-  dynamically with the current day number (`todayIconSVG`).
+  dynamically with the current day number (`todayIconSVG`). Paths taken from
+  Feather or Lucide are credited in `THIRD_PARTY_NOTICES.md`.
 - **CSS tokens live in `:root` of `style.css`.** The design is a
-  reinterpretation of the md2pdf web UI (`../md2pdf/src/webui.js`): IBM Plex
-  Sans for prose, IBM Plex Mono for everything read off a scale, a pressroom
+  reinterpretation of the md2pdf web UI (`../md2pdf/src/webui.js`): Inter for
+  prose, JetBrains Mono for everything read off a scale, a pressroom
   palette with exactly two signal colors, and one rule for rounding —
   surfaces get `--radius` (4px), anything you press or that labels something
   gets `--radius-pill`. **`STYLEGUIDE.md` is authoritative** — read it before

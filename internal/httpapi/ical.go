@@ -7,7 +7,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/till/todo/internal/domain"
+	"github.com/dettmering/todo/internal/domain"
 )
 
 // icalProdID identifies the generating software (RFC 5545 §3.7.3).

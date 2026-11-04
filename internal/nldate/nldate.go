@@ -28,7 +28,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/till/todo/internal/domain"
+	"github.com/dettmering/todo/internal/domain"
 )
 
 // Result is what Parse returns: at most a visible-from date and (later) a

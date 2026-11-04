@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/till/todo/internal/domain"
-	"github.com/till/todo/internal/storage"
+	"github.com/dettmering/todo/internal/domain"
+	"github.com/dettmering/todo/internal/storage"
 )
 
 // ensureUniqueSlug returns base if no other project owns it, otherwise base-2,

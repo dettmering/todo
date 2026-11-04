@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/till/todo/internal/domain"
-	"github.com/till/todo/internal/service"
-	"github.com/till/todo/internal/storage"
+	"github.com/dettmering/todo/internal/domain"
+	"github.com/dettmering/todo/internal/service"
+	"github.com/dettmering/todo/internal/storage"
 )
 
 type epicCreateReq struct {

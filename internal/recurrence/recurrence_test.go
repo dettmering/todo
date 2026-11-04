@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/till/todo/internal/domain"
+	"github.com/dettmering/todo/internal/domain"
 )
 
 func d(y int, m time.Month, day int) domain.LocalDate {

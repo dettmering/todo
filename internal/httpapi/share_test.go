@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/till/todo/internal/domain"
+	"github.com/dettmering/todo/internal/domain"
 )
 
 // shareUpdated is a fixed clock for deterministic "Stand" footers.

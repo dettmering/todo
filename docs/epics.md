@@ -134,7 +134,7 @@ curl -XPOST localhost:8099/api/tasks/<task>/reopen     # Epic wird wieder aktiv
 curl -XDELETE localhost:8099/api/epics/<epic>          # 204, archiviert
 ```
 
-Im Browser unter `http://spielwiese:8099/`: Sidebar-Abschnitt „Epics", Anlegen
+Im Browser unter `http://localhost:8099/`: Sidebar-Abschnitt „Epics", Anlegen
 über `+`, Klick öffnet `/epics/<slug>`, Doppelklick den Dialog, Projektansicht
 gruppiert unter den Epics, „Beenden" scheitert sichtbar bei offenen Aufgaben.
 Hell- und Dunkelmodus sowie die Breakpoints 1024 px und 720 px gegenprüfen.

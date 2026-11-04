@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/till/todo/internal/domain"
+	"github.com/dettmering/todo/internal/domain"
 )
 
 func absence(id, typ, label string, start, end domain.LocalDate) *domain.Absence {
