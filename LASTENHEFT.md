@@ -1053,8 +1053,9 @@ außerhalb der Anwendung. Alle drei sind nach demselben Muster token-geschützt
 
 * jede Abwesenheit wird ein ganztägiges `VEVENT` mit stabiler `UID`, sodass ein
   erneuter Abruf Termine aktualisiert statt sie zu duplizieren
-* blockierende Abwesenheiten werden als **„Out of Office"** markiert, die
-  Dienstreise als „woanders arbeitend" — sie bleibt terminierbar
+* alle Abwesenheiten werden als **„frei"** markiert: Der Feed liegt zum
+  Mitlesen neben dem Arbeitskalender und darf nicht aussehen, als wäre der
+  Zeitraum dort schon geblockt
 * Kalendername und Refresh-Intervall werden mitgeliefert; der Kalendername
   folgt `SHARE_NAME`
 

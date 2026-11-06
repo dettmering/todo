@@ -33,30 +33,6 @@ var absenceSummaryPrefix = map[domain.AbsenceType]string{
 	domain.AbsenceOther:        "Abwesend",
 }
 
-// absenceBusyStatus maps an absence type to the Outlook-specific
-// X-MICROSOFT-CDO-BUSYSTATUS value. Everything reads as "out of office"
-// (purple hatching in Outlook, Teams flips to "not in the office"); only a
-// business trip is WORKINGELSEWHERE, mirroring domain.Absence.BlocksWork —
-// it's the one type where work still happens. Types not listed default to OOF.
-var absenceBusyStatus = map[domain.AbsenceType]string{
-	domain.AbsenceBusinessTrip: "WORKINGELSEWHERE",
-}
-
-// absenceBusyFields returns the free/busy pair for an absence: the RFC 5545
-// TRANSP value every client understands, plus its Outlook counterpart.
-func absenceBusyFields(a *domain.Absence) (transp, busyStatus string) {
-	busyStatus = absenceBusyStatus[a.Type]
-	if busyStatus == "" {
-		busyStatus = "OOF"
-	}
-	// A business trip shouldn't block meeting scheduling — the user is
-	// reachable, just elsewhere. Real absences do block.
-	if a.Type == domain.AbsenceBusinessTrip {
-		return "TRANSPARENT", busyStatus
-	}
-	return "OPAQUE", busyStatus
-}
-
 // handleAbsencesICS serves the absences as a subscribable iCalendar feed.
 //
 // This route is meant to be exempted from the reverse-proxy BasicAuth (calendar
@@ -143,14 +119,16 @@ func buildAbsencesICS(absences []*domain.Absence, now time.Time, name string) st
 			writeICSLine(&b, "DESCRIPTION:"+escapeICSText(c))
 		}
 		writeICSLine(&b, "CATEGORIES:"+escapeICSText(strings.ToUpper(string(a.Type))))
-		// Free/busy signalling: TRANSP is the portable field, the
-		// X-MICROSOFT-CDO-* pair the Outlook-specific equivalent. Without the
-		// ALLDAYEVENT flag Outlook renders VALUE=DATE events unreliably and
-		// drops some.
-		transp, busyStatus := absenceBusyFields(a)
-		writeICSLine(&b, "TRANSP:"+transp)
+		// Every absence is free, whatever its type: the feed sits next to the
+		// real work calendar as something to read, not to block with. Outlook
+		// shades the whole day for any all-day event that isn't free, which
+		// looks as if the absence were already blocked in the work calendar.
+		// TRANSP is the portable field, BUSYSTATUS its Outlook counterpart.
+		// Without the ALLDAYEVENT flag Outlook renders VALUE=DATE events
+		// unreliably and drops some.
+		writeICSLine(&b, "TRANSP:TRANSPARENT")
 		writeICSLine(&b, "X-MICROSOFT-CDO-ALLDAYEVENT:TRUE")
-		writeICSLine(&b, "X-MICROSOFT-CDO-BUSYSTATUS:"+busyStatus)
+		writeICSLine(&b, "X-MICROSOFT-CDO-BUSYSTATUS:FREE")
 		writeICSLine(&b, "END:VEVENT")
 	}
 	writeICSLine(&b, "END:VCALENDAR")

@@ -810,17 +810,11 @@ Hinweise zur Erzeugung:
 - **Der Kalendername folgt `SHARE_NAME`**: gesetzt ⇒ `<name>s Abwesenheiten`
   (z. B. `Tills Abwesenheiten`), sonst generisch `Abwesenheiten`. Dieselbe
   Variable personalisiert die Statuszeile der Share-Seite.
-- **Frei/Belegt-Status hängt am Typ.** `TRANSP` ist das portable Feld,
-  `X-MICROSOFT-CDO-BUSYSTATUS` das Outlook-Pendant (`OOF` = Out of Office,
-  lila schraffiert, Teams-Status springt auf „nicht im Büro"):
-
-  | Typ | `TRANSP` | `X-MICROSOFT-CDO-BUSYSTATUS` |
-  | --- | --- | --- |
-  | `vacation`, `holiday`, `sick`, `other` | `OPAQUE` | `OOF` |
-  | `business_trip` | `TRANSPARENT` | `WORKINGELSEWHERE` |
-
-  Nur die Dienstreise bleibt terminierbar — analog zu `Absence.BlocksWork()`,
-  dem einzigen Typ, an dem trotzdem gearbeitet wird.
+- **Jeder Typ ist „frei"**: `TRANSP:TRANSPARENT` als portables Feld,
+  `X-MICROSOFT-CDO-BUSYSTATUS:FREE` als Outlook-Pendant. Der Feed liegt neben
+  dem Arbeitskalender und blockiert dort nichts. Bei jedem anderen Status
+  hinterlegt Outlook den ganzen Tag, und es sieht aus, als wäre die Abwesenheit
+  im Arbeitskalender schon geblockt.
 - Für Outlook wird zusätzlich `X-MICROSOFT-CDO-ALLDAYEVENT:TRUE` je Event
   gesetzt (sonst rendert Outlook `VALUE=DATE`-Events unzuverlässig und lässt
   einzelne aus), dazu `SEQUENCE` und `CREATED`/`LAST-MODIFIED`. Andere Clients

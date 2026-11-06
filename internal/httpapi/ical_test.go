@@ -201,27 +201,17 @@ func TestBuildAbsencesICS_OutlookFields(t *testing.T) {
 	}
 }
 
-func TestBuildAbsencesICS_BusyStatusPerType(t *testing.T) {
-	cases := []struct {
-		typ    string
-		transp string
-		busy   string
-	}{
-		{"vacation", "OPAQUE", "OOF"},
-		{"holiday", "OPAQUE", "OOF"},
-		{"sick", "OPAQUE", "OOF"},
-		{"other", "OPAQUE", "OOF"},
-		// Only a business trip leaves the user schedulable.
-		{"business_trip", "TRANSPARENT", "WORKINGELSEWHERE"},
-	}
-	for _, c := range cases {
-		t.Run(c.typ, func(t *testing.T) {
-			a := absence("absence_1", c.typ, "", date(2026, 1, 1), date(2026, 1, 2))
+// Anything but free makes Outlook shade the whole day, which reads as if the
+// absence were already blocked in the work calendar.
+func TestBuildAbsencesICS_EveryTypeIsFree(t *testing.T) {
+	for _, typ := range []string{"vacation", "holiday", "sick", "other", "business_trip"} {
+		t.Run(typ, func(t *testing.T) {
+			a := absence("absence_1", typ, "", date(2026, 1, 1), date(2026, 1, 2))
 			out := buildAbsencesICS([]*domain.Absence{a}, stamp, "")
 
 			for _, want := range []string{
-				"TRANSP:" + c.transp + "\r\n",
-				"X-MICROSOFT-CDO-BUSYSTATUS:" + c.busy + "\r\n",
+				"TRANSP:TRANSPARENT\r\n",
+				"X-MICROSOFT-CDO-BUSYSTATUS:FREE\r\n",
 			} {
 				if !strings.Contains(out, want) {
 					t.Errorf("missing %q in:\n%s", want, out)
