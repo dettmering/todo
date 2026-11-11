@@ -35,7 +35,7 @@ lädt sie zur Laufzeit von Google Fonts.
 | Komponente | Version | Lizenz | Fundstelle |
 | --- | --- | --- | --- |
 | [marked](https://github.com/markedjs/marked) | 12.0.2 | MIT | `internal/web/static/marked.min.js` |
-| [DOMPurify](https://github.com/cure53/DOMPurify) | 3.2.7 | Apache-2.0 oder MPL-2.0, hier genutzt unter Apache-2.0 | `internal/web/static/purify.min.js` |
+| [DOMPurify](https://github.com/cure53/DOMPurify) | 3.4.17 | Apache-2.0 oder MPL-2.0, hier genutzt unter Apache-2.0 | `internal/web/static/purify.min.js` |
 | [Feather](https://github.com/feathericons/feather) | | MIT | SVG-Pfade in `internal/web/static/app.js` (`ICON`) |
 | [Lucide](https://github.com/lucide-icons/lucide) | | ISC | SVG-Pfade in `internal/web/static/app.js` (`ICON`) |
 HEADER
