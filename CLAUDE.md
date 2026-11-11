@@ -50,7 +50,7 @@ Gitea is the main repo. GitHub (`github.com/dettmering/todo`) is a push mirror
 of it: never commit there directly, the next sync would overwrite it. Gitea runs
 only `.gitea/workflows/`, GitHub only `.github/workflows/`.
 
-Go toolchain: `modernc.org/sqlite` v1.50.x requires Go ≥ 1.25, which is what
+Go toolchain: `modernc.org/sqlite` v1.62.x requires Go ≥ 1.26, which is what
 `go.mod` declares. The Dockerfile and the Gitea workflows build with Go 1.27.
 
 ## Architecture
