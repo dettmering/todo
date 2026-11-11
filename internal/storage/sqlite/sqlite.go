@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	_ "modernc.org/sqlite"
-
 	"github.com/dettmering/todo/internal/domain"
 	"github.com/dettmering/todo/internal/storage"
 )
@@ -17,13 +15,29 @@ type Store struct {
 	db *sql.DB
 }
 
-func Open(path string) (*Store, error) {
-	dsn := fmt.Sprintf("file:%s?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)", path)
-	db, err := sql.Open("sqlite", dsn)
+// Open opens the database at path, creating it if needed. With a non-nil key
+// (see ParseKey) the whole file — pages, WAL, temp files — is encrypted at
+// rest; an existing plaintext file is converted once, in place. With a nil key
+// the file is plain SQLite, and an encrypted file is refused.
+func Open(path string, key []byte) (*Store, error) {
+	state, err := inspectFile(path)
 	if err != nil {
 		return nil, err
 	}
-	if err := db.Ping(); err != nil {
+	switch {
+	case state == fileEncrypted && key == nil:
+		return nil, errors.New("database is encrypted, but ENCRYPTION_KEY is not set")
+	case state == filePlain && key != nil:
+		if err := encryptInPlace(path, key); err != nil {
+			return nil, fmt.Errorf("encrypt existing database: %w", err)
+		}
+	}
+	db, err := openDB(path, key)
+	if err != nil {
+		return nil, err
+	}
+	if err := checkReadable(db, key); err != nil {
+		db.Close()
 		return nil, err
 	}
 	s := &Store{db: db}

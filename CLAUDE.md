@@ -50,8 +50,8 @@ Gitea is the main repo. GitHub (`github.com/dettmering/todo`) is a push mirror
 of it: never commit there directly, the next sync would overwrite it. Gitea runs
 only `.gitea/workflows/`, GitHub only `.github/workflows/`.
 
-Go toolchain: `modernc.org/sqlite` v1.50.x requires Go ≥ 1.25, which is what
-`go.mod` declares. The Dockerfile and the Gitea workflows build with Go 1.27.
+Go toolchain: `github.com/ncruces/go-sqlite3` v0.37.x requires Go ≥ 1.26, which
+is what `go.mod` declares. The Dockerfile and the Gitea workflows build with Go 1.27.
 
 ## Architecture
 
@@ -63,7 +63,7 @@ cmd/server                 wires everything together, embeds web assets
   └── internal/httpapi     REST handlers (Lastenheft §5.9 paths)
        └── internal/service business logic: validation, IDs, timestamps, event emission
             ├── internal/storage          repository interfaces only
-            │    └── internal/storage/sqlite   the only concrete impl (modernc.org/sqlite, pure Go)
+            │    └── internal/storage/sqlite   the only concrete impl (ncruces/go-sqlite3, no CGO)
             ├── internal/events           in-process pub/sub bus
             └── internal/domain           pure types (Task, Project, LocalDate, Priority)
   └── internal/web         go:embed of static/ — frontend ships in the binary
@@ -92,6 +92,14 @@ These choices look unremarkable but are easy to break:
   `internal/storage/sqlite/sqlite.go`. Append a new `{version, sql}` step;
   never edit or reorder existing ones. SQLite `ALTER TABLE` is limited —
   prefer additive columns with `DEFAULT`.
+- **Encryption is a VFS, not a column format.** With `ENCRYPTION_KEY` set,
+  `sqlite.Open` uses the `adiantum` VFS and sets the key per connection via
+  `PRAGMA hexkey` in the connect hook (`internal/storage/sqlite/encrypt.go`);
+  the hexkey must run before any other pragma, so pragmas don't go into the
+  DSN as `_pragma`. Repos never see ciphertext — don't add per-field
+  encryption. A plaintext file is converted once on start via `VACUUM INTO`;
+  the file's first 16 bytes (`SQLite format 3\0` or not) decide which case
+  applies.
 - **Project deletion is archival, not removal.** `service.DeleteProject`
   sets `archived = true`; tasks keep their original `project_id`. The
   frontend loads with `include_archived=true` so historical project labels

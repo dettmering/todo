@@ -14,7 +14,7 @@ import (
 
 func newTestService(t *testing.T) *Service {
 	t.Helper()
-	store, err := sqlite.Open(filepath.Join(t.TempDir(), "test.db"))
+	store, err := sqlite.Open(filepath.Join(t.TempDir(), "test.db"), nil)
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}

@@ -18,8 +18,9 @@ Arbeitsplatz, die Anforderungen stehen in [LASTENHEFT.md](LASTENHEFT.md).
 - **Abwesenheiten:** mit Arbeitstag-Logik, iCal-Feed und anonymisierter
   Share-Seite
 - **Automatisierung:** REST-API, Webhooks und MCP-Server
-- **Technik:** Go mit stdlib `net/http`, pure-Go SQLite (`modernc.org/sqlite`),
-  Vanilla HTML/CSS/JS ohne Build-Schritt
+- **Technik:** Go mit stdlib `net/http`, SQLite ohne CGO
+  (`github.com/ncruces/go-sqlite3`), optional verschlüsselt, Vanilla
+  HTML/CSS/JS ohne Build-Schritt
 
 ## Starten
 
@@ -96,8 +97,41 @@ Weitere Event-Subscriber werden über `bus.Subscribe(handler)` in
 | `SHARE_NAME` | Name in der Statuszeile der Share-Seite **und** im Kalendernamen des iCal-Feeds |
 | `MCP_TOKEN` | Aktiviert den MCP-Endpunkt `/mcp` (leer ⇒ Route `404`) |
 | `WEBHOOK_URL` | Aktiviert den Webhook-Versand (siehe [Webhooks](#webhooks)) |
+| `ENCRYPTION_KEY` | Base64-kodierter 32-Byte-Schlüssel; verschlüsselt die Datenbankdatei (siehe [Verschlüsselung](#verschlüsselung)) |
 
 Flags: `-addr` (Default `:8080`), `-db` (Default `./todo.db`).
+
+### Verschlüsselung
+
+Mit gesetztem `ENCRYPTION_KEY` liegt die SQLite-Datei nie im Klartext auf der
+Platte. Verschlüsselt wird unterhalb von SQLite, Block für Block (Adiantum-VFS
+von `ncruces/go-sqlite3`): Datenbank, WAL und temporäre Dateien, samt Schema,
+Indizes und freien Seiten. Die API und die Oberfläche arbeiten unverändert im
+Klartext.
+
+Im Docker-Image kann der Schlüssel statt als Variable auch als Datei nach
+`/run/secrets/todo_encryption_key` gemountet werden. Neuen Schlüssel erzeugen:
+
+```bash
+openssl rand -base64 32
+```
+
+- **Umstellung:** Findet der Server beim Start mit Schlüssel eine
+  Klartext-Datenbank vor, schreibt er per `VACUUM INTO` eine verschlüsselte
+  Kopie, prüft sie (`integrity_check`, Zeilenzahlen) und ersetzt damit das
+  Original. Bricht das ab, bleibt das Original unangetastet; der nächste Start
+  versucht es erneut. Die alten Klartext-Blöcke können physisch noch auf dem
+  Datenträger liegen, bis das Dateisystem sie überschreibt; ältere Backups
+  bleiben ohnehin Klartext.
+- **Ohne oder mit falschem Schlüssel** bricht der Server beim Start ab, statt
+  später Fehler zu liefern. **Geht der Schlüssel verloren, sind die Daten
+  verloren.** Der `sqlite3`-Kommandozeilenclient kann die Datei nicht öffnen.
+- **Bedrohungsmodell:** jemand hat eine Kopie der Datei (Backup, Snapshot,
+  Datenträger). Wer den laufenden Server samt Schlüssel kontrolliert, ist nicht
+  abgedeckt. Die Verschlüsselung ist deterministisch und ohne MAC: Aus zwei
+  Kopien lässt sich ablesen, welche Blöcke sich geändert haben, und manipulierte
+  Blöcke werden nicht erkannt.
+- Zurück zur Klartext-Datei gibt es keinen eingebauten Weg.
 
 ## REST-API
 

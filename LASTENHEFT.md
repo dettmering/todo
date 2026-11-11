@@ -1202,6 +1202,13 @@ Quick-Add navigieren Pfeiltasten durch Vorschläge.
 * Zeitzone muss korrekt berücksichtigt werden
 * Datum ohne Uhrzeit muss als lokales Datum behandelt werden
 
+**Kann-Kriterium:**
+
+* die Datenbankdatei liegt at-rest verschlüsselt auf der Platte, wenn ein
+  Schlüssel konfiguriert ist (`ENCRYPTION_KEY`); eine bestehende
+  Klartext-Datenbank wird beim Start einmalig umgewandelt. Bedrohungsmodell ist
+  „jemand hat eine Kopie der Datei"; API und Oberfläche bleiben Klartext
+
 Empfehlung:
 
 * Wiederholungsregeln intern idealerweise als RRULE-kompatibles Format speichern

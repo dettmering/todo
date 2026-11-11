@@ -24,18 +24,29 @@ import (
 )
 
 func main() {
+	var err error
 	addr := flag.String("addr", ":8080", "address to listen on")
 	dbPath := flag.String("db", "todo.db", "path to SQLite database file")
 	flag.Parse()
 
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
 
-	store, err := sqlite.Open(*dbPath)
+	// ENCRYPTION_KEY switches on encryption at rest. The Docker entrypoint fills
+	// it from /run/secrets/todo_encryption_key when that file is mounted.
+	var key []byte
+	if b64 := os.Getenv("ENCRYPTION_KEY"); b64 != "" {
+		if key, err = sqlite.ParseKey(b64); err != nil {
+			slog.Error("encryption key", "err", err)
+			os.Exit(1)
+		}
+	}
+	store, err := sqlite.Open(*dbPath, key)
 	if err != nil {
 		slog.Error("open db", "err", err)
 		os.Exit(1)
 	}
 	defer store.Close()
+	slog.Info("database open", "db", *dbPath, "encryption", key != nil)
 
 	bus := events.NewBus()
 	bus.Subscribe(func(ctx context.Context, e events.Event) {
