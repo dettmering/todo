@@ -642,6 +642,7 @@ function renderSidebar() {
     for (const epicEl of epicSidebarItems(p.id)) list.appendChild(epicEl);
   }
   markActiveNav();
+  updateAbsenceNav();
 
   // Task edit: include archived ones so existing tasks still resolve their current project.
   const editProjects = [...state.projects].sort((a, b) => Number(a.archived) - Number(b.archived) || a.sort_order - b.sort_order || a.name.localeCompare(b.name));
@@ -1047,6 +1048,56 @@ function absenceWarningText(iso) {
   return `Fällt in ${type}${label}`;
 }
 
+// ---------- Abwesenheit in der Seitenleiste ----------
+// Wie in der TUI (sidebar.go): Läuft heute eine Abwesenheit, bekommt der
+// Nav-Eintrag "Abwesenheiten" einen Punkt in der Typfarbe, und das Icon
+// wechselt — als kleines Gimmick — zum Motiv des Typs. Ohne laufende
+// Abwesenheit bleibt das Flugzeug aus index.html. Pfade aus Lucide (ISC),
+// im selben Strich wie das Flugzeug.
+
+const ABSENCE_NAV_ICON = {
+  // tree-palm
+  vacation: '<path d="M13 8c0-2.76-2.46-5-5.5-5S2 5.24 2 8h2l1-1 1 1h4"/><path d="M13 7.14A5.82 5.82 0 0 1 16.5 6c3.04 0 5.5 2.24 5.5 5h-3l-1-1-1 1h-3"/><path d="M5.89 9.71c-2.15 2.15-2.3 5.47-.35 7.43l4.24-4.25.7-.7.71-.71 2.12-2.12c-1.95-1.96-5.27-1.8-7.42.35"/><path d="M11 15.5c.5 2.5-.17 4.5-1 6.5h4c2-5.5-.5-12-1-14"/>',
+  // party-popper
+  holiday: '<path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01"/><path d="M22 8h.01"/><path d="M15 2h.01"/><path d="M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11c-.11.7-.72 1.22-1.43 1.22H17"/><path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7"/><path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z"/>',
+  // briefcase
+  business_trip: '<path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/>',
+  // thermometer
+  sick: '<path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/>',
+  // calendar-x
+  other: '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="m14 14-4 4"/><path d="m10 14 4 4"/>',
+};
+
+// Die heute laufende Abwesenheit; eine, die Arbeit blockiert, geht einer
+// Dienstreise vor (wie currentAbsence in der TUI).
+function currentAbsence(today) {
+  const running = absencesCoveringDate(today);
+  return running.find(a => a.type !== "business_trip") || running[0] || null;
+}
+
+let absenceNavDefaultIcon = null; // das Flugzeug aus index.html, beim ersten Aufruf gemerkt
+
+function updateAbsenceNav() {
+  const item = document.querySelector('.nav-item[data-view="absences"]');
+  if (!item) return;
+  const icon = item.querySelector(".nav-icon svg");
+  if (absenceNavDefaultIcon === null && icon) absenceNavDefaultIcon = icon.innerHTML;
+  let dot = item.querySelector(".nav-absence-dot");
+  if (!dot) {
+    dot = document.createElement("span");
+    dot.className = "nav-absence-dot";
+    item.appendChild(dot);
+  }
+
+  const a = currentAbsence(todayISO());
+  for (const t of Object.keys(ABSENCE_TYPE_LABEL)) item.classList.toggle("abs-" + t, !!a && a.type === t);
+  item.classList.toggle("abs-running", !!a);
+  if (icon) icon.innerHTML = (a && ABSENCE_NAV_ICON[a.type]) || absenceNavDefaultIcon || "";
+  item.title = a
+    ? `${ABSENCE_TYPE_LABEL[a.type] || a.type}${a.label ? " · " + a.label : ""} · bis ${formatAbsenceDate(a.end_date)}`
+    : "";
+}
+
 // ---------- Absence date arithmetic ----------
 // All of these work on ISO strings ("YYYY-MM-DD") and go through local
 // midnight Dates. Distances use Math.round so a DST-shifted 23/25-hour day
@@ -1244,6 +1295,7 @@ function flashICalButton(btn, text) {
 async function reloadAbsences() {
   state.absences = await api.listAbsences();
   renderAbsences();
+  updateAbsenceNav();
 }
 
 function renderAbsences() {

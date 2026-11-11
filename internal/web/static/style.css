@@ -229,6 +229,31 @@ strong, b { font-weight: 600; }
   flex-shrink: 0;
 }
 .nav-icon svg { width: 22px; height: 22px; }
+/* Laufende Abwesenheit am Nav-Eintrag "Abwesenheiten" (updateAbsenceNav):
+   Icon und Punkt in der Typfarbe. Ist der Eintrag aktiv, behält das Icon den
+   Akzent; der Punkt bleibt in der Typfarbe, er ist die Information. */
+.nav-absence-dot {
+  display: none;
+  width: 7px;
+  height: 7px;
+  margin-left: auto;
+  margin-right: 4px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--text-muted);
+}
+.nav-item.abs-running .nav-absence-dot { display: block; }
+.nav-item.abs-vacation      .nav-icon { color: var(--absence-vacation-fg); }
+.nav-item.abs-vacation      .nav-absence-dot { background: var(--absence-vacation-fg); }
+.nav-item.abs-holiday       .nav-icon { color: var(--absence-holiday-fg); }
+.nav-item.abs-holiday       .nav-absence-dot { background: var(--absence-holiday-fg); }
+.nav-item.abs-business_trip .nav-icon { color: var(--absence-business_trip-fg); }
+.nav-item.abs-business_trip .nav-absence-dot { background: var(--absence-business_trip-fg); }
+.nav-item.abs-sick          .nav-icon { color: var(--absence-sick-fg); }
+.nav-item.abs-sick          .nav-absence-dot { background: var(--absence-sick-fg); }
+.nav-item.abs-other         .nav-icon { color: var(--text-muted); }
+.nav-item.abs-other         .nav-absence-dot { background: var(--text-muted); }
+.nav-item.active[class*="abs-"] .nav-icon { color: var(--accent); }
 .nav-icon { position: relative; }
 .today-icon-day {
   position: absolute;

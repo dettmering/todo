@@ -450,6 +450,13 @@ md2pdf den druckenden Bereich eines Blattes bemaßt.
 * Gruppen wie in der TUI: **Laufend**, **Bevorstehend**, **Vergangen (Jahr)**.
   Laufende Abwesenheiten stehen in ihrer eigenen Gruppe und brauchen daher
   keine Hinterlegung.
+* Seitenleiste: Läuft heute eine Abwesenheit, trägt der Nav-Eintrag
+  „Abwesenheiten" rechts einen 7-px-Punkt in der `-fg`-Typfarbe, und das Icon
+  wechselt in derselben Farbe zum Motiv des Typs: Palme (Urlaub),
+  Partytröte (Feiertag), Koffer (Dienstreise), Thermometer (Krankheit),
+  Kalender mit Kreuz (Sonstiges). Eine Abwesenheit, die Arbeit blockiert, geht
+  einer Dienstreise vor. Ist der Eintrag aktiv, steht das Icon im Akzent; der
+  Punkt behält die Typfarbe.
 
 ### 7.9 Zeitleiste (12 Wochen)
 
