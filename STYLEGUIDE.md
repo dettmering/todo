@@ -447,8 +447,9 @@ md2pdf den druckenden Bereich eines Blattes bemaßt.
   ein Wort). Die Spalte ist 132 px breit, damit „Dienstreise" nicht umbricht.
 * Zeitraum in Mono 13 px, Metazeile („12 Tage · beginnt in einer Woche") in
   Mono 12 px, gemischt.
-* Die laufende Abwesenheit liegt auf `--hover` mit `--radius` — neutral, nicht
-  im Akzent: sie ist eine Ortsmarke, kein Signal.
+* Gruppen wie in der TUI: **Laufend**, **Bevorstehend**, **Vergangen (Jahr)**.
+  Laufende Abwesenheiten stehen in ihrer eigenen Gruppe und brauchen daher
+  keine Hinterlegung.
 
 ### 7.9 Zeitleiste (12 Wochen)
 

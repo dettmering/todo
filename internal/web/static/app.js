@@ -859,8 +859,7 @@ async function refresh({ epicsAreFresh = false } = {}) {
   if (state.view.kind === "absences") {
     applySidebarCounts(await api.counts());
     renderSidebar();
-    state.absences = await api.listAbsences();
-    renderAbsences();
+    await reloadAbsences();
     await renderShareLinks();
     return;
   }
@@ -1240,6 +1239,13 @@ function flashICalButton(btn, text) {
   icalCopyTimer = setTimeout(() => { btn.textContent = "iCal"; }, 1600);
 }
 
+// Liste neu laden und zeichnen — nach dem Öffnen der Ansicht und nach jeder
+// Änderung.
+async function reloadAbsences() {
+  state.absences = await api.listAbsences();
+  renderAbsences();
+}
+
 function renderAbsences() {
   const list = document.getElementById("absence-list");
   if (!list) return;
@@ -1250,17 +1256,20 @@ function renderAbsences() {
     list.innerHTML = `<p class="absence-empty">Noch keine Abwesenheiten hinterlegt.</p>`;
     return;
   }
-  // Upcoming/current (end today or later) sorted soonest-first; past below,
-  // most-recent-first — mirroring the grouped layout of the "Demnächst" view.
-  // This is the maintenance view: it shows everything, including absences past
-  // the timeline's twelve-week window (the rail above simply omits those).
-  const upcoming = state.absences.filter(a => a.end_date >= today).sort((a, b) => a.start_date.localeCompare(b.start_date));
+  // Wie in der TUI drei Gruppen: laufend und bevorstehend nach Beginn
+  // aufsteigend, vergangene darunter, die jüngste zuerst. Das ist die
+  // Pflegeansicht: sie zeigt alles, auch Abwesenheiten jenseits des
+  // Zwölf-Wochen-Fensters der Zeitleiste (die Schiene lässt sie einfach weg).
+  const byStart = (a, b) => a.start_date.localeCompare(b.start_date);
+  const running = state.absences.filter(a => a.start_date <= today && a.end_date >= today).sort(byStart);
+  const upcoming = state.absences.filter(a => a.start_date > today).sort(byStart);
   const past = state.absences.filter(a => a.end_date < today).sort((a, b) => b.start_date.localeCompare(a.start_date));
 
   // Past absences are read-only (no edit button); the API already limits them
   // to the current year.
+  if (running.length) appendAbsenceGroup(list, "Laufend", running, "", today, true);
   if (upcoming.length) appendAbsenceGroup(list, "Bevorstehend", upcoming, "", today, true);
-  if (past.length) appendAbsenceGroup(list, "Vergangen", past, "completed-header", today, false);
+  if (past.length) appendAbsenceGroup(list, `Vergangen (${today.slice(0, 4)})`, past, "completed-header", today, false);
 }
 
 function appendAbsenceGroup(list, label, items, headerClass, today, editable) {
@@ -1273,8 +1282,7 @@ function appendAbsenceGroup(list, label, items, headerClass, today, editable) {
 
 function createAbsenceRow(a, today, editable) {
   const row = document.createElement("div");
-  const active = a.start_date <= today && a.end_date >= today;
-  row.className = "absence-row" + (active ? " active" : "");
+  row.className = "absence-row";
   row.dataset.id = a.id;
   const range = absenceRangeDE(a);
   // Keep the grid column for edit even when read-only, so delete stays aligned.
@@ -1311,8 +1319,7 @@ function createAbsenceRow(a, today, editable) {
   row.querySelector(".absence-delete").addEventListener("click", async () => {
     if (!confirm("Abwesenheit wirklich löschen?")) return;
     await api.deleteAbsence(a.id);
-    state.absences = await api.listAbsences();
-    renderAbsences();
+    await reloadAbsences();
   });
   return row;
 }
@@ -1384,8 +1391,7 @@ function wireAbsenceDialog() {
         await api.createAbsence(body);
       }
       dlg.close();
-      state.absences = await api.listAbsences();
-      renderAbsences();
+      await reloadAbsences();
     } catch (err) {
       showAbsenceDialogError(err.message);
     }
@@ -1398,8 +1404,7 @@ function wireAbsenceDialog() {
     try {
       await api.deleteAbsence(absenceDialogState.id);
       dlg.close();
-      state.absences = await api.listAbsences();
-      renderAbsences();
+      await reloadAbsences();
     } catch (err) {
       showAbsenceDialogError(err.message);
     }

@@ -1989,13 +1989,6 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
   border-bottom: 1px solid var(--border);
 }
 .absence-row:hover { background: var(--hover); }
-/* Die laufende Abwesenheit wird neutral grau hinterlegt, nicht in der
-   Akzentfarbe — sie ist eine Ortsmarke, kein Signal. */
-.absence-row.active {
-  background: var(--hover);
-  border-radius: var(--radius);
-}
-.absence-row.active:hover { background: var(--hover); }
 .absence-type {
   font-family: var(--font-sans);
   font-size: 12px;
@@ -2037,7 +2030,6 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
      passt. */
   overflow-wrap: break-word;
 }
-.absence-row.active .absence-comment { color: var(--text-secondary); }
 .absence-when {
   display: flex;
   flex-direction: column;
@@ -2060,7 +2052,6 @@ dialog.task-modal::backdrop { background: rgba(21, 23, 28, 0.42); }
   color: var(--text-muted);
   white-space: nowrap;
 }
-.absence-row.active .absence-meta { color: var(--text-secondary); }
 
 /* Nicht erst am Telefon: im Hochkant-Tablet steht die 242px-Sidebar daneben,
    die Zeile ist dort genauso eng wie auf einem 400px-Display. Ab hier zerfaellt
