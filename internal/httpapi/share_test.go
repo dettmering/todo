@@ -115,8 +115,13 @@ func TestBuildAbsencesSharePage_StatusLine(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			out := buildAbsencesSharePage(nil, c.status, c.person, shareToday, domain.LocalDate{}, shareUpdated)
-			if !strings.Contains(out, c.want) {
+			if !strings.Contains(out, c.want+`</div>`) {
 				t.Errorf("missing status line %q in:\n%s", c.want, out)
+			}
+			// The tab title repeats the status sentence, so a pinned or
+			// backgrounded tab answers the question without being opened.
+			if !strings.Contains(out, `<title>`+c.want+`</title>`) {
+				t.Errorf("title should be %q in:\n%s", c.want, out)
 			}
 		})
 	}
